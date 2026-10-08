@@ -6,7 +6,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
 
-use crate::builtins;
+use crate::{builtins, desktops, detect};
 
 const ARCH_FILES: &[(&str, &str)] = &[
     ("base", include_str!("../../../catalog/arch/base.toml")),
@@ -59,6 +59,65 @@ fn default_mode() -> u32 {
     0o644
 }
 
+/// A file condition, read through the planner's current-file reader. Holds
+/// when the file is readable and, if given, `contains` appears in it and it
+/// equals `content` (a unit masked via /dev/null reads as `content = ""`).
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct FileCheck {
+    pub path: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub contains: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub content: Option<String>,
+}
+
+impl FileCheck {
+    pub fn holds(&self, text: Option<&str>) -> bool {
+        text.is_some_and(|t| {
+            self.contains.as_deref().is_none_or(|c| t.contains(c)) && self.content.as_deref().is_none_or(|c| t == c)
+        })
+    }
+}
+
+/// A root or user command: either a bare argv array or a table with
+/// `when` tags and `unless` checks (all must hold to skip it as done).
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(from = "CommandRepr")]
+pub struct Command {
+    pub argv: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub when: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub unless: Vec<FileCheck>,
+}
+
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum CommandRepr {
+    Argv(Vec<String>),
+    Full(FullCommand),
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct FullCommand {
+    argv: Vec<String>,
+    #[serde(default)]
+    when: Vec<String>,
+    #[serde(default)]
+    unless: Vec<FileCheck>,
+}
+
+impl From<CommandRepr> for Command {
+    fn from(r: CommandRepr) -> Self {
+        match r {
+            CommandRepr::Argv(argv) => Command { argv, when: vec![], unless: vec![] },
+            CommandRepr::Full(FullCommand { argv, when, unless }) => Command { argv, when, unless },
+        }
+    }
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Module {
@@ -98,9 +157,10 @@ pub struct Module {
     #[serde(default)]
     pub files: Vec<FileSpec>,
     #[serde(default)]
-    pub root_commands: Vec<Vec<String>>,
+    pub root_commands: Vec<Command>,
+    /// Run as the user; `unless` paths may start with `~/`.
     #[serde(default)]
-    pub user_commands: Vec<Vec<String>>,
+    pub user_commands: Vec<Command>,
     /// Computed module expanded from detected facts (see `builtins`).
     #[serde(default)]
     pub builtin: Option<String>,
@@ -177,6 +237,7 @@ impl Catalog {
     fn validate(&self) -> Result<()> {
         let mut ids = BTreeSet::new();
         let profile_ids: BTreeSet<_> = self.profiles.iter().map(|p| p.id.as_str()).collect();
+        let desktop_ids: BTreeSet<String> = desktops::all()?.into_iter().map(|d| d.id).collect();
         for m in &self.modules {
             if !ids.insert(m.id.as_str()) {
                 bail!("duplicate module id `{}`", m.id);
@@ -199,8 +260,28 @@ impl Catalog {
             if let Some(f) = m.files.iter().find(|f| !f.path.starts_with('/')) {
                 bail!("module `{}` writes non-absolute path `{}`", m.id, f.path);
             }
-            if m.root_commands.iter().chain(&m.user_commands).any(Vec::is_empty) {
+            if m.root_commands.iter().chain(&m.user_commands).any(|c| c.argv.is_empty()) {
                 bail!("module `{}` has an empty command", m.id);
+            }
+            for c in &m.conflicts {
+                if !self.module(c).is_some_and(|o| o.conflicts.contains(&m.id)) {
+                    bail!("module `{}` conflicts with `{c}`, but not the other way round", m.id);
+                }
+            }
+            let commands = m.root_commands.iter().chain(&m.user_commands);
+            for tag in m.when.iter().chain(commands.clone().flat_map(|c| &c.when)) {
+                let bare = tag.strip_prefix('!').unwrap_or(tag);
+                let desktop_ok = bare.strip_prefix("desktop:").is_none_or(|id| desktop_ids.contains(id));
+                if !detect::known_tag(bare) || !desktop_ok {
+                    bail!("module `{}` uses unknown `when` tag `{tag}`", m.id);
+                }
+            }
+            let root_paths = m.root_commands.iter().flat_map(|c| &c.unless).map(|u| (u, false));
+            let user_paths = m.user_commands.iter().flat_map(|c| &c.unless).map(|u| (u, true));
+            for (u, user) in root_paths.chain(user_paths) {
+                if !(u.path.starts_with('/') || user && u.path.starts_with("~/")) {
+                    bail!("module `{}` checks non-absolute path `{}`", m.id, u.path);
+                }
             }
         }
         Ok(())
@@ -235,5 +316,50 @@ mod tests {
         let profiles = "[[profile]]\nid = \"p\"\nname = \"P\"\ndescription = \"\"\n";
         let err = Catalog::from_sources("t", &[("x", file)], profiles).unwrap_err();
         assert!(err.to_string().contains("unknown module `missing`"));
+    }
+
+    const PROFILES: &str = "[[profile]]\nid = \"p\"\nname = \"P\"\ndescription = \"\"\n";
+
+    fn load(modules: &str) -> Result<Catalog> {
+        let file = format!("[category]\nid = \"x\"\nname = \"X\"\ndescription = \"\"\n{modules}");
+        Catalog::from_sources("t", &[("x", &file)], PROFILES)
+    }
+
+    #[test]
+    fn rejects_unknown_tags_and_one_sided_conflicts() {
+        let m = "[[module]]\nid = \"a\"\nname = \"A\"\ndescription = \"\"\n";
+        let err = load(&format!("{m}when = [\"labtop\"]")).unwrap_err();
+        assert!(err.to_string().contains("unknown `when` tag"));
+        assert!(load(&format!("{m}when = [\"!desktop:nope\"]")).is_err());
+        assert!(load(&format!("{m}when = [\"!laptop\", \"desktop:plasma\", \"gpu:nvidia\"]")).is_ok());
+        let b = "[[module]]\nid = \"b\"\nname = \"B\"\ndescription = \"\"\n";
+        let err = load(&format!("{m}conflicts = [\"b\"]\n{b}")).unwrap_err();
+        assert!(err.to_string().contains("not the other way round"));
+    }
+
+    #[test]
+    fn commands_accept_argv_or_guarded_tables() {
+        let m = r#"
+            [[module]]
+            id = "a"
+            name = "A"
+            description = ""
+            root_commands = [["true"], { argv = ["ufw", "enable"], when = ["kdeconnect"], unless = [{ path = "/etc/ufw/ufw.conf", contains = "ENABLED=yes" }] }]
+            user_commands = [{ argv = ["x"], unless = [{ path = "~/.x" }] }]
+        "#;
+        let c = load(m).unwrap();
+        let m = c.module("a").unwrap();
+        assert_eq!(m.root_commands[0].argv, ["true"]);
+        let guarded = &m.root_commands[1];
+        assert!(guarded.unless[0].holds(Some("ENABLED=yes\n")) && !guarded.unless[0].holds(Some("ENABLED=no")));
+        assert!(!guarded.unless[0].holds(None));
+        let bad = r#"
+            [[module]]
+            id = "a"
+            name = "A"
+            description = ""
+            root_commands = [{ argv = ["x"], unless = [{ path = "~/.x" }] }]
+        "#;
+        assert!(load(bad).unwrap_err().to_string().contains("non-absolute"));
     }
 }

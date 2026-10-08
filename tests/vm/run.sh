@@ -15,7 +15,7 @@ set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
 WORK="$HERE/.work"
-ISO="${ISO:-$(ls -1 "$WORK"/archlinux-*-x86_64.iso 2>/dev/null | tail -1)}"
+ISO="${ISO:-$(ls -1 "$WORK"/archlinux*-x86_64.iso 2>/dev/null | tail -1)}"
 DESKTOP="${DESKTOP:-gnome}"
 PROFILE="${PROFILE:-desktop}"
 MEM_INSTALL="${MEM_INSTALL:-2048}"

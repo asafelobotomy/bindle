@@ -1,5 +1,9 @@
 //! Modules whose concrete steps depend on detected hardware.
 
+mod gpu;
+
+use std::collections::BTreeSet;
+
 use crate::catalog::FileSpec;
 use crate::desktops;
 use crate::detect::Facts;
@@ -9,10 +13,17 @@ pub const KNOWN: &[&str] = &["aur-helper", "desktop", "gpu", "microcode", "zram"
 /// AUR package bootstrapped by the `aur-helper` builtin.
 pub const AUR_HELPER: &str = "paru-bin";
 
+/// Repo packages builtins can add outside desktops.toml, for
+/// scripts/check-packages.py (which parses these const lists).
+pub const PACKAGES: &[&str] = &["intel-ucode", "amd-ucode", "zram-generator"];
+pub use gpu::PACKAGES as GPU_PACKAGES;
+
 #[derive(Debug, Default, Clone)]
 pub struct Expansion {
     pub packages: Vec<String>,
     pub files: Vec<FileSpec>,
+    /// systemd units to enable.
+    pub enable: Vec<String>,
     pub aur_bootstrap: bool,
     pub rebuild_initramfs: bool,
     pub notes: Vec<String>,
@@ -28,7 +39,7 @@ pub fn expand(name: &str, ctx: &Ctx) -> Expansion {
     match name {
         "aur-helper" => aur_helper(ctx.facts),
         "desktop" => desktop(ctx.facts),
-        "gpu" => gpu(ctx),
+        "gpu" => gpu::gpu(ctx),
         "microcode" => microcode(ctx.facts),
         "zram" => zram(ctx.facts),
         _ => Expansion::default(),
@@ -56,6 +67,8 @@ fn desktop(f: &Facts) -> Expansion {
         }
         e.notes.extend(d.notes.iter().map(|n| format!("{}: {n}", d.name)));
     }
+    let mut seen = BTreeSet::new();
+    e.packages.retain(|p| seen.insert(p.clone()));
     e
 }
 
@@ -68,53 +81,6 @@ fn microcode(f: &Facts) -> Expansion {
         }
     };
     Expansion { rebuild_initramfs: !f.installed.contains(pkg), packages: vec![pkg.into()], ..Default::default() }
-}
-
-fn gpu(ctx: &Ctx) -> Expansion {
-    let mut e = Expansion::default();
-    let lib32 = |e: &mut Expansion, pkgs: &[&str]| {
-        if ctx.multilib {
-            e.packages.extend(pkgs.iter().map(|p| format!("lib32-{p}")));
-        }
-    };
-    for gpu in &ctx.facts.gpus {
-        match gpu.as_str() {
-            "amd" => {
-                e.packages.extend(["mesa", "vulkan-radeon"].map(String::from));
-                lib32(&mut e, &["mesa", "vulkan-radeon"]);
-            }
-            "intel" => {
-                e.packages.extend(["mesa", "vulkan-intel", "intel-media-driver"].map(String::from));
-                lib32(&mut e, &["mesa", "vulkan-intel"]);
-            }
-            "nvidia" => {
-                e.packages.extend(["nvidia-open-dkms", "nvidia-utils"].map(String::from));
-                e.packages.extend(kernel_headers(ctx.facts));
-                lib32(&mut e, &["nvidia-utils"]);
-                e.notes.push(
-                    "nvidia-open needs a Turing (GTX 16xx / RTX 20xx) or newer GPU; older cards need a legacy AUR driver."
-                        .into(),
-                );
-            }
-            "virtual" => {
-                e.packages.push("mesa".into());
-                e.notes.push("Virtual GPU detected: installing Mesa only.".into());
-            }
-            _ => {}
-        }
-    }
-    if ctx.facts.gpus.is_empty() {
-        e.notes.push("No GPU detected; skipping graphics drivers.".into());
-    }
-    e.packages.dedup();
-    e
-}
-
-fn kernel_headers(f: &Facts) -> Vec<String> {
-    let kernels = ["linux", "linux-lts", "linux-zen", "linux-hardened"];
-    let found: Vec<String> =
-        kernels.iter().filter(|k| f.installed.contains(**k)).map(|k| format!("{k}-headers")).collect();
-    if found.is_empty() { vec!["linux-headers".into()] } else { found }
 }
 
 /// Size expression for `zram-size`, ported from XZram's recommendation matrix.
@@ -200,15 +166,6 @@ mod tests {
     }
 
     #[test]
-    fn gpu_adds_lib32_only_with_multilib() {
-        let f = Facts { gpus: vec!["amd".into()], ..Default::default() };
-        let without = expand("gpu", &Ctx { facts: &f, multilib: false });
-        let with = expand("gpu", &Ctx { facts: &f, multilib: true });
-        assert!(!without.packages.iter().any(|p| p.starts_with("lib32-")));
-        assert!(with.packages.contains(&"lib32-vulkan-radeon".to_string()));
-    }
-
-    #[test]
     fn desktop_essentials_follow_hardware() {
         let mut f = Facts { desktops: vec!["hyprland".into()], bluetooth: true, ..Default::default() };
         let e = expand("desktop", &Ctx { facts: &f, multilib: false });
@@ -220,11 +177,13 @@ mod tests {
     }
 
     #[test]
-    fn nvidia_headers_follow_installed_kernels() {
-        let mut f = Facts { gpus: vec!["nvidia".into()], ..Default::default() };
-        f.installed.insert("linux-zen".into());
-        let e = expand("gpu", &Ctx { facts: &f, multilib: false });
-        assert!(e.packages.contains(&"linux-zen-headers".to_string()));
-        assert!(!e.packages.contains(&"linux-headers".to_string()));
+    fn package_list_covers_microcode_and_zram() {
+        for cpu in ["intel", "amd"] {
+            let f = Facts { cpu_vendor: cpu.into(), ..Default::default() };
+            let e = expand("microcode", &Ctx { facts: &f, multilib: false });
+            assert!(e.packages.iter().all(|p| PACKAGES.contains(&p.as_str())));
+        }
+        let e = expand("zram", &Ctx { facts: &Facts::default(), multilib: false });
+        assert!(e.packages.iter().all(|p| PACKAGES.contains(&p.as_str())));
     }
 }

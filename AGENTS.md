@@ -14,7 +14,7 @@ Fresh-install setup wizard for Linux (Arch first). Rust workspace; TUI-first; Ap
 | `install.sh` | curl bootstrap for the live ISO → `bindle iso` |
 | `crates/bindle-cli/src/iso.rs`, `tui/iso.rs` | live-ISO installer flow; preset in `bindle-core/src/install/preset.rs` |
 | `tests/vm/` | QEMU end-to-end install test (`run.sh`, guest scripts); artifacts in git-ignored `.work/` |
-| `docs/` | DESIGN (why), CATALOG (schema), ROADMAP, ISO, APPLY, VM-TEST |
+| `docs/` | DESIGN (why), CATALOG (schema), ROADMAP, ISO, ARCHINSTALL (detection, first login, welcome apps), APPLY, VM-TEST |
 
 ## Verify
 

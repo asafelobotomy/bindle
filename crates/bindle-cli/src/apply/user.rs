@@ -7,11 +7,7 @@ use std::process::Command;
 
 use anyhow::{Context, Result, bail};
 
-use super::sys::shell_words;
-
-fn valid_pkg(name: &str) -> bool {
-    !name.is_empty() && name.chars().all(|c| c.is_ascii_alphanumeric() || "@._+-".contains(c))
-}
+use super::sys::{shell_words, valid_name};
 
 pub fn run(argv: &[String], fake: bool) -> Result<()> {
     let shown = shell_words(argv);
@@ -29,7 +25,7 @@ pub fn run(argv: &[String], fake: bool) -> Result<()> {
 
 /// Build an AUR package as the user; returns the package files to install.
 pub fn build_aur(package: &str, fake: bool) -> Result<Vec<String>> {
-    if !valid_pkg(package) {
+    if !valid_name(package) {
         bail!("invalid package name `{package}`");
     }
     let cache = env::var_os("XDG_CACHE_HOME")
@@ -65,7 +61,7 @@ pub fn build_aur(package: &str, fake: bool) -> Result<Vec<String>> {
 
 /// Install AUR packages with the user's AUR helper (it asks sudo itself).
 pub fn install_aur(helper: &str, packages: &[String], fake: bool) -> Result<()> {
-    if let Some(p) = packages.iter().find(|p| !valid_pkg(p)) {
+    if let Some(p) = packages.iter().find(|p| !valid_name(p)) {
         bail!("invalid package name `{p}`");
     }
     let mut argv: Vec<String> = match helper {

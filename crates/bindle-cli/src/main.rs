@@ -1,9 +1,11 @@
 mod apply;
 mod firstlogin;
+mod firstlogin_cmd;
 mod iso;
 mod notify;
 mod print;
 mod selection;
+mod session;
 mod terminal;
 mod tui;
 mod welcome;
@@ -31,11 +33,13 @@ enum Cmd {
     },
     /// Show detected hardware and system facts.
     Detect {
+        /// Print the facts as JSON.
         #[arg(long)]
         json: bool,
     },
     /// Show what archinstall set up (from its log, or rebuilt from pacman.log).
     Archinstall {
+        /// Print the recovered install as JSON.
         #[arg(long)]
         json: bool,
     },
@@ -45,6 +49,7 @@ enum Cmd {
     Plan {
         #[command(flatten)]
         sel: SelArgs,
+        /// Print the resolved plan as JSON.
         #[arg(long)]
         json: bool,
     },
@@ -61,9 +66,12 @@ enum Cmd {
     },
     /// Restore files from a pre-apply snapshot (latest by default).
     Undo {
+        /// Snapshot to restore (see --list); the latest when omitted.
         id: Option<String>,
+        /// List snapshots instead of restoring.
         #[arg(long)]
         list: bool,
+        /// Don't ask for confirmation.
         #[arg(long, short)]
         yes: bool,
         #[arg(long, hide = true)]
@@ -131,6 +139,7 @@ enum FirstLoginCmd {
     Remove {
         #[arg(long, default_value = "/")]
         root: PathBuf,
+        /// Also remove the binary, launcher and icon.
         #[arg(long)]
         purge: bool,
     },
@@ -143,9 +152,14 @@ enum FirstLoginCmd {
     Run {
         #[arg(long, hide = true)]
         in_terminal: bool,
+        /// Launch-lock token to release (passed from the launching process).
+        #[arg(long, hide = true)]
+        lock: Option<String>,
     },
     /// Turn off desktop welcome apps (GNOME tour, KDE Welcome Center, Hyprland
-    /// welcome) so Bindle is the first-login welcome (root; used by `bindle iso`).
+    /// welcome) so Bindle is the first-login welcome. As root: system-wide (and
+    /// users' homes with --root, used by `bindle iso`); as a user: your own
+    /// Hyprland config.
     QuietWelcome {
         #[arg(long, default_value = "/")]
         root: PathBuf,
@@ -160,6 +174,9 @@ enum FirstLoginCmd {
         /// Download URL of the bindle binary.
         #[arg(long)]
         url: String,
+        /// Expected SHA-256 of the binary; the command verifies it before running.
+        #[arg(long, value_name = "HEX")]
+        sha256: Option<String>,
     },
 }
 
@@ -196,7 +213,26 @@ fn read_current(path: &str) -> Option<String> {
     std::fs::read_to_string(path).ok()
 }
 
+/// `bindle list | head` closes stdout early; `println!` then panics (and the
+/// release build aborts). Treat that like SIGPIPE would: quietly stop.
+fn quiet_broken_pipe() {
+    let default = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        let msg = info
+            .payload()
+            .downcast_ref::<String>()
+            .map(String::as_str)
+            .or_else(|| info.payload().downcast_ref::<&str>().copied())
+            .unwrap_or_default();
+        if msg.starts_with("failed printing to std") && msg.contains("Broken pipe") {
+            std::process::exit(0);
+        }
+        default(info);
+    }));
+}
+
 fn main() -> Result<()> {
+    quiet_broken_pipe();
     let cli = Cli::parse();
     let command = cli.command.unwrap_or(Cmd::Wizard { sandbox: None });
     // Commands that don't need detection (and may run as root).
@@ -204,7 +240,9 @@ fn main() -> Result<()> {
         Cmd::Helper { log, root, fake_commands } => {
             return apply::helper::serve(apply::helper::HelperOpts { root, fake_commands, log });
         }
-        Cmd::FirstLogin { action } if !matches!(action, FirstLoginCmd::Run { .. }) => return first_login(action),
+        Cmd::FirstLogin { action } if !matches!(action, FirstLoginCmd::Run { .. }) => {
+            return firstlogin_cmd::dispatch(action);
+        }
         Cmd::Undo { id, list, yes, sandbox } => return apply::undo(id, list, &apply::Options { yes, sandbox }),
         _ => {}
     }
@@ -220,11 +258,12 @@ fn main() -> Result<()> {
             wizard(&catalog, &facts, sandbox).map(drop)
         }
         Cmd::Iso { desktop, profile, yes, dry_run, config, creds, silent, keep_welcome, workdir } => iso::run(
+            &catalog,
             &facts,
             iso::IsoOpts { desktop, profile, yes, dry_run, config, creds, silent, keep_welcome, workdir },
         ),
-        Cmd::FirstLogin { action: FirstLoginCmd::Run { in_terminal } } => {
-            first_login_run(&catalog, &facts, in_terminal)
+        Cmd::FirstLogin { action: FirstLoginCmd::Run { in_terminal, lock } } => {
+            firstlogin_cmd::run(&catalog, &facts, in_terminal, lock)
         }
         Cmd::Detect { json } => {
             if json {
@@ -292,86 +331,6 @@ fn wizard(catalog: &Catalog, facts: &Facts, sandbox: Option<PathBuf>) -> Result<
         Some(sel) => apply_selection(catalog, facts, &sel, apply::Options { yes: false, sandbox }),
         None => Ok(false),
     }
-}
-
-fn first_login(action: FirstLoginCmd) -> Result<()> {
-    let lines = match action {
-        FirstLoginCmd::Install { root, no_tty_hook } => firstlogin::install(&root, !no_tty_hook)?,
-        FirstLoginCmd::Remove { root, purge } => firstlogin::remove(&root, purge)?,
-        FirstLoginCmd::Status { root } => firstlogin::status(&root),
-        FirstLoginCmd::Snippet { url } => vec![firstlogin::archinstall_snippet(&url)],
-        FirstLoginCmd::Watch => return firstlogin::watch(),
-        FirstLoginCmd::QuietWelcome { root } => {
-            if root == std::path::Path::new("/") && !apply::sys::is_root() {
-                bail!("needs root: sudo bindle first-login quiet-welcome");
-            }
-            welcome::quiet(&root)?
-        }
-        FirstLoginCmd::Dismiss => {
-            firstlogin::mark_done()?;
-            vec!["Bindle won't open or remind you at login again. Run `bindle` any time.".into()]
-        }
-        FirstLoginCmd::Run { .. } => unreachable!("needs detection"),
-    };
-    lines.iter().for_each(|l| println!("{l}"));
-    Ok(())
-}
-
-fn first_login_run(catalog: &Catalog, facts: &Facts, in_terminal: bool) -> Result<()> {
-    if firstlogin::is_done() || apply::sys::is_root() {
-        return Ok(());
-    }
-    let seen = firstlogin::is_seen();
-    if !std::io::stdin().is_terminal() {
-        if in_terminal {
-            bail!("no terminal attached");
-        }
-        if !firstlogin::claim_launch() {
-            return Ok(()); // already handled in this session (autostart + user service)
-        }
-        if seen {
-            // Later logins get a reminder, not the wizard. Without a notification
-            // server, fall back to opening the wizard so the reminder isn't lost.
-            match notify::remind() {
-                Ok(notify::Choice::Open) | Err(_) => {}
-                Ok(notify::Choice::Dismiss) => {
-                    firstlogin::release_launch();
-                    return firstlogin::mark_done();
-                }
-                Ok(notify::Choice::Ignored) => {
-                    firstlogin::release_launch();
-                    return Ok(());
-                }
-            }
-        } else {
-            // Open after the desktop's own welcome app, so Bindle ends up on top.
-            welcome::wait_for_welcome_apps();
-        }
-        let exe = std::env::current_exe()?.to_string_lossy().into_owned();
-        return terminal::spawn(&[exe, "first-login".into(), "run".into(), "--in-terminal".into()]).inspect_err(|_| {
-            firstlogin::release_launch();
-        });
-    }
-    if seen && !in_terminal {
-        // Console login after the first: a one-line reminder instead of the wizard.
-        println!(
-            "Bindle: this system isn't fully set up yet. Run `bindle` to continue, or `bindle first-login dismiss`."
-        );
-        return Ok(());
-    }
-    firstlogin::mark_seen()?;
-    let finished = wizard(catalog, facts, None)?;
-    if finished || !apply::confirm("Remind me at my next login?", true) {
-        firstlogin::mark_done()?;
-        println!("Bindle won't open or remind you again. Run `bindle` any time.");
-    } else {
-        println!("Bindle will remind you with a notification at your next login.");
-    }
-    if in_terminal {
-        firstlogin::release_launch();
-        apply::confirm("Press Enter to close.", true);
-    }
-    Ok(())
 }
 
 fn warn_distro(facts: &Facts) {

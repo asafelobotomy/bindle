@@ -5,4 +5,4 @@ Comment=Set up and optimise a fresh Linux install
 Exec=bindle
 Icon=bindle
 Terminal=true
-Categories=System;Settings;
+Categories=System;

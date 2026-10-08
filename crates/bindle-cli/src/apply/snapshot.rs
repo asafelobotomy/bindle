@@ -3,14 +3,15 @@
 //! the original files live in a root-only `files/` directory.
 
 use std::fs;
-use std::os::unix::fs::PermissionsExt;
+use std::io::ErrorKind;
+use std::os::unix::fs::{MetadataExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
 
 use super::protocol::SnapshotPlan;
-use super::sys::{host, now_id, now_rfc3339, write_atomic};
+use super::sys::{create_dirs, host, now_id, now_rfc3339, write_atomic, write_atomic_owned};
 
 pub const DIR: &str = "/var/lib/bindle/snapshots";
 
@@ -19,6 +20,8 @@ pub struct FileEntry {
     pub path: String,
     pub existed: bool,
     pub mode: Option<u32>,
+    #[serde(default)]
+    pub owner: Option<(u32, u32)>,
     pub stored: Option<String>,
 }
 
@@ -32,6 +35,9 @@ pub struct Manifest {
     pub units: Vec<String>,
     pub packages: Vec<String>,
     pub aur: Vec<String>,
+    /// Changes undo can't reverse (commands, group membership); shown to the user.
+    #[serde(default)]
+    pub manual: Vec<String>,
 }
 
 pub fn valid_id(id: &str) -> bool {
@@ -44,7 +50,7 @@ fn snapshot_dir(root: &Path, id: &str) -> PathBuf {
 
 pub fn create(root: &Path, plan: &SnapshotPlan) -> Result<Manifest> {
     let base = host(root, DIR);
-    fs::create_dir_all(&base)?;
+    create_dirs(&base)?;
     let mut id = now_id();
     let mut n = 1;
     while base.join(&id).exists() {
@@ -59,22 +65,7 @@ pub fn create(root: &Path, plan: &SnapshotPlan) -> Result<Manifest> {
 
     let mut files = Vec::new();
     for (i, path) in plan.files.iter().enumerate() {
-        let src = host(root, path);
-        let entry = match fs::metadata(&src) {
-            Ok(meta) if meta.is_file() => {
-                let stored = format!("{i}");
-                fs::copy(&src, files_dir.join(&stored)).with_context(|| format!("snapshot {path}"))?;
-                FileEntry {
-                    path: path.clone(),
-                    existed: true,
-                    mode: Some(meta.permissions().mode() & 0o7777),
-                    stored: Some(stored),
-                }
-            }
-            Ok(_) => bail!("{path} exists but is not a regular file"),
-            Err(_) => FileEntry { path: path.clone(), existed: false, mode: None, stored: None },
-        };
-        files.push(entry);
+        files.push(capture(root, &files_dir, path, &i.to_string())?);
     }
     let manifest = Manifest {
         id,
@@ -85,9 +76,48 @@ pub fn create(root: &Path, plan: &SnapshotPlan) -> Result<Manifest> {
         units: plan.units.clone(),
         packages: plan.packages.clone(),
         aur: plan.aur.clone(),
+        manual: plan.manual.clone(),
     };
     write_atomic(&dir.join("manifest.json"), serde_json::to_string_pretty(&manifest)?.as_bytes(), 0o644)?;
     Ok(manifest)
+}
+
+/// Record `path` as it is now: a copy if it exists, else "didn't exist".
+fn capture(root: &Path, files_dir: &Path, path: &str, stored: &str) -> Result<FileEntry> {
+    let src = host(root, path);
+    match fs::symlink_metadata(&src) {
+        Ok(meta) if meta.is_file() => {
+            fs::copy(&src, files_dir.join(stored)).with_context(|| format!("snapshot {path}"))?;
+            Ok(FileEntry {
+                path: path.to_string(),
+                existed: true,
+                mode: Some(meta.permissions().mode() & 0o7777),
+                owner: Some((meta.uid(), meta.gid())),
+                stored: Some(stored.to_string()),
+            })
+        }
+        Ok(_) => bail!("{path} exists but is not a regular file"),
+        Err(e) if e.kind() == ErrorKind::NotFound => {
+            Ok(FileEntry { path: path.to_string(), existed: false, mode: None, owner: None, stored: None })
+        }
+        Err(e) => Err(e).with_context(|| format!("snapshot {path}")),
+    }
+}
+
+/// Just before a file is written: if the snapshot saw it missing but it exists
+/// now (a package installed earlier in this apply ships it), store that copy,
+/// so undo restores the package's version instead of deleting it.
+pub fn capture_late(root: &Path, id: &str, path: &str) -> Result<()> {
+    let mut m = load(root, id)?;
+    let Some(i) = m.files.iter().position(|f| f.path == path && !f.existed) else {
+        return Ok(());
+    };
+    if !host(root, path).exists() {
+        return Ok(());
+    }
+    let dir = snapshot_dir(root, id);
+    m.files[i] = capture(root, &dir.join("files"), path, &i.to_string())?;
+    write_atomic(&dir.join("manifest.json"), serde_json::to_string_pretty(&m)?.as_bytes(), 0o644)
 }
 
 pub fn load(root: &Path, id: &str) -> Result<Manifest> {
@@ -120,11 +150,11 @@ pub fn restore_files(root: &Path, m: &Manifest) -> Result<Vec<String>> {
         match (&f.stored, f.existed) {
             (Some(stored), true) => {
                 let data = fs::read(dir.join(stored)).with_context(|| format!("read stored copy of {}", f.path))?;
-                write_atomic(&target, &data, f.mode.unwrap_or(0o644))?;
+                write_atomic_owned(&target, &data, f.mode.unwrap_or(0o644), f.owner)?;
                 done.push(format!("restored {}", f.path));
             }
             _ => {
-                if target.exists() {
+                if fs::symlink_metadata(&target).is_ok() {
                     fs::remove_file(&target).with_context(|| format!("remove {}", f.path))?;
                     done.push(format!("removed {}", f.path));
                 }
@@ -159,5 +189,13 @@ mod tests {
         assert_eq!(fs::read_to_string(root.join("etc/pacman.conf")).unwrap(), "original\n");
         assert!(!root.join("etc/new.conf").exists());
         assert!(load(&root, "../etc").is_err());
+
+        // A package created the file after the snapshot: undo keeps that version.
+        let m = create(&root, &plan).unwrap();
+        fs::write(root.join("etc/new.conf"), "from package\n").unwrap();
+        capture_late(&root, &m.id, "/etc/new.conf").unwrap();
+        fs::write(root.join("etc/new.conf"), "bindle\n").unwrap();
+        restore_files(&root, &load(&root, &m.id).unwrap()).unwrap();
+        assert_eq!(fs::read_to_string(root.join("etc/new.conf")).unwrap(), "from package\n");
     }
 }

@@ -3,16 +3,26 @@ on:
   push:
     branches: [main]
   pull_request:
+  schedule:
+    - cron: '17 6 * * 1' # weekly: catch packages renamed or dropped upstream
+
+permissions:
+  contents: read
 
 jobs:
   check:
     runs-on: ubuntu-latest
     container: archlinux:base-devel
     steps:
-      - run: pacman -Syu --noconfirm --needed rust git python
-      - uses: actions/checkout@v4
+      # multilib: the gaming modules use it, and Bindle enables it on the target.
+      - run: |
+          sed -i '/^#\[multilib\]/,/^#Include/ s/^#//' /etc/pacman.conf
+          pacman -Syu --noconfirm --needed rust rust-musl git python
+      - uses: actions/checkout@v5
       - run: cargo fmt --check
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - run: cargo test --workspace --locked
+      - name: Static build (the ISO binary)
+        run: cargo build --release --locked -p bindle-cli --target x86_64-unknown-linux-musl
       - run: bash -n install.sh && python -m py_compile packaging/archinstall/bindle_plugin.py
       - run: python scripts/check-packages.py

@@ -3,7 +3,7 @@
 use std::env;
 use std::fs;
 use std::io::{BufRead, BufReader, IsTerminal, Write};
-use std::os::unix::fs::PermissionsExt;
+use std::os::unix::fs::{DirBuilderExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 
@@ -29,10 +29,15 @@ fn helper_binary() -> Result<(PathBuf, Option<PathBuf>)> {
     if env::var_os("APPIMAGE").is_none() {
         return Ok((exe, None));
     }
-    let base = env::var_os("XDG_RUNTIME_DIR").map_or_else(env::temp_dir, PathBuf::from);
+    // A directory only this user can create in: never a guessable path in /tmp.
+    let base = env::var_os("XDG_RUNTIME_DIR")
+        .map(PathBuf::from)
+        .or_else(|| env::var_os("HOME").map(|h| PathBuf::from(h).join(".cache/bindle")))
+        .context("neither XDG_RUNTIME_DIR nor HOME is set")?;
+    fs::create_dir_all(&base)?;
     let dir = base.join(format!("bindle-helper-{}", std::process::id()));
-    fs::create_dir_all(&dir)?;
-    fs::set_permissions(&dir, fs::Permissions::from_mode(0o700))?;
+    let _ = fs::remove_dir_all(&dir);
+    fs::DirBuilder::new().mode(0o700).create(&dir).with_context(|| format!("create {}", dir.display()))?;
     let copy = dir.join("bindle");
     fs::copy(&exe, &copy).context("copy helper out of the AppImage")?;
     fs::set_permissions(&copy, fs::Permissions::from_mode(0o700))?;

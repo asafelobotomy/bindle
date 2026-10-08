@@ -53,7 +53,7 @@ extra=(); [[ "$(arg bindle_keep_welcome)" == 1 ]] && extra+=(--keep-welcome)
 echo "BINDLE-VM: guest start desktop=$desktop profile=$profile archinstall=$(archinstall --version 2>/dev/null)"
 cd /tmp || exit 1
 for f in archinstall-test.json creds-test.json firstboot-check.sh bindle-vm-check.service bindle-vm-diag.service; do
-    curl -fsSO "$base/$f" || { echo "BINDLE-VM: INSTALL FAILED (fetch $f)"; poweroff; }
+    curl -fsSO "$base/$f" || { echo "BINDLE-VM: INSTALL FAILED (fetch $f)"; poweroff; exit 1; }
 done
 
 if BINDLE_BASE_URL=$base bash <(curl -fsSL "$base/install.sh") \

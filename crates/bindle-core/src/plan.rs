@@ -6,7 +6,7 @@ use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
 
 use crate::builtins::{self, Ctx};
-use crate::catalog::{Catalog, FileSpec};
+use crate::catalog::{Catalog, Command, FileSpec};
 use crate::detect::Facts;
 
 #[derive(Debug, Clone, Default)]
@@ -177,14 +177,16 @@ pub fn resolve(
         files.extend(m.files.iter().map(|f| (id.clone(), f.clone())));
         units.extend(m.enable.iter().cloned());
         groups.extend(m.groups.iter().cloned());
-        root_cmds.extend(m.root_commands.iter().map(|c| (id.clone(), c.clone())));
-        user_cmds.extend(m.user_commands.iter().map(|c| (id.clone(), c.clone())));
+        let pending = |c: &&Command| facts.matches(&c.when).is_ok() && !already_done(c, facts, current_file);
+        root_cmds.extend(m.root_commands.iter().filter(pending).map(|c| (id.clone(), c.argv.clone())));
+        user_cmds.extend(m.user_commands.iter().filter(pending).map(|c| (id.clone(), c.argv.clone())));
         aur.extend(m.aur.iter().cloned());
         plan.notes.extend(m.notes.iter().map(|n| (id.clone(), n.clone())));
         if let Some(b) = &m.builtin {
             let e = builtins::expand(b, &ctx);
             packages.extend(e.packages);
             files.extend(e.files.into_iter().map(|f| (id.clone(), f)));
+            units.extend(e.enable);
             bootstrap |= e.aur_bootstrap;
             initramfs |= e.rebuild_initramfs;
             plan.notes.extend(e.notes.into_iter().map(|n| (id.clone(), n)));
@@ -213,8 +215,9 @@ pub fn resolve(
     if !units.is_empty() {
         plan.steps.push(Step::EnableUnits { units });
     }
+    let groups = dedup(groups.into_iter().filter(|g| !facts.user_groups.contains(g)));
     if !groups.is_empty() {
-        plan.steps.push(Step::AddToGroups { user: facts.user.clone(), groups: dedup(groups) });
+        plan.steps.push(Step::AddToGroups { user: facts.user.clone(), groups });
     }
     plan.steps.extend(root_cmds.into_iter().map(|(module, argv)| Step::RunAsRoot { module, argv }));
     if initramfs {
@@ -235,108 +238,24 @@ pub fn resolve(
     Ok(plan)
 }
 
+/// Every `unless` check holds, so the command's effect is already in place.
+/// `~/` paths resolve against the user's home (unknown home: not done).
+fn already_done(c: &Command, facts: &Facts, current_file: &dyn Fn(&str) -> Option<String>) -> bool {
+    !c.unless.is_empty()
+        && c.unless.iter().all(|u| {
+            let path = match u.path.strip_prefix("~/") {
+                Some(_) if facts.home.is_empty() => return false,
+                Some(rest) => format!("{}/{rest}", facts.home.trim_end_matches('/')),
+                None => u.path.clone(),
+            };
+            u.holds(current_file(&path).as_deref())
+        })
+}
+
 fn dedup(items: impl IntoIterator<Item = String>) -> Vec<String> {
     let mut seen = BTreeSet::new();
     items.into_iter().filter(|i| seen.insert(i.clone())).collect()
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn facts() -> Facts {
-        Facts {
-            distro_id: "arch".into(),
-            cpu_vendor: "amd".into(),
-            gpus: vec!["amd".into()],
-            ram_mib: 16000,
-            ssd: true,
-            virt: "none".into(),
-            user: "tester".into(),
-            ..Default::default()
-        }
-    }
-
-    fn plan(sel: Selection, f: &Facts) -> Result<Plan> {
-        resolve(&Catalog::arch().unwrap(), f, &sel, &|_| None)
-    }
-
-    #[test]
-    fn gaming_profile_enables_multilib_and_lib32_drivers() {
-        let p = plan(Selection { profile: Some("gaming".into()), ..Default::default() }, &facts()).unwrap();
-        let Step::EditPacmanConf { enable_repos, .. } = &p.steps[0] else { panic!("pacman edit first") };
-        assert_eq!(enable_repos, &["multilib"]);
-        let pkgs = p.steps.iter().find_map(|s| match s {
-            Step::InstallPackages { packages } => Some(packages),
-            _ => None,
-        });
-        let pkgs = pkgs.unwrap();
-        assert!(pkgs.contains(&"steam".into()) && pkgs.contains(&"lib32-vulkan-radeon".into()));
-        assert!(pkgs.contains(&"amd-ucode".into()));
-    }
-
-    #[test]
-    fn requires_are_pulled_in_and_reported() {
-        let sel = Selection { include: vec!["vscode".into()], ..Default::default() };
-        let p = plan(sel, &facts()).unwrap();
-        assert!(p.pulled_in.contains(&("aur-helper".into(), "vscode".into())));
-        assert!(p.steps.iter().any(|s| matches!(s, Step::BootstrapAurHelper { .. })));
-    }
-
-    #[test]
-    fn conflicts_are_rejected() {
-        let sel = Selection { include: vec!["ufw".into(), "firewalld".into()], ..Default::default() };
-        assert!(plan(sel, &facts()).unwrap_err().to_string().contains("conflicts"));
-    }
-
-    #[test]
-    fn excluding_a_requirement_fails() {
-        let sel = Selection { profile: Some("gaming".into()), exclude: vec!["multilib".into()], ..Default::default() };
-        assert!(plan(sel, &facts()).is_err());
-    }
-
-    #[test]
-    fn unmet_conditions_skip_dependents() {
-        let mut f = facts();
-        f.virt = "kvm".into();
-        let p = plan(Selection::default(), &f).unwrap();
-        assert!(p.skipped.iter().any(|(id, _)| id == "microcode"));
-    }
-
-    #[test]
-    fn installer_choices_are_respected() {
-        let mut f = facts();
-        f.install.firewall = Some("firewalld".into());
-        f.install.bluetooth = Some(true);
-        f.install.installer = Some("archinstall".into());
-        f.bluetooth = true;
-        f.enabled_units.insert("paccache.timer".into());
-        let p = plan(Selection { profile: Some("desktop".into()), ..Default::default() }, &f).unwrap();
-        assert!(p.provided.iter().any(|(id, why)| id == "bluetooth" && why.contains("archinstall")));
-        assert!(p.skipped.iter().any(|(id, why)| id == "ufw" && why.contains("firewalld")));
-        let json = serde_json::to_string(&p.steps).unwrap();
-        assert!(!json.contains("paccache.timer") && !json.contains("\"ufw\""));
-    }
-
-    #[test]
-    fn pacman_conf_edits_are_idempotent() {
-        let conf = "[options]\nColor\nParallelDownloads = 10\n#VerbosePkgLists\n".to_string();
-        let current = move |p: &str| (p == "/etc/pacman.conf").then(|| conf.clone());
-        let p = resolve(&Catalog::arch().unwrap(), &facts(), &Selection::default(), &current).unwrap();
-        let Step::EditPacmanConf { options, .. } = &p.steps[0] else { panic!("expected pacman edit") };
-        assert_eq!(options.keys().collect::<Vec<_>>(), ["VerbosePkgLists"]);
-    }
-
-    #[test]
-    fn installed_packages_and_identical_files_are_skipped() {
-        let mut f = facts();
-        f.installed.insert("reflector".into());
-        let catalog = Catalog::arch().unwrap();
-        let reflector = catalog.module("mirrors").unwrap().files[0].clone();
-        let current = move |p: &str| (p == reflector.path).then(|| reflector.content.clone());
-        let p = resolve(&catalog, &f, &Selection::default(), &current).unwrap();
-        let json = serde_json::to_string(&p.steps).unwrap();
-        assert!(!json.contains("\"reflector\""));
-        assert!(!json.contains("reflector.conf"));
-    }
-}
+mod tests;

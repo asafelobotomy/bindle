@@ -61,7 +61,9 @@ steps, with no side effects. That gives:
 
 - a full **dry-run review** before anything runs (wizard Review screen, `bindle plan`);
 - `--json` output any frontend (Tauri GUI, scripts) can consume;
-- **idempotence**: installed packages and byte-identical files are dropped from the plan;
+- **idempotence**: installed packages, enabled units, groups the user is already
+  in, byte-identical files and commands whose `unless` file checks already hold
+  are dropped from the plan, so re-applying the same selection plans nothing;
 - fixed phase order: pacman.conf → one `pacman -Syu --needed` transaction → files →
   units → groups → root commands → initramfs → AUR (as user) → user commands.
 
@@ -85,7 +87,13 @@ powerful as sudo; see [APPLY.md](APPLY.md#trust-model).
 - Respect existing setups: the zram builtin leaves an existing
   `zram-generator.conf` alone, defers to another `sysctl.d` file that already
   sets `vm.swappiness` (e.g. XZram's), and skips the zswap tmpfiles rule when
-  `zswap.enabled=0` is already on the kernel command line.
+  `zswap.enabled=0` is already on the kernel command line. Config lookups follow
+  each tool's search path (`/etc`, `/run`, `/usr/lib`, `*.conf.d` drop-ins).
+- Drop-ins that must override a distro drop-in sort last (`makepkg.conf.d/zz-bindle*.conf`
+  comes after Arch's `rust.conf`, which sets `RUSTFLAGS` outright).
+- Tune only what changes something: the I/O scheduler module sets BFQ for
+  rotational disks and nothing else (the kernel already picks `none` for NVMe and
+  `mq-deadline` for SATA SSDs), so it is opt-in rather than a default.
 - Risk levels (`safe` / `moderate` / `advanced`) are shown in the wizard; advanced modules are never in a profile.
 
 ### Relationship with XZram
@@ -105,10 +113,13 @@ offers. Details: [ARCHINSTALL.md](ARCHINSTALL.md).
 ## Detection (no root)
 
 `/etc/os-release`, `/proc/{cpuinfo,meminfo,mounts,swaps,cmdline}`,
-`/sys/class/drm/*/device/vendor` (GPU PCI vendor), `/sys/block/*/queue/rotational`,
-`/sys/class/power_supply`, `/sys/class/bluetooth`, `systemd-detect-virt`,
-the `LoaderInfo` EFI variable (bootloader; `/boot` is often root-only),
-`/etc/pacman.conf` and `pacman -Qq`.
+`/sys/class/drm/*/device/{vendor,device}` (GPU vendor; NVIDIA device id decides
+nvidia-open vs. nouveau, since nvidia-open needs Turing, id ≥ 0x1e00),
+`/sys/block/*/queue/rotational`, `/sys/class/power_supply` (ignoring `scope=Device`
+peripheral batteries) and `/sys/class/dmi/id/chassis_type`, `/sys/class/bluetooth`,
+`systemd-detect-virt`, the `LoaderInfo` EFI variable (bootloader; `/boot` is often
+root-only, so installed grub/limine/refind packages are a fallback hint),
+`/etc/pacman.conf`, `pacman -Qq`, and `id -Gn` / `getent passwd` for the user.
 
 ## Frontends
 

@@ -38,7 +38,7 @@ name = "XDG user folders"
 description = "Create Documents, Downloads, Music, Pictures and Videos in your home folder."
 profiles = ["desktop", "gaming", "developer"]
 packages = ["xdg-user-dirs"]
-user_commands = [["xdg-user-dirs-update"]]
+user_commands = [{ argv = ["xdg-user-dirs-update"], unless = [{ path = "~/.config/user-dirs.dirs" }] }]
 
 [[module]]
 id = "firefox"

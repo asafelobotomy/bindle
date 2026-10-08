@@ -12,7 +12,16 @@ profiles = ["desktop", "gaming", "developer"]
 conflicts = ["firewalld"]
 packages = ["ufw"]
 enable = ["ufw.service"]
-root_commands = [["ufw", "default", "deny", "incoming"], ["ufw", "default", "allow", "outgoing"], ["ufw", "--force", "enable"]]
+# Each command is skipped once its effect is on disk, so re-applying is a no-op.
+root_commands = [
+  { argv = ["ufw", "default", "deny", "incoming"], unless = [{ path = "/etc/ufw/ufw.conf", contains = "ENABLED=yes" }] },
+  { argv = ["ufw", "default", "allow", "outgoing"], unless = [{ path = "/etc/ufw/ufw.conf", contains = "ENABLED=yes" }] },
+  # KDE Connect / GSConnect pairing and transfers.
+  { argv = ["ufw", "allow", "1714:1764/udp"], when = ["kdeconnect"], unless = [{ path = "/etc/ufw/user.rules", contains = "-p udp --dport 1714:1764 -j ACCEPT" }] },
+  { argv = ["ufw", "allow", "1714:1764/tcp"], when = ["kdeconnect"], unless = [{ path = "/etc/ufw/user.rules", contains = "-p tcp --dport 1714:1764 -j ACCEPT" }] },
+  { argv = ["ufw", "--force", "enable"], unless = [{ path = "/etc/ufw/ufw.conf", contains = "ENABLED=yes" }] },
+]
+notes = ["Ports published by Docker (`-p`) bypass ufw: Docker inserts its own iptables rules ahead of ufw's. Bind them to 127.0.0.1 or use ufw-docker rules."]
 
 [[module]]
 id = "firewalld"
@@ -29,6 +38,19 @@ description = "Snapshot / before and after every pacman transaction."
 risk = "moderate"
 when = ["fs:btrfs"]
 packages = ["snapper", "snap-pac"]
-root_commands = [["snapper", "-c", "root", "create-config", "/"]]
+# snapper creates /.snapshots itself; when the installer already mounts an
+# `@.snapshots` subvolume there, free the mount point first, let snapper
+# write its config, then swap its nested subvolume back for the mount.
+# `rmdir` only removes an empty directory, so no snapshot is ever deleted.
+# Done-check: /etc/conf.d/snapper lists the config (configs/root is 0640).
+root_commands = [
+  { argv = ["snapper", "-c", "root", "create-config", "/"], when = ["!snapshots-mount"], unless = [{ path = "/etc/conf.d/snapper", contains = 'SNAPPER_CONFIGS="root' }] },
+  { argv = ["umount", "/.snapshots"], when = ["snapshots-mount"], unless = [{ path = "/etc/conf.d/snapper", contains = 'SNAPPER_CONFIGS="root' }] },
+  { argv = ["rmdir", "/.snapshots"], when = ["snapshots-mount"], unless = [{ path = "/etc/conf.d/snapper", contains = 'SNAPPER_CONFIGS="root' }] },
+  { argv = ["snapper", "-c", "root", "create-config", "/"], when = ["snapshots-mount"], unless = [{ path = "/etc/conf.d/snapper", contains = 'SNAPPER_CONFIGS="root' }] },
+  { argv = ["btrfs", "subvolume", "delete", "/.snapshots"], when = ["snapshots-mount"], unless = [{ path = "/etc/conf.d/snapper", contains = 'SNAPPER_CONFIGS="root' }] },
+  { argv = ["mkdir", "-m", "750", "/.snapshots"], when = ["snapshots-mount"], unless = [{ path = "/etc/conf.d/snapper", contains = 'SNAPPER_CONFIGS="root' }] },
+  { argv = ["mount", "/.snapshots"], when = ["snapshots-mount"], unless = [{ path = "/etc/conf.d/snapper", contains = 'SNAPPER_CONFIGS="root' }] },
+]
 enable = ["snapper-timeline.timer", "snapper-cleanup.timer"]
 notes = ["Booting into snapshots needs grub-btrfs or limine-snapper-sync (later phase)."]

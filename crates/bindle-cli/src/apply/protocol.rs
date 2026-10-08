@@ -45,4 +45,6 @@ pub struct SnapshotPlan {
     pub units: Vec<String>,
     pub packages: Vec<String>,
     pub aur: Vec<String>,
+    #[serde(default)]
+    pub manual: Vec<String>,
 }

@@ -12,7 +12,7 @@
 ## Run
 
 ```bash
-cd tests/vm/.work
+mkdir -p tests/vm/.work && cd tests/vm/.work
 curl -fsSLO https://archlinux.org/iso/latest/sha256sums.txt
 curl -fLO https://geo.mirror.pkgbuild.com/iso/latest/archlinux-x86_64.iso
 grep ' archlinux-x86_64.iso' sha256sums.txt | sha256sum -c -
@@ -116,7 +116,7 @@ After every apply, a second `bindle plan` leaves only the always-run user comman
 | **Bindle:** xterm/urxvt bitmap fonts lack ✓ • ↑↓ | launched with a scalable monospace font |
 | **Upstream:** archinstall 4.5 niri + DankMaterialShell profile can't install | marked `broken`; `bindle iso` refuses it |
 | harness: agetty autologin without `-p -f` asked for a password | fixed |
-| **UX:** desktop welcome apps (GNOME tour, KDE Welcome Center, Hyprland welcome, Enlightenment wizard, i3 config prompt) open on top of Bindle | open question: leave, delay, or suppress |
+| **UX:** desktop welcome apps (GNOME tour, KDE Welcome Center, Hyprland welcome, Enlightenment wizard, i3 config prompt) open on top of Bindle | resolved: `bindle iso` suppresses them; otherwise Bindle waits for them to close (see below) |
 | **UX:** first-login terminal is 80×24 (GNOME Console); summary lines clipped | shorter summary lines; narrow layout for the module picker |
 
 ## Last result (archiso 2026.10.01, archinstall 4.5, GNOME, `desktop` profile)
@@ -125,7 +125,7 @@ After every apply, a second `bindle plan` leaves only the always-run user comman
 - First boot: `bindle archinstall` read archinstall's logged config (exact); PipeWire, fonts and ufw shown as done.
 - Real `bindle apply`: 9/9 steps, including pacman installs, unit enables and paru-bin built from the AUR; snapshot + log written. **OK**
 - Second `plan`: only the always-run user command remains.
-- GDM autologin → Bindle's first-login wizard opens in GNOME Console. **OK** (behind GNOME's tour dialog)
+- GDM autologin → Bindle's first-login wizard opens in GNOME Console. **OK** (behind GNOME's welcome dialog; this run predates suppression)
 
 ### Welcome apps and reminders (archiso 2026.10.01)
 

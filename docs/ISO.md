@@ -34,6 +34,10 @@ install.sh ──► bindle iso ──► pre-install screen ──► archinsta
    `bindle first-login install --root <target>`. It also writes the chosen profile to
    `/etc/bindle/selection.toml` and a marker to `/etc/bindle/installed-by`. Choosing
    "Reboot" in archinstall's final menu is fine; the plugin has already run.
+   A failure in the plugin never aborts archinstall: it is logged (`[bindle] …`,
+   also in `/var/log/archinstall/install.log`) and the install carries on;
+   `bindle iso` then reports that Bindle wasn't set up and prints the command
+   to finish it (`bindle first-login install --root /mnt`).
 5. The plugin also turns off the desktops' welcome apps (GNOME tour, KDE Welcome
    Center, Hyprland welcome), so Bindle is the welcome. `--keep-welcome` opts out;
    see [ARCHINSTALL.md](ARCHINSTALL.md#welcome-apps).
@@ -79,6 +83,12 @@ bindle iso --desktop gnome --profile desktop --yes # skip the screen
 bindle iso --dry-run                               # write preset/plugin, print the command
 bindle iso --keep-welcome                          # keep GNOME/KDE/Hyprland welcome apps
 ```
+
+Unknown `--desktop` or `--profile` ids are rejected before anything runs
+(profiles come from the catalog: `bindle list`). The preset, plugin and
+selection are written to a fresh private directory (`/run/bindle-iso-…` as
+root, mode 0700, files 0600), since a merged `--config` can hold your disk
+layout and more; `--workdir` picks the directory instead.
 
 `install.sh` passes its arguments through, and honours `BINDLE_VERSION`,
 `BINDLE_REPO` and `BINDLE_BASE_URL` (mirrors and testing).

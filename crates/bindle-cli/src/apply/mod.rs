@@ -64,6 +64,12 @@ fn snapshot_plan(plan: &Plan, facts: &Facts) -> SnapshotPlan {
             Step::InstallPackages { packages } => s.packages.extend(packages.iter().cloned()),
             Step::InstallAur { packages } => s.aur.extend(packages.iter().cloned()),
             Step::BootstrapAurHelper { package } => s.aur.push(package.clone()),
+            Step::AddToGroups { user, groups } => {
+                s.manual.push(format!("{user} added to groups {}", groups.join(", ")))
+            }
+            Step::RunAsRoot { argv, .. } | Step::RunAsUser { argv, .. } => {
+                s.manual.push(format!("ran `{}`", sys::shell_words(argv)))
+            }
             _ => {}
         }
     }
@@ -164,7 +170,7 @@ pub fn apply(plan: &Plan, facts: &Facts, opts: &Options) -> Result<Outcome> {
 pub fn undo(id: Option<String>, list: bool, opts: &Options) -> Result<()> {
     let root = opts.root();
     let snaps = snapshot::list(&root);
-    if list || snaps.is_empty() {
+    if list || (snaps.is_empty() && id.is_none()) {
         if snaps.is_empty() {
             println!("No snapshots in {}.", sys::host(&root, snapshot::DIR).display());
         }
@@ -183,14 +189,18 @@ pub fn undo(id: Option<String>, list: bool, opts: &Options) -> Result<()> {
     }
     let m = match id {
         Some(id) => snapshot::load(&root, &id)?,
-        None => snaps[0].clone(),
+        None => snaps.first().cloned().expect("checked above"),
     };
     println!("Undo snapshot {} ({}):", m.id, m.created);
     for f in &m.files {
         println!("  {} {}", if f.existed { "restore" } else { "remove " }, f.path);
     }
     if !m.units.is_empty() {
-        println!("  systemctl disable {}", m.units.join(" "));
+        println!("  systemctl disable --now {}", m.units.join(" "));
+    }
+    if !m.manual.is_empty() {
+        println!("Not reverted (undo by hand if needed):");
+        m.manual.iter().for_each(|c| println!("  {c}"));
     }
     if !opts.yes && !confirm("Proceed?", false) {
         return Ok(());

@@ -9,15 +9,17 @@
 use std::fs;
 use std::io::IsTerminal;
 use std::net::{TcpStream, ToSocketAddrs};
+use std::os::unix::fs::DirBuilderExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
 use bindle_core::install::preset::{self, IsoChoice, TESTED_ARCHINSTALL};
-use bindle_core::{Facts, Selection, desktops};
+use bindle_core::{Catalog, Facts, Selection, desktops};
 
-use crate::apply::sys::is_root;
+use crate::apply::sys::{is_root, write_atomic};
+use crate::firstlogin;
 use crate::{selection, tui};
 
 const PLUGIN: &str = include_str!("../../../packaging/archinstall/bindle_plugin.py");
@@ -70,7 +72,47 @@ fn preflight(dry_run: bool) -> Result<Option<String>> {
     Ok(Some(version))
 }
 
-pub fn run(facts: &Facts, opts: IsoOpts) -> Result<()> {
+/// Bail on ids that don't exist, before anything is written or started.
+fn validate(catalog: &Catalog, data: &[desktops::Desktop], opts: &IsoOpts) -> Result<()> {
+    if let Some(id) = opts.desktop.as_deref() {
+        match desktops::by_id(data, id) {
+            None => {
+                let ids: Vec<&str> = data.iter().map(|d| d.id.as_str()).collect();
+                bail!("unknown desktop `{id}`; choose from: {}", ids.join(", "));
+            }
+            Some(d) => {
+                if let Some(why) = &d.broken {
+                    bail!("{} can't be installed right now: {why}", d.name);
+                }
+            }
+        }
+    }
+    if let Some(p) = opts.profile.as_deref()
+        && !catalog.profiles.iter().any(|x| x.id == p)
+    {
+        let ids: Vec<&str> = catalog.profiles.iter().map(|x| x.id.as_str()).collect();
+        bail!("unknown profile `{p}`; choose from: {}", ids.join(", "));
+    }
+    Ok(())
+}
+
+/// A fresh private directory for the preset (it can hold a merged config with
+/// disk layout and more): never a predictable, pre-creatable /tmp path.
+fn private_workdir() -> Result<PathBuf> {
+    let base = if is_root() && Path::new("/run").is_dir() { PathBuf::from("/run") } else { std::env::temp_dir() };
+    for attempt in 0..16u32 {
+        let nonce = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.subsec_nanos());
+        let dir = base.join(format!("bindle-iso-{}-{nonce:08x}{attempt}", std::process::id()));
+        match fs::DirBuilder::new().mode(0o700).create(&dir) {
+            Ok(()) => return Ok(dir),
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(e) => return Err(e).with_context(|| format!("create {}", dir.display())),
+        }
+    }
+    bail!("could not create a private directory under {}", base.display())
+}
+
+pub fn run(catalog: &Catalog, facts: &Facts, opts: IsoOpts) -> Result<()> {
     if opts.silent && (opts.config.is_none() || opts.creds.is_none() || !opts.yes || opts.profile.is_none()) {
         bail!("--silent needs --config (with disk layout), --creds, --profile and --yes");
     }
@@ -86,18 +128,14 @@ pub fn run(facts: &Facts, opts: IsoOpts) -> Result<()> {
     }
 
     let data = desktops::all()?;
-    if let Some(d) = opts.desktop.as_deref().and_then(|id| desktops::by_id(&data, id))
-        && let Some(why) = &d.broken
-    {
-        bail!("{} can't be installed right now: {why}", d.name);
-    }
+    validate(catalog, &data, &opts)?;
     let choice = match (&opts.profile, opts.yes) {
         (Some(profile), true) => IsoChoice { desktop: opts.desktop.clone(), profile: profile.clone() },
         _ => {
             if !std::io::stdout().is_terminal() {
                 bail!("needs a terminal, or pass --profile … --yes");
             }
-            match tui::iso::run(facts, &data, opts.desktop.clone(), opts.profile.clone())? {
+            match tui::iso::run(facts, &data, &catalog.profiles, opts.desktop.clone(), opts.profile.clone())? {
                 Some(c) => c,
                 None => {
                     println!("Cancelled. Nothing was changed.");
@@ -108,10 +146,12 @@ pub fn run(facts: &Facts, opts: IsoOpts) -> Result<()> {
     };
 
     let work = match &opts.workdir {
-        Some(w) => w.clone(),
-        None => std::env::temp_dir().join("bindle-iso"),
+        Some(w) => {
+            crate::apply::sys::create_dirs(w)?;
+            w.clone()
+        }
+        None => private_workdir()?,
     };
-    fs::create_dir_all(&work)?;
     let mut preset = preset::archinstall_preset(facts, &data, &choice);
     if let Some(path) = &opts.config {
         let text = fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
@@ -121,9 +161,10 @@ pub fn run(facts: &Facts, opts: IsoOpts) -> Result<()> {
     let config = work.join("bindle-archinstall.json");
     let plugin = work.join("bindle_plugin.py");
     let sel = work.join("selection.toml");
-    fs::write(&config, serde_json::to_string_pretty(&preset)?)?;
-    fs::write(&plugin, PLUGIN)?;
-    selection::save(&Selection { profile: Some(choice.profile.clone()), ..Default::default() }, &sel)?;
+    write_atomic(&config, serde_json::to_string_pretty(&preset)?.as_bytes(), 0o600)?;
+    write_atomic(&plugin, PLUGIN.as_bytes(), 0o600)?;
+    let picked = Selection { profile: Some(choice.profile.clone()), ..Default::default() };
+    write_atomic(&sel, selection::render(&picked)?.as_bytes(), 0o600)?;
 
     let exe = std::env::current_exe()?;
     let mut cmd = Command::new("archinstall");
@@ -159,11 +200,12 @@ pub fn run(facts: &Facts, opts: IsoOpts) -> Result<()> {
     if !status.success() {
         bail!("archinstall exited with {status}. Log: /var/log/archinstall/install.log");
     }
-    if Path::new("/mnt/usr/local/bin/bindle").exists() {
+    let installed = |p: &str| crate::apply::sys::host(Path::new("/mnt"), p).exists();
+    if installed(firstlogin::BIN) && installed(firstlogin::AUTOSTART) {
         println!("\nDone. Reboot and remove the install media; Bindle opens when you first log in");
         println!("with the `{}` profile ready to review.", choice.profile);
     } else {
-        println!("\narchinstall finished, but Bindle wasn't installed into the new system.");
+        println!("\narchinstall finished, but Bindle wasn't set up in the new system (see the [bindle] lines above).");
         println!("If it's still mounted at /mnt: {} first-login install --root /mnt", exe.display());
     }
     Ok(())

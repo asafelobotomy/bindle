@@ -18,11 +18,15 @@ for confirmation and your password in the terminal, then streams progress.
    first with `sudo -v`), or `pkexec` in a desktop session without a terminal. The
    two speak JSON lines; the helper greets with its version, which must match.
    From an AppImage, the binary is first copied to a private `0700` directory in
-   `$XDG_RUNTIME_DIR`, because root cannot read a user's FUSE mount.
+   `$XDG_RUNTIME_DIR` (or `~/.cache/bindle`, never a shared `/tmp` path), because
+   root cannot read a user's FUSE mount.
 3. **Snapshot**: before any change, the helper records every file the plan will write
    in `/var/lib/bindle/snapshots/<id>/`. Copies of the originals sit in a root-only `files/`;
    `manifest.json` (paths, units, packages; world-readable) drives `bindle undo`.
-   If the snapshot fails, nothing has changed.
+   If the snapshot fails, nothing has changed. A file that didn't exist yet but
+   appears during the apply (shipped by a package installed in an earlier step)
+   is captured just before Bindle overwrites it, so undo restores the package's
+   version rather than deleting it. Owners and modes are recorded too.
 4. **Steps**, in plan order. Root steps go to the helper; AUR builds (`makepkg` as you,
    then `pacman -U` via the helper), `paru`/`yay` installs and user commands run as you.
 5. **Stop on first failure** with the log path and the undo command. Every step is
@@ -33,9 +37,9 @@ for confirmation and your password in the terminal, then streams progress.
 | Step | Runs as | Command |
 |---|---|---|
 | edit pacman.conf | root | line-level edit, atomic replace |
-| install packages | root | `pacman -Syu --needed --noconfirm …` |
-| write file | root | atomic write with mode |
-| enable units | root | `systemctl enable --now …` |
+| install packages | root | `pacman -Syu --needed --noconfirm -- …` |
+| write file | root | atomic write: exclusive temp file created with the final mode, keeps the owner, refuses to replace a symlink |
+| enable units | root | `systemctl enable --now -- …` |
 | groups | root | `usermod -aG … <you>` |
 | root command | root | as declared in the catalog |
 | initramfs | root | `mkinitcpio -P` |
@@ -43,15 +47,21 @@ for confirmation and your password in the terminal, then streams progress.
 | AUR packages | you | `paru -S --needed --noconfirm --skipreview …` |
 | user command | you | as declared |
 
-Logs: `/var/log/bindle/apply-<id>.log` (and `undo-<id>.log`).
+Logs: `/var/log/bindle/apply-<id>.log` (and `undo-<id>.log`), root-only (`0600`).
+They record commands and their output; written files appear as path, mode and
+size, not their contents. Directories Bindle creates are `0755` whatever the
+umask, so `bindle undo` can list snapshots as you.
 
 ## Undo
 
 `bindle undo [ID]` restores each snapshotted file byte-for-byte (removing ones
-that didn't exist before) and disables the units that apply enabled. Units that
+that didn't exist before), with their original owner and mode, and stops and
+disables (`systemctl disable --now`) the units that apply enabled. Units that
 were already enabled are never in the plan, so they're never disabled. Packages
 are left installed: removing them automatically is too risky. Undo prints the
-`pacman -Rns` command for the ones still present.
+`pacman -Rns` command for the ones still present. Group membership and catalog
+commands (for example `ufw enable`, `systemctl mask`, `snapper create-config`)
+aren't reversible in general; undo lists them under "Not reverted".
 
 ## Trust model
 
@@ -59,7 +69,8 @@ The helper executes privileged plan steps the orchestrator sends, so it is
 exactly as powerful as `sudo` for the user who authenticated. Code already
 running as that user could equally hijack `sudo` itself, so the helper doesn't
 pretend otherwise. It does refuse non-privileged steps, unsafe paths (relative
-or with `..`), invalid user/group/package names, and snapshot ids that aren't
+or with `..`), invalid user/group/package/unit names (including ones starting
+with `-`; names are also passed after `--`), and snapshot ids that aren't
 timestamps.
 
 ## Testing without root

@@ -15,14 +15,12 @@ notes = ["For swap files, overflow tiers and snapshots, use XZram."]
 [[module]]
 id = "io-schedulers"
 name = "I/O schedulers"
-description = "udev rules: none for NVMe, mq-deadline for SATA SSD, bfq for spinning disks."
-default = true
+description = "udev rule: BFQ for spinning hard disks, which keeps the desktop responsive during heavy disk I/O. SSDs and NVMe keep the kernel's defaults (mq-deadline / none)."
+when = ["!virt"]
 [[module.files]]
 path = "/etc/udev/rules.d/60-bindle-ioschedulers.rules"
 content = '''
 # Managed by Bindle
-ACTION=="add|change", KERNEL=="nvme[0-9]*", ATTR{queue/rotational}=="0", ATTR{queue/scheduler}="none"
-ACTION=="add|change", KERNEL=="sd[a-z]*|mmcblk[0-9]*", ATTR{queue/rotational}=="0", ATTR{queue/scheduler}="mq-deadline"
 ACTION=="add|change", KERNEL=="sd[a-z]*", ATTR{queue/rotational}=="1", ATTR{queue/scheduler}="bfq"
 '''
 
@@ -32,6 +30,22 @@ name = "systemd-oomd"
 description = "Kill runaway cgroups before the system locks up under memory pressure."
 profiles = ["desktop", "gaming", "developer"]
 enable = ["systemd-oomd.service"]
+notes = ["Uses the drop-ins from the Arch Wiki: kill on swap exhaustion system-wide and on sustained memory pressure in user sessions."]
+[[module.files]]
+path = "/etc/systemd/system/-.slice.d/10-oomd-root-slice-defaults.conf"
+content = '''
+# Managed by Bindle
+[Slice]
+ManagedOOMSwap=kill
+'''
+[[module.files]]
+path = "/etc/systemd/system/user@.service.d/10-oomd-user-service-defaults.conf"
+content = '''
+# Managed by Bindle
+[Service]
+ManagedOOMMemoryPressure=kill
+ManagedOOMMemoryPressureLimit=50%
+'''
 
 [[module]]
 id = "makepkg-parallel"
@@ -39,7 +53,7 @@ name = "Parallel makepkg builds"
 description = "Use every CPU core when building AUR packages."
 default = true
 [[module.files]]
-path = "/etc/makepkg.conf.d/bindle.conf"
+path = "/etc/makepkg.conf.d/zz-bindle.conf"
 content = '''
 # Managed by Bindle
 MAKEFLAGS="-j$(nproc)"
@@ -51,12 +65,13 @@ name = "Native CPU optimisation for builds"
 description = "Compile AUR packages with -march=native. Packages built this way will not run on other CPUs."
 risk = "advanced"
 [[module.files]]
-path = "/etc/makepkg.conf.d/bindle-native.conf"
+# zz- sorts after Arch's rust.conf, which sets RUSTFLAGS outright.
+path = "/etc/makepkg.conf.d/zz-bindle-native.conf"
 content = '''
 # Managed by Bindle
 CFLAGS="${CFLAGS/-march=x86-64 -mtune=generic/-march=native}"
 CXXFLAGS="${CXXFLAGS/-march=x86-64 -mtune=generic/-march=native}"
-RUSTFLAGS="${RUSTFLAGS} -C target-cpu=native"
+RUSTFLAGS="${RUSTFLAGS:+$RUSTFLAGS }-C target-cpu=native"
 '''
 
 [[module]]

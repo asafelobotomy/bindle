@@ -14,6 +14,7 @@ for term in "$TERMINAL" kitty alacritty foot wezterm konsole gnome-terminal xfce
     case "$term" in
         gnome-terminal) exec "$term" -- "$SELF" "$@" ;;
         wezterm) exec "$term" start -- "$SELF" "$@" ;;
+        xfce4-terminal) exec "$term" -x "$SELF" "$@" ;;
         *) exec "$term" -e "$SELF" "$@" ;;
     esac
 done

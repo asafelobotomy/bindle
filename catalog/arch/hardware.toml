@@ -48,10 +48,21 @@ enable = ["power-profiles-daemon.service"]
 [[module]]
 id = "tlp"
 name = "TLP (advanced laptop power)"
-description = "Aggressive battery tuning; replaces power-profiles-daemon."
+description = "Aggressive battery tuning; replaces power-profiles-daemon (tlp-pd keeps the desktop's power-mode switcher working)."
 risk = "moderate"
 when = ["laptop"]
 conflicts = ["power-profiles"]
-packages = ["tlp", "tlp-rdw"]
-enable = ["tlp.service"]
-root_commands = [["systemctl", "mask", "systemd-rfkill.service", "systemd-rfkill.socket"]]
+packages = ["tlp", "tlp-pd"]
+enable = ["tlp.service", "tlp-pd.service"]
+# A masked unit is a symlink to /dev/null, which reads as empty.
+root_commands = [{ argv = ["systemctl", "mask", "systemd-rfkill.service", "systemd-rfkill.socket"], unless = [{ path = "/etc/systemd/system/systemd-rfkill.service", content = "" }, { path = "/etc/systemd/system/systemd-rfkill.socket", content = "" }] }]
+
+[[module]]
+id = "tlp-rdw"
+name = "TLP radio device wizard"
+description = "Switch Wi-Fi/Bluetooth/WWAN on network events (needs NetworkManager's dispatcher)."
+risk = "moderate"
+when = ["laptop", "nm"]
+requires = ["tlp"]
+packages = ["tlp-rdw"]
+enable = ["NetworkManager-dispatcher.service"]

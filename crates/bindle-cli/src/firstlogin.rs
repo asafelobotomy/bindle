@@ -11,11 +11,10 @@ use std::env;
 use std::fs;
 use std::os::unix::fs::symlink;
 use std::path::{Path, PathBuf};
-use std::time::{Duration, SystemTime};
 
 use anyhow::{Context, Result, bail};
 
-use crate::apply::sys::{host, is_root, write_atomic};
+use crate::apply::sys::{create_dirs, host, is_root, shell_words, write_atomic};
 
 pub const BIN: &str = "/usr/local/bin/bindle";
 pub const AUTOSTART: &str = "/etc/xdg/autostart/bindle-first-login.desktop";
@@ -28,6 +27,9 @@ const SVG: &str = include_str!("../../../branding/bindle.svg");
 
 const USER_UNIT_FILE: &str = "[Unit]
 Description=Open Bindle on the first graphical login
+# Never for greeters (gdm, sddm, lightdm…) or other system accounts.
+ConditionUser=!@system
+# Bindle always writes this marker (also when XDG_STATE_HOME points elsewhere).
 ConditionPathExists=!%h/.local/state/bindle/first-login-done
 
 [Service]
@@ -64,11 +66,16 @@ const HOOK: &str = r#"# Managed by Bindle: open the setup wizard once, on a user
 # Only interactive shells: display managers (greetd, ly…) start sessions through
 # `sh -l -c`, which also reads /etc/profile on the VT before the desktop starts.
 case $- in *i*) ;; *) return 0 2>/dev/null || exit 0 ;; esac
+# Regular users only (not root or system accounts), in a `user` session.
+_bindle_uid_min=$(awk '$1 == "UID_MIN" { print $2 }' /etc/login.defs 2>/dev/null)
 if [ -t 0 ] && [ -t 1 ] && [ -z "${DISPLAY}${WAYLAND_DISPLAY}${SSH_CONNECTION}" ] \
-    && [ "$(id -u)" -ne 0 ] && [ -x /usr/local/bin/bindle ] \
-    && [ ! -e "${XDG_STATE_HOME:-$HOME/.local/state}/bindle/first-login-done" ]; then
+    && [ "$(id -u)" -ge "${_bindle_uid_min:-1000}" ] 2>/dev/null \
+    && [ "${XDG_SESSION_CLASS:-user}" = user ] && [ -x /usr/local/bin/bindle ] \
+    && [ ! -e "${XDG_STATE_HOME:-$HOME/.local/state}/bindle/first-login-done" ] \
+    && [ ! -e "$HOME/.local/state/bindle/first-login-done" ]; then
     /usr/local/bin/bindle first-login run
 fi
+unset _bindle_uid_min
 "#;
 
 fn require_root(root: &Path) -> Result<()> {
@@ -100,7 +107,7 @@ pub fn install(root: &Path, tty_hook: bool) -> Result<Vec<String>> {
     }
     // What `systemctl --global enable` does, without needing systemd running (chroot).
     let wants = host(root, USER_UNIT_WANTS);
-    fs::create_dir_all(wants.parent().context("wants dir")?)?;
+    create_dirs(wants.parent().context("wants dir")?)?;
     let _ = fs::remove_file(&wants);
     symlink("../bindle-first-login.service", &wants).context("enable user unit")?;
     done.push(format!("enabled {USER_UNIT} for all users"));
@@ -129,8 +136,8 @@ pub fn status(root: &Path) -> Vec<String> {
         .iter()
         .map(|p| format!("{} {p}", if host(root, p).exists() { "✓" } else { "·" }))
         .collect();
-    if let Some(m) = marker_path() {
-        let state = if m.exists() {
+    if marker_path().is_some() {
+        let state = if is_done() {
             "done — won't open again"
         } else if is_seen() {
             "not finished — reminder notification at next login"
@@ -142,134 +149,71 @@ pub fn status(root: &Path) -> Vec<String> {
     out
 }
 
-pub fn marker_path() -> Option<PathBuf> {
-    env::var_os("XDG_STATE_HOME")
+/// Where the "done" marker lives: `$XDG_STATE_HOME` and the default
+/// `~/.local/state`. Both are written, so the systemd unit (which can only
+/// check `%h/.local/state`) and shells with a different `XDG_STATE_HOME`
+/// agree on whether setup is finished.
+fn state_dirs() -> Vec<PathBuf> {
+    let mut dirs: Vec<PathBuf> = env::var_os("XDG_STATE_HOME")
+        .filter(|s| !s.is_empty())
         .map(PathBuf::from)
-        .or_else(|| env::var_os("HOME").map(|h| PathBuf::from(h).join(".local/state")))
-        .map(|s| s.join("bindle/first-login-done"))
+        .into_iter()
+        .chain(env::var_os("HOME").map(|h| PathBuf::from(h).join(".local/state")))
+        .map(|s| s.join("bindle"))
+        .collect();
+    dirs.dedup();
+    dirs
 }
 
-fn seen_path() -> Option<PathBuf> {
-    marker_path().map(|m| m.with_file_name("first-login-seen"))
+pub fn marker_path() -> Option<PathBuf> {
+    state_dirs().into_iter().next().map(|d| d.join("first-login-done"))
+}
+
+fn exists(name: &str) -> bool {
+    state_dirs().iter().any(|d| d.join(name).exists())
+}
+
+fn mark(name: &str) -> Result<()> {
+    let dirs = state_dirs();
+    if dirs.is_empty() {
+        bail!("no home directory");
+    }
+    for dir in dirs {
+        fs::create_dir_all(&dir)?;
+        fs::write(dir.join(name), "")?;
+    }
+    Ok(())
 }
 
 /// The wizard has opened at a login before; later logins get a reminder.
 pub fn is_seen() -> bool {
-    seen_path().is_some_and(|m| m.exists())
+    exists("first-login-seen")
 }
 
 pub fn mark_seen() -> Result<()> {
-    let m = seen_path().context("no home directory")?;
-    if let Some(dir) = m.parent() {
-        fs::create_dir_all(dir)?;
-    }
-    fs::write(&m, "")?;
-    Ok(())
+    mark("first-login-seen")
 }
 
 pub fn is_done() -> bool {
-    marker_path().is_some_and(|m| m.exists())
+    exists("first-login-done")
 }
 
 pub fn mark_done() -> Result<()> {
-    let m = marker_path().context("no home directory")?;
-    if let Some(dir) = m.parent() {
-        fs::create_dir_all(dir)?;
-    }
-    fs::write(&m, "")?;
-    Ok(())
+    mark("first-login-done")
 }
 
-fn runtime_dir() -> PathBuf {
-    env::var_os("XDG_RUNTIME_DIR").map_or_else(env::temp_dir, PathBuf::from)
-}
-
-fn lock_path() -> PathBuf {
-    runtime_dir().join("bindle-first-login.lock")
-}
-
-/// Claim the right to open the wizard now. Autostart and the user service can
-/// both fire in one session; the lock expires so a crash can't block forever.
-pub fn claim_launch() -> bool {
-    let lock = lock_path();
-    let fresh = fs::metadata(&lock)
-        .and_then(|m| m.modified())
-        .is_ok_and(|t| SystemTime::now().duration_since(t).unwrap_or_default() < Duration::from_secs(600));
-    !fresh && fs::write(&lock, std::process::id().to_string()).is_ok()
-}
-
-pub fn release_launch() {
-    let _ = fs::remove_file(lock_path());
-}
-
-/// The graphical session's display, from its sockets: Wayland first (an X11
-/// socket in a Wayland session is just Xwayland), then X11.
-pub fn find_display(runtime: &Path, x11_dir: &Path) -> Option<(&'static str, String)> {
-    let names = |dir: &Path| -> Vec<String> {
-        let mut v: Vec<String> = fs::read_dir(dir)
-            .into_iter()
-            .flatten()
-            .flatten()
-            .map(|e| e.file_name().to_string_lossy().into_owned())
-            .collect();
-        v.sort();
-        v
-    };
-    if let Some(w) = names(runtime).into_iter().find(|n| n.starts_with("wayland-") && !n.ends_with(".lock")) {
-        return Some(("WAYLAND_DISPLAY", w));
-    }
-    names(x11_dir).into_iter().find_map(|n| n.strip_prefix('X').map(|d| ("DISPLAY", format!(":{d}"))))
-}
-
-/// Type of this user's active session with a display, per logind (`x11`,
-/// `wayland`, or `tty` for sessions greetd starts on a VT).
-fn active_session_type() -> Option<String> {
-    let user = env::var("USER").ok()?;
-    let out = |args: &[&str]| -> Option<String> {
-        let o = std::process::Command::new("loginctl").args(args).output().ok()?;
-        let v = String::from_utf8_lossy(&o.stdout).trim().to_string();
-        (o.status.success() && !v.is_empty()).then_some(v)
-    };
-    let session = out(&["show-user", &user, "-p", "Display", "--value"])?;
-    let active = out(&["show-session", &session, "-p", "State", "--value"])? == "active";
-    let kind = out(&["show-session", &session, "-p", "Type", "--value"])?;
-    active.then_some(kind)
-}
-
-/// Wait for this user's graphical session (however long: the user manager may
-/// start at a console or SSH login first), then open the wizard in it.
-pub fn watch() -> Result<()> {
-    loop {
-        if is_done() || is_root() {
-            return Ok(());
+/// JSON to merge into an archinstall configuration file. With `sha256`, the
+/// download is verified before it is made executable and run.
+pub fn archinstall_snippet(url: &str, sha256: Option<&str>) -> Result<String> {
+    let mut cmd = format!("curl -fsSL -o {BIN} {}", shell_words(&[url.to_string()]));
+    if let Some(sum) = sha256 {
+        if sum.len() != 64 || !sum.chars().all(|c| c.is_ascii_hexdigit()) {
+            bail!("--sha256 needs a 64-character hex SHA-256 digest");
         }
-        // Wayland sockets live in this user's private runtime dir, so any active
-        // session will do (greetd sessions report `tty`). X11 sockets are global
-        // (the greeter has one too): only trust one in an x11 session.
-        if let Some(kind) = active_session_type()
-            && let Some((key, value)) = find_display(&runtime_dir(), Path::new("/tmp/.X11-unix"))
-            && (key == "WAYLAND_DISPLAY" || kind == "x11")
-        {
-            // Give the compositor/WM a moment to start mapping windows.
-            std::thread::sleep(Duration::from_secs(6));
-            let mut cmd = std::process::Command::new(env::current_exe()?);
-            cmd.args(["first-login", "run"]).env(key, value).stdin(std::process::Stdio::null());
-            if let Some(xauth) =
-                env::var_os("HOME").map(|h| PathBuf::from(h).join(".Xauthority")).filter(|p| p.exists())
-            {
-                cmd.env("XAUTHORITY", xauth);
-            }
-            cmd.status().context("start the first-login wizard")?;
-            return Ok(());
-        }
-        std::thread::sleep(Duration::from_secs(3));
+        cmd.push_str(&format!(" && echo '{}  {BIN}' | sha256sum -c --quiet -", sum.to_ascii_lowercase()));
     }
-}
-
-/// JSON to merge into an archinstall configuration file.
-pub fn archinstall_snippet(url: &str) -> String {
-    let cmd = format!("curl -fsSL -o {BIN} '{url}' && chmod 755 {BIN} && {BIN} first-login install");
-    serde_json::to_string_pretty(&serde_json::json!({ "custom_commands": [cmd] })).unwrap_or_default()
+    cmd.push_str(&format!(" && chmod 755 {BIN} && {BIN} first-login install"));
+    Ok(serde_json::to_string_pretty(&serde_json::json!({ "custom_commands": [cmd] }))?)
 }
 
 #[cfg(test)]
@@ -288,25 +232,26 @@ mod tests {
             fs::read_link(host(&root, USER_UNIT_WANTS)).unwrap(),
             PathBuf::from("../bindle-first-login.service")
         );
+        let unit = fs::read_to_string(host(&root, USER_UNIT)).unwrap();
+        assert!(unit.contains("ConditionUser=!@system"));
+        assert!(fs::read_to_string(host(&root, PROFILE_HOOK)).unwrap().contains("UID_MIN"));
         remove(&root, false).unwrap();
         assert!(!host(&root, AUTOSTART).exists() && host(&root, BIN).exists());
         assert!(host(&root, USER_UNIT_WANTS).symlink_metadata().is_err());
         remove(&root, true).unwrap();
         assert!(!host(&root, BIN).exists());
-        assert!(archinstall_snippet("https://example.invalid/bindle").contains("first-login install"));
     }
 
     #[test]
-    fn finds_wayland_before_x11() {
-        let root = crate::apply::sys::test_dir("display");
-        let (run, x11) = (root.join("run"), root.join("x11"));
-        fs::create_dir_all(&run).unwrap();
-        fs::create_dir_all(&x11).unwrap();
-        assert_eq!(find_display(&run, &x11), None);
-        fs::write(x11.join("X0"), "").unwrap();
-        assert_eq!(find_display(&run, &x11), Some(("DISPLAY", ":0".into())));
-        fs::write(run.join("wayland-1.lock"), "").unwrap();
-        fs::write(run.join("wayland-1"), "").unwrap();
-        assert_eq!(find_display(&run, &x11), Some(("WAYLAND_DISPLAY", "wayland-1".into())));
+    fn snippet_quotes_the_url_and_checks_the_digest() {
+        let plain = archinstall_snippet("https://example.invalid/bindle", None).unwrap();
+        assert!(plain.contains("first-login install") && !plain.contains("sha256sum"));
+        let evil = archinstall_snippet("https://x/'; rm -rf / #", None).unwrap();
+        let cmd: serde_json::Value = serde_json::from_str(&evil).unwrap();
+        assert!(cmd["custom_commands"][0].as_str().unwrap().contains(r"'https://x/'\''; rm -rf / #'"));
+        let sum = "A".repeat(64);
+        let checked = archinstall_snippet("https://x/b", Some(&sum)).unwrap();
+        assert!(checked.contains(&format!("{}  {BIN}' | sha256sum -c", "a".repeat(64))));
+        assert!(archinstall_snippet("https://x/b", Some("abc")).is_err());
     }
 }

@@ -1,8 +1,8 @@
 //! Small system primitives shared by the orchestrator and the helper.
 
 use std::fs;
-use std::io::{BufRead, BufReader, Write};
-use std::os::unix::fs::{MetadataExt, PermissionsExt};
+use std::io::{BufRead, BufReader, ErrorKind, Write};
+use std::os::unix::fs::{MetadataExt, OpenOptionsExt, PermissionsExt, fchown};
 use std::path::{Component, Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::mpsc;
@@ -25,23 +25,73 @@ pub fn check_system_path(path: &str) -> Result<()> {
     Ok(())
 }
 
+/// Package or unit name safe to pass as an argument (no leading `-`).
+pub fn valid_name(name: &str) -> bool {
+    !name.is_empty()
+        && !name.starts_with('-')
+        && name.chars().all(|c| c.is_ascii_alphanumeric() || "@._+-:\\".contains(c))
+}
+
 pub fn is_root() -> bool {
     fs::metadata("/proc/self").is_ok_and(|m| m.uid() == 0)
 }
 
-/// Write via a temp file + rename so a crash never leaves a half-written file.
+/// Create `dir` and any missing parents as 0755, whatever the umask
+/// (sudo passes the user's umask through; 077 would hide snapshots and logs).
+pub fn create_dirs(dir: &Path) -> Result<()> {
+    if dir.is_dir() {
+        return Ok(());
+    }
+    if let Some(parent) = dir.parent() {
+        create_dirs(parent)?;
+    }
+    match fs::create_dir(dir) {
+        Ok(()) => fs::set_permissions(dir, fs::Permissions::from_mode(0o755))?,
+        Err(e) if e.kind() == ErrorKind::AlreadyExists && dir.is_dir() => {}
+        Err(e) => return Err(e).with_context(|| format!("create {}", dir.display())),
+    }
+    Ok(())
+}
+
+/// Write via a fresh temp file + rename so a crash never leaves a half-written
+/// file. The temp file is created exclusively (never through a planted
+/// symlink) with its final mode before any data lands; an existing target
+/// keeps its owner, and a symlinked target is refused rather than replaced.
 pub fn write_atomic(path: &Path, data: &[u8], mode: u32) -> Result<()> {
+    write_atomic_owned(path, data, mode, None)
+}
+
+/// `write_atomic`, giving the file to `owner` (uid, gid) when set.
+pub fn write_atomic_owned(path: &Path, data: &[u8], mode: u32, owner: Option<(u32, u32)>) -> Result<()> {
     let dir = path.parent().context("path has no parent")?;
-    fs::create_dir_all(dir).with_context(|| format!("create {}", dir.display()))?;
-    let tmp = dir.join(format!(".{}.bindle-tmp", path.file_name().unwrap_or_default().to_string_lossy()));
-    {
-        let mut f = fs::File::create(&tmp).with_context(|| format!("create {}", tmp.display()))?;
+    create_dirs(dir)?;
+    let owner = match fs::symlink_metadata(path) {
+        Ok(m) if m.file_type().is_symlink() => bail!("refusing to replace symlink {}", path.display()),
+        Ok(m) => owner.or(Some((m.uid(), m.gid()))),
+        Err(_) => owner,
+    };
+    let nonce = SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| d.subsec_nanos());
+    let name = path.file_name().unwrap_or_default().to_string_lossy();
+    let tmp = dir.join(format!(".{name}.bindle-{}-{nonce}", std::process::id()));
+    let result = (|| -> Result<()> {
+        let mut f = fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .mode(0o600)
+            .open(&tmp)
+            .with_context(|| format!("create {}", tmp.display()))?;
+        if let Some((uid, gid)) = owner {
+            fchown(&f, Some(uid), Some(gid)).with_context(|| format!("chown {}", tmp.display()))?;
+        }
+        f.set_permissions(fs::Permissions::from_mode(mode))?;
         f.write_all(data)?;
         f.sync_all()?;
+        fs::rename(&tmp, path).with_context(|| format!("replace {}", path.display()))
+    })();
+    if result.is_err() {
+        let _ = fs::remove_file(&tmp);
     }
-    fs::set_permissions(&tmp, fs::Permissions::from_mode(mode))?;
-    fs::rename(&tmp, path).with_context(|| format!("replace {}", path.display()))?;
-    Ok(())
+    result
 }
 
 fn civil(secs: u64) -> (i64, u32, u32, u64) {
@@ -145,6 +195,21 @@ mod tests {
         assert!(check_system_path("etc/x").is_err());
         assert_eq!(host(Path::new("/tmp/r"), "/etc/a"), PathBuf::from("/tmp/r/etc/a"));
         assert_eq!(shell_words(&["echo".into(), "a b".into()]), "echo 'a b'");
+        assert!(valid_name("lib32-mesa") && valid_name("getty@tty1.service") && !valid_name("--root=/"));
+    }
+
+    #[test]
+    fn atomic_write_keeps_mode_and_refuses_symlinks() {
+        let dir = test_dir("atomic");
+        let target = dir.join("a/b/file.conf");
+        write_atomic(&target, b"one", 0o640).unwrap();
+        assert_eq!(fs::metadata(&target).unwrap().permissions().mode() & 0o777, 0o640);
+        assert_eq!(fs::metadata(dir.join("a/b")).unwrap().permissions().mode() & 0o777, 0o755);
+        write_atomic(&target, b"two", 0o644).unwrap();
+        assert_eq!(fs::read_to_string(&target).unwrap(), "two");
+        std::os::unix::fs::symlink(&target, dir.join("link")).unwrap();
+        assert!(write_atomic(&dir.join("link"), b"x", 0o644).is_err());
+        assert_eq!(fs::read_dir(dir.join("a/b")).unwrap().count(), 1, "no temp files left behind");
     }
 
     #[test]

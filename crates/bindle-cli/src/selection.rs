@@ -31,14 +31,15 @@ pub fn load(path: &Path) -> Result<Selection> {
     Ok(Selection { profile: f.profile, include: f.with, exclude: f.without })
 }
 
-pub fn save(sel: &Selection, path: &Path) -> Result<()> {
+/// The selection as a commented TOML file.
+pub fn render(sel: &Selection) -> Result<String> {
     let f = SelectionFile { profile: sel.profile.clone(), with: sel.include.clone(), without: sel.exclude.clone() };
-    if let Some(dir) = path.parent() {
-        fs::create_dir_all(dir)?;
-    }
     let body = toml::to_string(&f)?;
-    fs::write(path, format!("# Bindle selection. Replay with: bindle apply --from <this file>\n{body}"))?;
-    Ok(())
+    Ok(format!("# Bindle selection. Replay with: bindle apply --from <this file>\n{body}"))
+}
+
+pub fn save(sel: &Selection, path: &Path) -> Result<()> {
+    crate::apply::sys::write_atomic(path, render(sel)?.as_bytes(), 0o644)
 }
 
 /// Layer CLI arguments over a file selection.

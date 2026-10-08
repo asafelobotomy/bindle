@@ -3,6 +3,7 @@
 
 use anyhow::Result;
 use bindle_core::Facts;
+use bindle_core::catalog::Profile;
 use bindle_core::desktops::Desktop;
 use bindle_core::install::preset::{self, IsoChoice};
 use ratatui::crossterm::event::{self, Event, KeyCode, KeyEventKind};
@@ -11,30 +12,26 @@ use ratatui::style::{Color, Style, Stylize};
 use ratatui::text::Line;
 use ratatui::widgets::{Block, List, ListItem, ListState, Paragraph, Wrap};
 
-const PROFILES: &[(&str, &str)] = &[
-    ("desktop", "Everyday desktop: codecs, Flatpak, apps, tuning"),
-    ("gaming", "Desktop + multilib, Steam, Wine, GameMode, MangoHud"),
-    ("developer", "Desktop + toolchains, containers, editors"),
-    ("minimal", "Only safe system tuning"),
-];
-
 pub fn run(
     facts: &Facts,
     desktops: &[Desktop],
+    profiles: &[Profile],
     desktop: Option<String>,
     profile: Option<String>,
 ) -> Result<Option<IsoChoice>> {
+    if profiles.is_empty() {
+        anyhow::bail!("the catalog has no profiles");
+    }
     // Row 0 = "choose in archinstall"; rows 1.. = desktops.
     let mut d_state = ListState::default()
         .with_selected(Some(desktop.and_then(|id| desktops.iter().position(|d| d.id == id)).map_or(0, |i| i + 1)));
-    let mut p_state = ListState::default()
-        .with_selected(Some(profile.and_then(|p| PROFILES.iter().position(|(id, _)| *id == p)).unwrap_or(0)));
+    let mut p_state = ListState::default().with_selected(Some(profile_index(profiles, profile.as_deref())));
     let mut focus_profile = false;
     let mut terminal = ratatui::init();
     let result = loop {
         let choice = IsoChoice {
             desktop: d_state.selected().filter(|&i| i > 0).map(|i| desktops[i - 1].id.clone()),
-            profile: PROFILES[p_state.selected().unwrap_or(0)].0.to_string(),
+            profile: profiles[p_state.selected().unwrap_or(0).min(profiles.len() - 1)].id.clone(),
         };
         let summary = preset::summary(&preset::archinstall_preset(facts, desktops, &choice));
         let drawn = terminal.draw(|f| {
@@ -63,9 +60,11 @@ pub fn run(
                 .highlight_style(Style::new().bg(Color::DarkGray))
                 .highlight_symbol("▸ ");
             f.render_stateful_widget(list, left, &mut d_state);
-            let items: Vec<ListItem> = PROFILES
+            let items: Vec<ListItem> = profiles
                 .iter()
-                .map(|(id, desc)| ListItem::new(vec![Line::from(*id).bold(), Line::from(*desc).dim()]))
+                .map(|p| {
+                    ListItem::new(vec![Line::from(p.id.as_str()).bold(), Line::from(p.description.as_str()).dim()])
+                })
                 .collect();
             let list = List::new(items)
                 .block(Block::bordered().title(" Bindle profile (first login) ").border_style(focused(focus_profile)))
@@ -98,7 +97,7 @@ pub fn run(
             KeyCode::Tab | KeyCode::Left | KeyCode::Right => focus_profile = !focus_profile,
             KeyCode::Up => state.select_previous(),
             KeyCode::Down => {
-                let max = if focus_profile { PROFILES.len() - 1 } else { desktops.len() };
+                let max = if focus_profile { profiles.len() - 1 } else { desktops.len() };
                 state.select(Some((state.selected().unwrap_or(0) + 1).min(max)));
             }
             KeyCode::Enter => {
@@ -112,4 +111,10 @@ pub fn run(
     };
     ratatui::restore();
     result
+}
+
+/// The requested profile, else `desktop` (the everyday default), else the first.
+fn profile_index(profiles: &[Profile], wanted: Option<&str>) -> usize {
+    let pos = |id: &str| profiles.iter().position(|p| p.id == id);
+    wanted.and_then(pos).or_else(|| pos("desktop")).unwrap_or(0)
 }

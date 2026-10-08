@@ -5,7 +5,7 @@
 
 use std::fs::{self, OpenOptions};
 use std::io::{self, BufRead, Write};
-use std::os::unix::fs::PermissionsExt;
+use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
@@ -13,7 +13,7 @@ use bindle_core::{Step, pacman_conf};
 
 use super::protocol::{Event, Request, VERSION};
 use super::snapshot;
-use super::sys::{check_system_path, host, is_root, run_streaming, shell_words, write_atomic};
+use super::sys::{check_system_path, create_dirs, host, is_root, run_streaming, shell_words, valid_name, write_atomic};
 
 pub struct HelperOpts {
     pub root: PathBuf,
@@ -25,6 +25,8 @@ struct Helper {
     opts: HelperOpts,
     log: Option<fs::File>,
     out: io::Stdout,
+    /// Snapshot of this session, for files that appear after it was taken.
+    snapshot: Option<String>,
 }
 
 pub fn serve(opts: HelperOpts) -> Result<()> {
@@ -34,10 +36,11 @@ pub fn serve(opts: HelperOpts) -> Result<()> {
     check_system_path(&opts.log)?;
     let log_path = host(&opts.root, &opts.log);
     if let Some(dir) = log_path.parent() {
-        fs::create_dir_all(dir)?;
+        create_dirs(dir)?;
     }
-    let log = OpenOptions::new().create(true).append(true).open(&log_path).ok();
-    let mut h = Helper { opts, log, out: io::stdout() };
+    // Root-only: command output can include whatever the commands print.
+    let log = OpenOptions::new().create(true).append(true).mode(0o600).open(&log_path).ok();
+    let mut h = Helper { opts, log, out: io::stdout(), snapshot: None };
     h.emit(&Event::Hello { version: VERSION.into() });
     for line in io::stdin().lock().lines() {
         let line = line?;
@@ -64,6 +67,23 @@ pub fn serve(opts: HelperOpts) -> Result<()> {
     Ok(())
 }
 
+fn check_names(names: &[String]) -> Result<()> {
+    match names.iter().find(|n| !valid_name(n)) {
+        Some(bad) => bail!("refusing invalid name `{bad}`"),
+        None => Ok(()),
+    }
+}
+
+/// One log line per step; file contents are summarised, not copied into the log.
+fn log_summary(step: &Step) -> String {
+    match step {
+        Step::WriteFile { module, file } => {
+            format!("write {} (mode {:o}, {} bytes, module {module})", file.path, file.mode, file.content.len())
+        }
+        other => serde_json::to_string(other).unwrap_or_default(),
+    }
+}
+
 impl Helper {
     fn emit(&mut self, ev: &Event) {
         let _ = writeln!(self.out, "{}", serde_json::to_string(ev).unwrap_or_default());
@@ -79,6 +99,13 @@ impl Helper {
     fn output(&mut self, line: &str) {
         self.log_line(line);
         self.emit(&Event::Output { line: line.to_string() });
+    }
+
+    fn capture_late(&self, path: &str) -> Result<()> {
+        match &self.snapshot {
+            Some(id) => snapshot::capture_late(self.root(), id, path),
+            None => Ok(()),
+        }
     }
 
     fn root(&self) -> &Path {
@@ -108,10 +135,11 @@ impl Helper {
                 }
                 let m = snapshot::create(self.root(), &plan)?;
                 self.log_line(&format!("snapshot {} ({} files)", m.id, m.files.len()));
+                self.snapshot = Some(m.id.clone());
                 Ok(Some(Event::Snapshot { id: m.id }))
             }
             Request::Run { step } => {
-                self.log_line(&format!("== {}", serde_json::to_string(&step)?));
+                self.log_line(&format!("== {}", log_summary(&step)));
                 self.run_step(step).map(|()| None)
             }
             Request::InstallFiles { paths } => {
@@ -131,7 +159,7 @@ impl Helper {
                     self.output(&line);
                 }
                 if !m.units.is_empty() {
-                    let mut argv = vec!["systemctl".to_string(), "disable".into()];
+                    let mut argv: Vec<String> = ["systemctl", "disable", "--now", "--"].map(String::from).into();
                     argv.extend(m.units.iter().cloned());
                     self.cmd_owned(&argv)?;
                 }
@@ -147,6 +175,7 @@ impl Helper {
         }
         match step {
             Step::EditPacmanConf { options, enable_repos } => {
+                self.capture_late("/etc/pacman.conf")?;
                 let path = host(self.root(), "/etc/pacman.conf");
                 let mut text = fs::read_to_string(&path).context("read /etc/pacman.conf")?;
                 for (k, v) in &options {
@@ -161,28 +190,30 @@ impl Helper {
                 Ok(())
             }
             Step::InstallPackages { packages } => {
-                let mut argv: Vec<String> = ["pacman", "-Syu", "--needed", "--noconfirm"].map(String::from).into();
+                check_names(&packages)?;
+                let mut argv: Vec<String> =
+                    ["pacman", "-Syu", "--needed", "--noconfirm", "--"].map(String::from).into();
                 argv.extend(packages);
                 self.cmd_owned(&argv)
             }
             Step::WriteFile { file, .. } => {
                 check_system_path(&file.path)?;
+                self.capture_late(&file.path)?;
                 write_atomic(&host(self.root(), &file.path), file.content.as_bytes(), file.mode)?;
                 self.output(&format!("wrote {}", file.path));
                 Ok(())
             }
             Step::EnableUnits { units } => {
-                let mut argv: Vec<String> = ["systemctl", "enable", "--now"].map(String::from).into();
+                check_names(&units)?;
+                let mut argv: Vec<String> = ["systemctl", "enable", "--now", "--"].map(String::from).into();
                 argv.extend(units);
                 self.cmd_owned(&argv)
             }
             Step::AddToGroups { user, groups } => {
-                let valid =
-                    |s: &str| !s.is_empty() && s.chars().all(|c| c.is_ascii_alphanumeric() || "-_.".contains(c));
-                if user == "root" || !valid(&user) || !groups.iter().all(|g| valid(g)) {
+                if user == "root" || !valid_name(&user) || !groups.iter().all(|g| valid_name(g)) {
                     bail!("refusing group change for `{user}`");
                 }
-                self.cmd(&["usermod", "-aG", &groups.join(","), &user])
+                self.cmd(&["usermod", "-aG", &groups.join(","), "--", &user])
             }
             Step::RunAsRoot { argv, .. } => self.cmd_owned(&argv),
             Step::RebuildInitramfs => self.cmd(&["mkinitcpio", "-P"]),

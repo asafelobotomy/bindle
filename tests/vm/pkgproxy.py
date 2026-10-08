@@ -31,28 +31,41 @@ class Handler(BaseHTTPRequestHandler):
                 with open(cached, "rb") as f:
                     shutil.copyfileobj(f, self.wfile)
             return
+        if not self.path.startswith("/") or "@" in self.path.split("?")[0]:
+            self.send_error(400)
+            return
+        tmp = None
         try:
             req = urllib.request.Request(UPSTREAM + self.path, method="HEAD" if head else "GET")
             with urllib.request.urlopen(req, timeout=60) as up:
                 self.send_response(up.status)
-                if up.headers.get("Content-Length"):
-                    self.send_header("Content-Length", up.headers["Content-Length"])
+                length = up.headers.get("Content-Length")
+                if length:
+                    self.send_header("Content-Length", length)
                 self.end_headers()
                 if head:
                     return
                 tmp = cached + f".part{os.getpid()}-{id(self)}" if cacheable else None
                 out = open(tmp, "wb") if tmp else None
+                written = 0
                 while chunk := up.read(1 << 16):
                     self.wfile.write(chunk)
+                    written += len(chunk)
                     if out:
                         out.write(chunk)
                 if out:
                     out.close()
-                    os.replace(tmp, cached)
+                    # Only cache complete downloads: a short read must not stick.
+                    if length is not None and written == int(length):
+                        os.replace(tmp, cached)
+                        tmp = None
         except urllib.error.HTTPError as e:
             self.send_error(e.code)
         except Exception:
             self.send_error(502)
+        finally:
+            if tmp and os.path.exists(tmp):
+                os.remove(tmp)
 
     def do_GET(self):
         self._serve(False)

@@ -7,15 +7,15 @@
 //! top (`wait_for_welcome_apps`).
 
 use std::fs;
-use std::os::unix::fs::{MetadataExt, chown};
+use std::os::unix::fs::{DirBuilderExt, MetadataExt, lchown};
 use std::path::Path;
 use std::process::Command;
 use std::thread::sleep;
 use std::time::{Duration, Instant};
 
-use anyhow::Result;
+use anyhow::{Context, Result, bail};
 
-use crate::apply::sys::{host, write_atomic};
+use crate::apply::sys::{host, write_atomic, write_atomic_owned};
 
 /// GNOME Shell shows its "Welcome to …" dialog while this is below 40.beta.
 pub const GNOME_OVERRIDE: &str = "/usr/share/glib-2.0/schemas/90_bindle.gschema.override";
@@ -55,7 +55,16 @@ pub fn strip_hypr_autogen(config: &str) -> String {
 
 /// Turn off the desktop welcome apps for this system (root; `--root /mnt`
 /// from the live ISO). Safe to run repeatedly; never overwrites user config.
+///
+/// Home directories are only seeded under `--root` (a fresh install from the
+/// ISO, where the homes were just created): on a running system root must not
+/// walk users' homes, so each user runs `bindle first-login quiet-welcome`
+/// as themselves instead (`quiet_own_home`).
 pub fn quiet(root: &Path) -> Result<Vec<String>> {
+    quiet_at(root, root != Path::new("/"))
+}
+
+fn quiet_at(root: &Path, seed_homes: bool) -> Result<Vec<String>> {
     let mut done = Vec::new();
     write_atomic(&host(root, GNOME_OVERRIDE), GNOME_OVERRIDE_TEXT.as_bytes(), 0o644)?;
     done.push(format!("wrote {GNOME_OVERRIDE}"));
@@ -66,7 +75,7 @@ pub fn quiet(root: &Path) -> Result<Vec<String>> {
         done.push("compiled GSettings schemas".into());
     }
     let kde = host(root, KDE_WELCOME_RC);
-    if !kde.exists() {
+    if kde.symlink_metadata().is_err() {
         write_atomic(&kde, KDE_WELCOME_TEXT.as_bytes(), 0o644)?;
         done.push(format!("wrote {KDE_WELCOME_RC}"));
     }
@@ -74,28 +83,70 @@ pub fn quiet(root: &Path) -> Result<Vec<String>> {
         let seeded = strip_hypr_autogen(&default);
         write_atomic(&host(root, HYPR_SKEL), seeded.as_bytes(), 0o644)?;
         done.push(format!("wrote {HYPR_SKEL}"));
-        for home in fs::read_dir(host(root, "/home")).into_iter().flatten().flatten() {
-            if seed_hypr_home(&home.path(), &seeded)? {
-                done.push(format!("seeded Hyprland config for {}", home.file_name().to_string_lossy()));
+        if seed_homes {
+            for home in fs::read_dir(host(root, "/home")).into_iter().flatten().flatten() {
+                let name = home.file_name().to_string_lossy().into_owned();
+                match seed_hypr_home(&home.path(), &seeded, true) {
+                    Ok(true) => done.push(format!("seeded Hyprland config for {name}")),
+                    Ok(false) => {}
+                    Err(e) => done.push(format!("skipped Hyprland config for {name}: {e:#}")),
+                }
             }
+        } else {
+            done.push(
+                "existing users: run `bindle first-login quiet-welcome` (without sudo) to seed your own Hyprland config"
+                    .into(),
+            );
         }
     }
     write_atomic(&host(root, MARKER), b"", 0o644)?;
     Ok(done)
 }
 
-fn seed_hypr_home(home: &Path, seeded: &str) -> Result<bool> {
-    let dir = home.join(".config/hypr");
-    if !home.is_dir() || dir.join("hyprland.lua").exists() || dir.join("hyprland.conf").exists() {
+/// Unprivileged `quiet-welcome`: seed only the caller's own Hyprland config.
+pub fn quiet_own_home(home: &Path) -> Result<Vec<String>> {
+    let Ok(default) = fs::read_to_string(HYPR_DEFAULT) else {
+        return Ok(vec!["Hyprland isn't installed; nothing to do for this user.".into()]);
+    };
+    Ok(if seed_hypr_home(home, &strip_hypr_autogen(&default), false)? {
+        vec![format!("wrote {}", home.join(".config/hypr/hyprland.lua").display())]
+    } else {
+        vec!["Hyprland config already present; left as is.".into()]
+    })
+}
+
+/// A real directory (not a symlink), or nothing yet.
+fn plain_dir(path: &Path) -> Result<bool> {
+    match fs::symlink_metadata(path) {
+        Ok(m) if m.file_type().is_symlink() => bail!("{} is a symlink", path.display()),
+        Ok(m) if m.is_dir() => Ok(true),
+        Ok(_) => bail!("{} is not a directory", path.display()),
+        Err(_) => Ok(false),
+    }
+}
+
+/// Write `~/.config/hypr/hyprland.lua` unless the user has a config. Never
+/// follows symlinks; with `chown`, new files and dirs go to the home's owner.
+fn seed_hypr_home(home: &Path, seeded: &str, chown: bool) -> Result<bool> {
+    if !plain_dir(home)? {
         return Ok(false);
     }
-    let owner = fs::metadata(home)?;
-    let (uid, gid) = (owner.uid(), owner.gid());
-    fs::create_dir_all(&dir)?;
-    write_atomic(&dir.join("hyprland.lua"), seeded.as_bytes(), 0o644)?;
-    for p in [home.join(".config"), dir.clone(), dir.join("hyprland.lua")] {
-        chown(&p, Some(uid), Some(gid))?;
+    let owner = fs::symlink_metadata(home)?;
+    let owner = chown.then_some((owner.uid(), owner.gid()));
+    let (config, dir) = (home.join(".config"), home.join(".config/hypr"));
+    for d in [&config, &dir] {
+        if !plain_dir(d)? {
+            fs::DirBuilder::new().mode(0o755).create(d).with_context(|| format!("create {}", d.display()))?;
+            if let Some((uid, gid)) = owner {
+                lchown(d, Some(uid), Some(gid))?;
+            }
+        }
     }
+    let (lua, conf) = (dir.join("hyprland.lua"), dir.join("hyprland.conf"));
+    if lua.symlink_metadata().is_ok() || conf.symlink_metadata().is_ok() {
+        return Ok(false);
+    }
+    write_atomic_owned(&lua, seeded.as_bytes(), 0o644, owner)?;
     Ok(true)
 }
 
@@ -170,6 +221,43 @@ mod tests {
         fs::write(host(&root, KDE_WELCOME_RC), "custom").unwrap();
         quiet(&root).unwrap();
         assert_eq!(fs::read_to_string(host(&root, KDE_WELCOME_RC)).unwrap(), "custom");
+    }
+
+    #[test]
+    fn never_follows_symlinks_in_homes() {
+        let root = crate::apply::sys::test_dir("welcome-links");
+        let outside = root.join("outside");
+        fs::create_dir_all(&outside).unwrap();
+        fs::create_dir_all(root.join("usr/share/hypr")).unwrap();
+        fs::write(root.join("usr/share/hypr/hyprland.lua"), HYPR).unwrap();
+        // ~/.config -> elsewhere, and a home that is itself a symlink.
+        fs::create_dir_all(root.join("home/evil")).unwrap();
+        std::os::unix::fs::symlink(&outside, root.join("home/evil/.config")).unwrap();
+        std::os::unix::fs::symlink(&outside, root.join("home/linked")).unwrap();
+        // ~/.config/hypr -> elsewhere.
+        fs::create_dir_all(root.join("home/evil2/.config")).unwrap();
+        std::os::unix::fs::symlink(&outside, root.join("home/evil2/.config/hypr")).unwrap();
+        let done = quiet(&root).unwrap();
+        assert_eq!(fs::read_dir(&outside).unwrap().count(), 0, "nothing written through a link");
+        assert!(done.iter().any(|d| d.contains("skipped") && d.contains("evil:")));
+        assert!(done.iter().any(|d| d.contains("skipped") && d.contains("evil2")));
+        assert!(done.iter().any(|d| d.contains("skipped") && d.contains("linked")));
+    }
+
+    #[test]
+    fn running_system_mode_leaves_homes_alone() {
+        let root = crate::apply::sys::test_dir("welcome-live");
+        fs::create_dir_all(root.join("usr/share/hypr")).unwrap();
+        fs::write(root.join("usr/share/hypr/hyprland.lua"), HYPR).unwrap();
+        fs::create_dir_all(root.join("home/tester")).unwrap();
+        let done = quiet_at(&root, false).unwrap();
+        assert!(!root.join("home/tester/.config").exists());
+        assert!(host(&root, HYPR_SKEL).exists());
+        assert!(done.iter().any(|d| d.contains("without sudo")));
+        // The user then seeds their own home.
+        assert!(seed_hypr_home(&root.join("home/tester"), "cfg", false).unwrap());
+        assert_eq!(fs::read_to_string(root.join("home/tester/.config/hypr/hyprland.lua")).unwrap(), "cfg");
+        assert!(!seed_hypr_home(&root.join("home/tester"), "other", false).unwrap());
     }
 
     #[test]

@@ -2,8 +2,10 @@
 //! with actions. Talks D-Bus directly so it works without libnotify.
 
 use std::collections::HashMap;
+use std::sync::mpsc;
+use std::time::Duration;
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use zbus::blocking::{Connection, MessageIterator, Proxy};
 use zbus::message::Type;
 use zbus::zvariant::Value;
@@ -11,6 +13,8 @@ use zbus::{MatchRule, Message};
 
 const DEST: &str = "org.freedesktop.Notifications";
 const PATH: &str = "/org/freedesktop/Notifications";
+/// Give up waiting after this long, so the login process doesn't linger.
+const WAIT: Duration = Duration::from_secs(30 * 60);
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Choice {
@@ -47,14 +51,19 @@ fn signal_for(msg: &Message, id: u32) -> Option<Choice> {
     }
 }
 
-/// Show the reminder and block until the user acts on it or it closes.
-/// Errors when there is no session bus or notification server.
+/// Show the reminder and block until the user acts on it, it closes, or
+/// `WAIT` passes. Errors when there is no session bus, no notification server,
+/// or one that can't show buttons (the caller then opens the wizard instead).
 pub fn remind() -> Result<Choice> {
     let conn = Connection::session().context("no D-Bus session bus")?;
+    let proxy = Proxy::new(&conn, DEST, PATH, DEST)?;
+    let caps: Vec<String> = proxy.call("GetCapabilities", &()).context("no notification server")?;
+    if !caps.iter().any(|c| c == "actions") {
+        bail!("the notification server doesn't support buttons");
+    }
     // Subscribe before sending so a fast click can't be missed.
     let rule = MatchRule::builder().msg_type(Type::Signal).interface(DEST)?.path(PATH)?.build();
-    let mut signals = MessageIterator::for_match_rule(rule, &conn, Some(16))?;
-    let proxy = Proxy::new(&conn, DEST, PATH, DEST)?;
+    let signals = MessageIterator::for_match_rule(rule, &conn, Some(16))?;
 
     let actions = ["default", "Set up now", "open", "Set up now", "dismiss", "Don't remind me"];
     let mut hints: HashMap<&str, Value> = HashMap::new();
@@ -77,12 +86,20 @@ pub fn remind() -> Result<Choice> {
         )
         .context("no notification server")?;
 
-    for msg in signals.by_ref() {
-        if let Some(choice) = msg.ok().as_ref().and_then(|m| signal_for(m, id)) {
-            return Ok(choice);
+    // The iterator blocks with no timeout of its own: wait on it in a thread.
+    let (tx, rx) = mpsc::channel();
+    std::thread::spawn(move || {
+        let choice = signals.into_iter().find_map(|msg| msg.ok().as_ref().and_then(|m| signal_for(m, id)));
+        let _ = tx.send(choice.unwrap_or(Choice::Ignored));
+    });
+    match rx.recv_timeout(WAIT) {
+        Ok(choice) => Ok(choice),
+        Err(_) => {
+            // Don't leave a button behind that nothing is listening to.
+            let _: Result<(), _> = proxy.call("CloseNotification", &(id,));
+            Ok(Choice::Ignored)
         }
     }
-    Ok(Choice::Ignored)
 }
 
 #[cfg(test)]
