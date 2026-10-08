@@ -16,7 +16,8 @@ jobs:
     steps:
       # multilib: the gaming modules use it, and Bindle enables it on the target.
       - run: |
-          sed -i '/^#\[multilib\]/,/^#Include/ s/^#//' /etc/pacman.conf
+          grep -q '^\[multilib\]' /etc/pacman.conf ||
+            printf '\n[multilib]\nInclude = /etc/pacman.d/mirrorlist\n' >> /etc/pacman.conf
           pacman -Syu --noconfirm --needed rust rust-musl git python
       - uses: actions/checkout@v5
       - run: cargo fmt --check
