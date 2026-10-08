@@ -1,0 +1,34 @@
+[category]
+id = "security"
+name = "Security & backups"
+description = "Firewall and filesystem snapshots."
+order = 70
+
+[[module]]
+id = "ufw"
+name = "Firewall (ufw)"
+description = "Deny incoming, allow outgoing."
+profiles = ["desktop", "gaming", "developer"]
+conflicts = ["firewalld"]
+packages = ["ufw"]
+enable = ["ufw.service"]
+root_commands = [["ufw", "default", "deny", "incoming"], ["ufw", "default", "allow", "outgoing"], ["ufw", "--force", "enable"]]
+
+[[module]]
+id = "firewalld"
+name = "Firewall (firewalld)"
+description = "Zone-based firewall; preferred if you use NetworkManager zones or libvirt."
+conflicts = ["ufw"]
+packages = ["firewalld"]
+enable = ["firewalld.service"]
+
+[[module]]
+id = "snapper"
+name = "Btrfs snapshots (snapper + snap-pac)"
+description = "Snapshot / before and after every pacman transaction."
+risk = "moderate"
+when = ["fs:btrfs"]
+packages = ["snapper", "snap-pac"]
+root_commands = [["snapper", "-c", "root", "create-config", "/"]]
+enable = ["snapper-timeline.timer", "snapper-cleanup.timer"]
+notes = ["Booting into snapshots needs grub-btrfs or limine-snapper-sync (later phase)."]

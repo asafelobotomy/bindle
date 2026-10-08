@@ -1,0 +1,60 @@
+[category]
+id = "development"
+name = "Development"
+description = "Toolchains, containers and editors."
+order = 50
+
+[[module]]
+id = "rustup"
+name = "Rust (rustup)"
+description = "rustup with the stable toolchain."
+profiles = ["developer"]
+packages = ["rustup"]
+user_commands = [["rustup", "default", "stable"]]
+notes = ["Conflicts with the distro 'rust' package; pacman will offer to replace it."]
+
+[[module]]
+id = "nodejs"
+name = "Node.js"
+description = "Node.js LTS runtime with npm."
+profiles = ["developer"]
+packages = ["nodejs-lts-jod", "npm"]
+
+[[module]]
+id = "python"
+name = "Python tooling"
+description = "Python with pip, pipx and uv."
+profiles = ["developer"]
+packages = ["python", "python-pip", "python-pipx", "uv"]
+
+[[module]]
+id = "docker"
+name = "Docker"
+description = "Docker engine with compose and buildx; adds you to the docker group."
+risk = "moderate"
+profiles = ["developer"]
+packages = ["docker", "docker-compose", "docker-buildx"]
+enable = ["docker.socket"]
+groups = ["docker"]
+notes = ["Membership of the docker group is root-equivalent."]
+
+[[module]]
+id = "podman"
+name = "Podman"
+description = "Daemonless, rootless containers."
+packages = ["podman"]
+
+[[module]]
+id = "neovim"
+name = "Neovim"
+description = "Terminal editor."
+profiles = ["developer"]
+packages = ["neovim"]
+
+[[module]]
+id = "vscode"
+name = "Visual Studio Code"
+description = "Microsoft build from the AUR."
+risk = "moderate"
+requires = ["aur-helper"]
+aur = ["visual-studio-code-bin"]

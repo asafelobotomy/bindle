@@ -1,0 +1,16 @@
+[Unit]
+Description=Bindle VM test: first-boot checks
+Wants=network-online.target
+After=network-online.target NetworkManager.service
+Before=display-manager.service getty@tty1.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/libexec/bindle-vm-check
+StandardOutput=tty
+StandardError=tty
+TTYPath=/dev/ttyS0
+TimeoutStartSec=0
+
+[Install]
+WantedBy=multi-user.target

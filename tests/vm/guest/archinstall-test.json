@@ -1,0 +1,101 @@
+{
+    "hostname": "bindle-vm",
+    "timezone": "UTC",
+    "kernels": [
+        "linux"
+    ],
+    "locale_config": {
+        "kb_layout": "us",
+        "sys_enc": "UTF-8",
+        "sys_lang": "en_US"
+    },
+    "bootloader_config": {
+        "bootloader": "Systemd-boot",
+        "uki": false,
+        "removable": true
+    },
+    "disk_config": {
+        "config_type": "default_layout",
+        "device_modifications": [
+            {
+                "device": "/dev/vda",
+                "wipe": true,
+                "partitions": [
+                    {
+                        "obj_id": "b1d1e000-0000-4000-8000-000000000001",
+                        "status": "create",
+                        "type": "primary",
+                        "fs_type": "fat32",
+                        "flags": [
+                            "boot",
+                            "esp"
+                        ],
+                        "start": {
+                            "value": 1,
+                            "unit": "MiB",
+                            "sector_size": {
+                                "value": 512,
+                                "unit": "B"
+                            }
+                        },
+                        "size": {
+                            "value": 1024,
+                            "unit": "MiB",
+                            "sector_size": {
+                                "value": 512,
+                                "unit": "B"
+                            }
+                        },
+                        "mountpoint": "/boot",
+                        "mount_options": [],
+                        "dev_path": null,
+                        "btrfs": []
+                    },
+                    {
+                        "obj_id": "b1d1e000-0000-4000-8000-000000000002",
+                        "status": "create",
+                        "type": "primary",
+                        "fs_type": "ext4",
+                        "flags": [],
+                        "start": {
+                            "value": 1025,
+                            "unit": "MiB",
+                            "sector_size": {
+                                "value": 512,
+                                "unit": "B"
+                            }
+                        },
+                        "size": {
+                            "value": 23000,
+                            "unit": "MiB",
+                            "sector_size": {
+                                "value": 512,
+                                "unit": "B"
+                            }
+                        },
+                        "mountpoint": "/",
+                        "mount_options": [],
+                        "dev_path": null,
+                        "btrfs": []
+                    }
+                ]
+            }
+        ]
+    },
+    "mirror_config": {
+        "custom_servers": [
+            {
+                "url": "http://10.0.2.2:8766/$repo/os/$arch"
+            },
+            {
+                "url": "https://geo.mirror.pkgbuild.com/$repo/os/$arch"
+            },
+            {
+                "url": "https://mirror.rackspace.com/archlinux/$repo/os/$arch"
+            },
+            {
+                "url": "https://mirrors.kernel.org/archlinux/$repo/os/$arch"
+            }
+        ]
+    }
+}

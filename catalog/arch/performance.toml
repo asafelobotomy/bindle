@@ -1,0 +1,68 @@
+[category]
+id = "performance"
+name = "Performance"
+description = "Memory, I/O and build tuning."
+order = 30
+
+[[module]]
+id = "zram"
+name = "ZRAM swap (compressed RAM)"
+description = "zram-generator sized from your RAM, zstd, swap-optimised sysctls, and zswap turned off."
+default = true
+builtin = "zram"
+notes = ["For swap files, overflow tiers and snapshots, use XZram."]
+
+[[module]]
+id = "io-schedulers"
+name = "I/O schedulers"
+description = "udev rules: none for NVMe, mq-deadline for SATA SSD, bfq for spinning disks."
+default = true
+[[module.files]]
+path = "/etc/udev/rules.d/60-bindle-ioschedulers.rules"
+content = '''
+# Managed by Bindle
+ACTION=="add|change", KERNEL=="nvme[0-9]*", ATTR{queue/rotational}=="0", ATTR{queue/scheduler}="none"
+ACTION=="add|change", KERNEL=="sd[a-z]*|mmcblk[0-9]*", ATTR{queue/rotational}=="0", ATTR{queue/scheduler}="mq-deadline"
+ACTION=="add|change", KERNEL=="sd[a-z]*", ATTR{queue/rotational}=="1", ATTR{queue/scheduler}="bfq"
+'''
+
+[[module]]
+id = "oomd"
+name = "systemd-oomd"
+description = "Kill runaway cgroups before the system locks up under memory pressure."
+profiles = ["desktop", "gaming", "developer"]
+enable = ["systemd-oomd.service"]
+
+[[module]]
+id = "makepkg-parallel"
+name = "Parallel makepkg builds"
+description = "Use every CPU core when building AUR packages."
+default = true
+[[module.files]]
+path = "/etc/makepkg.conf.d/bindle.conf"
+content = '''
+# Managed by Bindle
+MAKEFLAGS="-j$(nproc)"
+'''
+
+[[module]]
+id = "makepkg-native"
+name = "Native CPU optimisation for builds"
+description = "Compile AUR packages with -march=native. Packages built this way will not run on other CPUs."
+risk = "advanced"
+[[module.files]]
+path = "/etc/makepkg.conf.d/bindle-native.conf"
+content = '''
+# Managed by Bindle
+CFLAGS="${CFLAGS/-march=x86-64 -mtune=generic/-march=native}"
+CXXFLAGS="${CXXFLAGS/-march=x86-64 -mtune=generic/-march=native}"
+RUSTFLAGS="${RUSTFLAGS} -C target-cpu=native"
+'''
+
+[[module]]
+id = "kernel-zen"
+name = "linux-zen kernel"
+description = "Desktop-tuned kernel installed alongside the stock one."
+risk = "advanced"
+packages = ["linux-zen", "linux-zen-headers"]
+notes = ["Your bootloader needs an entry for linux-zen. GRUB picks it up after grub-mkconfig; systemd-boot needs a loader entry (automated in a later phase)."]

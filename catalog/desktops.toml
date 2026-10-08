@@ -1,0 +1,281 @@
+# Desktops offered by archinstall (v4.5, archinstall/default_profiles/desktops/).
+#
+#   name          archinstall's profile name (as logged in profile_config.details)
+#   detect        package whose presence identifies the desktop on a live system
+#   archinstall   packages archinstall's profile installs (used to recognise the
+#                 profile in pacman.log; plasma depends on the chosen flavor)
+#   greeter       archinstall's default greeter
+#   essentials    what Bindle adds to round the desktop out
+#   nm / bt       extra packages when NetworkManager / Bluetooth hardware is present
+#   includes      desktops shipped as a component of this one (not separate choices)
+#   broken        archinstall's profile is known to fail; `bindle iso` won't offer it
+#
+# The common "Desktop" base archinstall adds to every desktop is DESKTOP_BASE in
+# crates/bindle-core/src/desktops.rs.
+
+[[desktop]]
+id = "plasma"
+name = "KDE Plasma"
+kind = "desktop"
+display = "wayland"
+toolkit = "qt"
+detect = "plasma-workspace"
+archinstall = ["plasma-meta"]
+greeter = "plasma-login-manager"
+essentials = ["konsole", "dolphin", "ark", "kate", "spectacle", "gwenview", "okular", "kcalc", "ffmpegthumbs", "kdegraphics-thumbnailers", "kdeconnect", "filelight", "kwalletmanager"]
+notes = ["plasma-meta ships the desktop shell but no applications; Bindle adds the core KDE apps."]
+
+[[desktop]]
+id = "gnome"
+name = "GNOME"
+kind = "desktop"
+display = "wayland"
+toolkit = "gtk"
+detect = "gnome-shell"
+archinstall = ["gnome", "gnome-tweaks"]
+greeter = "gdm"
+essentials = ["extension-manager", "gnome-shell-extensions", "ffmpegthumbnailer", "gvfs-mtp"]
+
+[[desktop]]
+id = "cosmic"
+name = "Cosmic"
+kind = "desktop"
+display = "wayland"
+toolkit = "other"
+detect = "cosmic-session"
+archinstall = ["cosmic", "xdg-user-dirs"]
+greeter = "cosmic-greeter"
+essentials = ["gvfs-mtp"]
+notes = ["The cosmic group is complete; COSMIC Store uses Flatpak, so enable the Flatpak module."]
+
+[[desktop]]
+id = "xfce4"
+name = "Xfce4"
+kind = "desktop"
+display = "xorg"
+toolkit = "gtk"
+detect = "xfce4-session"
+archinstall = ["xfce4", "xfce4-goodies", "pavucontrol", "gvfs", "xarchiver"]
+greeter = "lightdm-gtk-greeter"
+essentials = ["xdg-user-dirs-gtk", "gvfs-mtp"]
+nm = ["network-manager-applet"]
+bt = ["blueman"]
+
+[[desktop]]
+id = "cinnamon"
+name = "Cinnamon"
+kind = "desktop"
+display = "xorg"
+toolkit = "gtk"
+detect = "cinnamon"
+archinstall = ["cinnamon", "system-config-printer", "gnome-keyring", "gnome-terminal", "engrampa", "gnome-screenshot", "gvfs-smb", "xed", "xdg-user-dirs-gtk"]
+greeter = "lightdm-gtk-greeter"
+essentials = ["gvfs-mtp", "pavucontrol"]
+bt = ["blueman"]
+
+[[desktop]]
+id = "mate"
+name = "Mate"
+kind = "desktop"
+display = "xorg"
+toolkit = "gtk"
+detect = "mate-session-manager"
+archinstall = ["mate", "mate-extra"]
+greeter = "lightdm-gtk-greeter"
+essentials = ["gvfs-mtp"]
+nm = ["network-manager-applet"]
+bt = ["blueman"]
+
+[[desktop]]
+id = "budgie"
+name = "Budgie"
+kind = "desktop"
+display = "wayland"
+toolkit = "gtk"
+detect = "budgie-desktop"
+includes = ["labwc"]
+archinstall = ["materia-gtk-theme", "budgie", "mate-terminal", "nemo", "nemo-fileroller", "papirus-icon-theme"]
+greeter = "lightdm-slick-greeter"
+essentials = ["gvfs", "gvfs-mtp", "pavucontrol"]
+nm = ["network-manager-applet"]
+bt = ["blueman"]
+
+[[desktop]]
+id = "lxqt"
+name = "Lxqt"
+kind = "desktop"
+display = "xorg"
+toolkit = "qt"
+detect = "lxqt-session"
+archinstall = ["lxqt", "breeze-icons", "oxygen-icons", "xdg-utils", "ttf-freefont", "l3afpad", "slock"]
+greeter = "sddm"
+essentials = ["pavucontrol-qt", "gvfs", "gvfs-mtp"]
+nm = ["network-manager-applet"]
+bt = ["blueman"]
+
+[[desktop]]
+id = "deepin"
+name = "Deepin"
+kind = "desktop"
+display = "xorg"
+toolkit = "qt"
+detect = "deepin-session-shell"
+archinstall = ["deepin", "deepin-terminal", "deepin-editor"]
+greeter = "lightdm-gtk-greeter"
+essentials = ["deepin-extra"]
+
+[[desktop]]
+id = "enlightenment"
+name = "Enlightenment"
+kind = "desktop"
+display = "xorg"
+toolkit = "other"
+detect = "enlightenment"
+archinstall = ["enlightenment", "terminology"]
+greeter = "lightdm-gtk-greeter"
+essentials = ["pavucontrol"]
+
+[[desktop]]
+id = "hyprland"
+name = "Hyprland"
+kind = "compositor"
+display = "wayland"
+toolkit = "other"
+detect = "hyprland"
+archinstall = ["hyprland", "dunst", "kitty", "uwsm", "dolphin", "wofi", "xdg-desktop-portal-hyprland", "qt5-wayland", "qt6-wayland", "polkit-kde-agent", "grim", "slurp"]
+greeter = "sddm"
+essentials = ["waybar", "hyprpaper", "hyprlock", "hypridle", "hyprpolkitagent", "xdg-desktop-portal-gtk", "pavucontrol", "brightnessctl", "wl-clipboard", "cliphist", "nwg-look"]
+nm = ["network-manager-applet"]
+bt = ["blueman"]
+notes = ["archinstall's Hyprland is bare: no bar, wallpaper, lock or idle daemon. Bindle adds the Hypr* ecosystem."]
+
+[[desktop]]
+id = "sway"
+name = "Sway"
+kind = "compositor"
+display = "wayland"
+toolkit = "other"
+detect = "sway"
+archinstall = ["sway", "swaybg", "swaylock", "swayidle", "waybar", "wmenu", "brightnessctl", "grim", "slurp", "pavucontrol", "foot", "xorg-xwayland"]
+greeter = "lightdm-gtk-greeter"
+essentials = ["mako", "wl-clipboard", "xdg-desktop-portal-wlr", "xdg-desktop-portal-gtk", "polkit-gnome"]
+nm = ["network-manager-applet"]
+bt = ["blueman"]
+
+[[desktop]]
+id = "niri"
+name = "niri"
+kind = "compositor"
+display = "wayland"
+toolkit = "other"
+detect = "niri"
+archinstall = ["niri", "alacritty", "fuzzel", "mako", "xorg-xwayland", "waybar", "swaybg", "swayidle", "swaylock", "xdg-desktop-portal-gnome"]
+greeter = "lightdm-gtk-greeter"
+essentials = ["xwayland-satellite", "xdg-desktop-portal-gtk", "polkit-gnome", "wl-clipboard", "pavucontrol", "brightnessctl"]
+nm = ["network-manager-applet"]
+bt = ["blueman"]
+notes = ["niri runs X11 apps through xwayland-satellite."]
+
+[[desktop]]
+id = "niri-dms"
+name = "niri - DankMaterialShell"
+kind = "compositor"
+display = "wayland"
+toolkit = "other"
+detect = "dms-shell"
+includes = ["niri"]
+broken = "archinstall 4.5 installs dms-shell-niri and dms-greeter, which aren't in the Arch repos (pacstrap fails)"
+archinstall = ["niri", "dms-shell-niri", "polkit", "xdg-desktop-portal-gnome", "xorg-xwayland", "matugen", "cava", "kimageformats"]
+greeter = "dms-greeter"
+essentials = ["xwayland-satellite", "wl-clipboard", "cliphist"]
+
+[[desktop]]
+id = "labwc"
+name = "Labwc"
+kind = "compositor"
+display = "wayland"
+toolkit = "other"
+detect = "labwc"
+archinstall = ["alacritty", "labwc"]
+greeter = "lightdm-gtk-greeter"
+essentials = ["waybar", "fuzzel", "mako", "swaybg", "swaylock", "wl-clipboard", "xdg-desktop-portal-wlr", "xdg-desktop-portal-gtk", "polkit-gnome", "pavucontrol"]
+nm = ["network-manager-applet"]
+bt = ["blueman"]
+
+[[desktop]]
+id = "river"
+name = "River"
+kind = "compositor"
+display = "wayland"
+toolkit = "other"
+detect = "river"
+archinstall = ["foot", "xdg-desktop-portal-wlr", "river"]
+greeter = "lightdm-gtk-greeter"
+essentials = ["waybar", "fuzzel", "mako", "swaybg", "swaylock", "wl-clipboard", "xdg-desktop-portal-gtk", "polkit-gnome", "pavucontrol"]
+nm = ["network-manager-applet"]
+bt = ["blueman"]
+
+[[desktop]]
+id = "i3"
+name = "i3-wm"
+kind = "window-manager"
+display = "xorg"
+toolkit = "other"
+detect = "i3-wm"
+archinstall = ["i3-wm", "i3lock", "i3status", "i3blocks", "xss-lock", "xterm", "lightdm-gtk-greeter", "lightdm", "dmenu"]
+greeter = "lightdm-gtk-greeter"
+essentials = ["picom", "rofi", "dunst", "feh", "arandr", "pavucontrol", "polkit-gnome"]
+nm = ["network-manager-applet"]
+bt = ["blueman"]
+
+[[desktop]]
+id = "awesome"
+name = "Awesome"
+kind = "window-manager"
+display = "xorg"
+toolkit = "other"
+detect = "awesome"
+archinstall = ["awesome", "alacritty", "xorg-xrandr", "xterm", "feh", "slock", "terminus-font", "gnu-free-fonts", "ttf-liberation", "xsel"]
+essentials = ["picom", "rofi", "pavucontrol", "polkit-gnome"]
+nm = ["network-manager-applet"]
+bt = ["blueman"]
+notes = ["archinstall installs no greeter for Awesome; start it with startx or add a display manager."]
+
+[[desktop]]
+id = "bspwm"
+name = "Bspwm"
+kind = "window-manager"
+display = "xorg"
+toolkit = "other"
+detect = "bspwm"
+archinstall = ["bspwm", "sxhkd", "dmenu", "xdo", "rxvt-unicode"]
+greeter = "lightdm-gtk-greeter"
+essentials = ["polybar", "picom", "rofi", "dunst", "feh", "pavucontrol", "polkit-gnome"]
+nm = ["network-manager-applet"]
+bt = ["blueman"]
+
+[[desktop]]
+id = "qtile"
+name = "Qtile"
+kind = "window-manager"
+display = "xorg"
+toolkit = "other"
+detect = "qtile"
+archinstall = ["qtile", "alacritty"]
+greeter = "lightdm-gtk-greeter"
+essentials = ["picom", "rofi", "dunst", "feh", "pavucontrol", "polkit-gnome"]
+nm = ["network-manager-applet"]
+bt = ["blueman"]
+
+[[desktop]]
+id = "xmonad"
+name = "Xmonad"
+kind = "window-manager"
+display = "xorg"
+toolkit = "other"
+detect = "xmonad"
+archinstall = ["xmonad", "xmonad-contrib", "xmonad-extras", "xterm", "dmenu"]
+greeter = "lightdm-gtk-greeter"
+essentials = ["xmobar", "picom", "rofi", "dunst", "feh", "pavucontrol", "polkit-gnome"]
+nm = ["network-manager-applet"]
+bt = ["blueman"]

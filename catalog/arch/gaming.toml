@@ -1,0 +1,53 @@
+[category]
+id = "gaming"
+name = "Gaming"
+description = "Steam, Wine and performance overlays."
+order = 60
+
+[[module]]
+id = "steam"
+name = "Steam"
+description = "Valve's Steam client (Proton included)."
+profiles = ["gaming"]
+requires = ["multilib", "gpu-driver"]
+packages = ["steam"]
+
+[[module]]
+id = "gamemode"
+name = "GameMode"
+description = "On-demand CPU governor and scheduler tweaks while games run."
+profiles = ["gaming"]
+requires = ["multilib"]
+packages = ["gamemode", "lib32-gamemode"]
+groups = ["gamemode"]
+
+[[module]]
+id = "mangohud"
+name = "MangoHud"
+description = "FPS, frametime and temperature overlay."
+profiles = ["gaming"]
+requires = ["multilib"]
+packages = ["mangohud", "lib32-mangohud"]
+
+[[module]]
+id = "wine"
+name = "Wine"
+description = "Wine staging with winetricks."
+profiles = ["gaming"]
+requires = ["multilib"]
+packages = ["wine-staging", "winetricks"]
+
+[[module]]
+id = "lutris"
+name = "Lutris"
+description = "Launcher for GOG, Epic, emulators and Wine games."
+requires = ["wine"]
+packages = ["lutris"]
+
+[[module]]
+id = "heroic"
+name = "Heroic Games Launcher"
+description = "Epic, GOG and Amazon launcher (AUR)."
+risk = "moderate"
+requires = ["aur-helper"]
+aur = ["heroic-games-launcher-bin"]

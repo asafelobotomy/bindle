@@ -1,0 +1,20 @@
+#!/bin/sh
+# Bindle AppRun: the wizard is a TUI, so when launched from a file manager
+# (no terminal attached) re-open ourselves inside a terminal emulator.
+HERE="$(dirname "$(readlink -f "$0")")"
+BIN="$HERE/usr/bin/bindle"
+SELF="${APPIMAGE:-$BIN}"
+
+if [ -t 0 ] && [ -t 1 ]; then
+    exec "$BIN" "$@"
+fi
+
+for term in "$TERMINAL" kitty alacritty foot wezterm konsole gnome-terminal xfce4-terminal xterm; do
+    [ -n "$term" ] && command -v "$term" >/dev/null 2>&1 || continue
+    case "$term" in
+        gnome-terminal) exec "$term" -- "$SELF" "$@" ;;
+        wezterm) exec "$term" start -- "$SELF" "$@" ;;
+        *) exec "$term" -e "$SELF" "$@" ;;
+    esac
+done
+exec "$BIN" "$@"

@@ -1,0 +1,22 @@
+# Profiles pre-select modules in the wizard. A module joins a profile when it
+# lists the profile id in `profiles`, or when it sets `default = true`.
+
+[[profile]]
+id = "minimal"
+name = "Minimal"
+description = "Only the safe, universally useful defaults."
+
+[[profile]]
+id = "desktop"
+name = "Desktop"
+description = "Everyday desktop: audio, fonts, codecs, flatpak, power management."
+
+[[profile]]
+id = "gaming"
+name = "Gaming"
+description = "Desktop plus multilib, Steam, Wine, GameMode and MangoHud."
+
+[[profile]]
+id = "developer"
+name = "Developer"
+description = "Desktop plus toolchains, containers and editors."

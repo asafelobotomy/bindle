@@ -1,0 +1,78 @@
+[category]
+id = "base"
+name = "System basics"
+description = "Package manager, mirrors, AUR access and firmware."
+order = 10
+
+[[module]]
+id = "pacman-qol"
+name = "Pacman quality-of-life"
+description = "Colour output, parallel downloads, verbose package lists, and a weekly package-cache cleanup."
+default = true
+pacman = { Color = "", ParallelDownloads = "10", VerbosePkgLists = "" }
+packages = ["pacman-contrib"]
+enable = ["paccache.timer"]
+
+[[module]]
+id = "multilib"
+name = "Enable [multilib]"
+description = "32-bit repository required by Steam, Wine and lib32 graphics drivers."
+profiles = ["gaming"]
+repos = ["multilib"]
+
+[[module]]
+id = "mirrors"
+name = "Fast mirrors (reflector)"
+description = "Rank recent HTTPS mirrors weekly with reflector."
+default = true
+packages = ["reflector"]
+enable = ["reflector.timer"]
+[[module.files]]
+path = "/etc/xdg/reflector/reflector.conf"
+content = '''
+# Managed by Bindle
+--save /etc/pacman.d/mirrorlist
+--protocol https
+--latest 20
+--sort rate
+'''
+
+[[module]]
+id = "build-tools"
+name = "Build tools"
+description = "base-devel and git, needed for the AUR and most development."
+default = true
+packages = ["base-devel", "git"]
+
+[[module]]
+id = "aur-helper"
+name = "AUR helper (paru)"
+description = "Bootstrap paru from the AUR so community packages can be installed."
+risk = "moderate"
+profiles = ["desktop", "gaming", "developer"]
+requires = ["build-tools"]
+builtin = "aur-helper"
+
+[[module]]
+id = "microcode"
+name = "CPU microcode"
+description = "Install intel-ucode or amd-ucode for the detected CPU and rebuild the initramfs."
+default = true
+when = ["!virt"]
+builtin = "microcode"
+
+[[module]]
+id = "fstrim"
+name = "Weekly SSD TRIM"
+description = "Enable fstrim.timer to keep SSD performance steady."
+default = true
+when = ["ssd"]
+enable = ["fstrim.timer"]
+
+[[module]]
+id = "firmware-updates"
+name = "Firmware updates (fwupd)"
+description = "Update device firmware from LVFS."
+profiles = ["desktop", "gaming", "developer"]
+when = ["!virt"]
+packages = ["fwupd"]

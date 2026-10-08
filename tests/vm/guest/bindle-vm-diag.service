@@ -1,0 +1,13 @@
+[Unit]
+Description=Bindle VM test: graphical session diagnostics
+After=display-manager.service getty@tty1.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c 'sleep 120; echo "BINDLE-VM: DIAG sessions"; loginctl list-sessions --no-legend; for s in $(loginctl list-sessions --no-legend | cut -d" " -f1); do loginctl show-session "$s" -p Type -p Class -p Desktop -p State; done; echo "BINDLE-VM: DIAG processes"; ps -u tester -o comm= | sort -u | tr "\\n" " "; echo; echo "BINDLE-VM: DIAG bindle"; pgrep -au tester bindle; echo "BINDLE-VM: DIAG watcher"; runuser -u tester -- env XDG_RUNTIME_DIR=/run/user/$(id -u tester) systemctl --user status bindle-first-login.service --no-pager -n 15; echo "BINDLE-VM: DIAG display-manager log"; journalctl -b -u display-manager -n 25 --no-pager; echo "BINDLE-VM: DIAG user journal"; journalctl -b _UID=$(id -u tester) -n 40 --no-pager; echo "BINDLE-VM: DIAG END"'
+StandardOutput=tty
+StandardError=tty
+TTYPath=/dev/ttyS0
+
+[Install]
+WantedBy=multi-user.target

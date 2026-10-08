@@ -1,0 +1,56 @@
+[category]
+id = "desktop"
+name = "Desktop & apps"
+description = "Fonts, codecs, Flatpak and everyday applications."
+order = 40
+
+[[module]]
+id = "fonts"
+name = "Fonts"
+description = "Noto (incl. emoji and CJK), DejaVu and Liberation for web/document compatibility."
+profiles = ["desktop", "gaming", "developer"]
+packages = ["noto-fonts", "noto-fonts-emoji", "noto-fonts-cjk", "ttf-dejavu", "ttf-liberation"]
+
+[[module]]
+id = "codecs"
+name = "Multimedia codecs"
+description = "FFmpeg and the GStreamer plugin sets."
+profiles = ["desktop", "gaming", "developer"]
+packages = ["ffmpeg", "gst-plugins-good", "gst-plugins-bad", "gst-plugins-ugly", "gst-libav"]
+
+[[module]]
+id = "flatpak"
+name = "Flatpak + Flathub"
+description = "Sandboxed apps; Arch's flatpak package ships the Flathub remote."
+profiles = ["desktop", "gaming"]
+packages = ["flatpak"]
+
+[[module]]
+id = "archives"
+name = "Archive tools"
+description = "zip, unzip, 7-Zip and unrar."
+profiles = ["desktop", "gaming", "developer"]
+packages = ["zip", "unzip", "7zip", "unrar"]
+
+[[module]]
+id = "user-dirs"
+name = "XDG user folders"
+description = "Create Documents, Downloads, Music, Pictures and Videos in your home folder."
+profiles = ["desktop", "gaming", "developer"]
+packages = ["xdg-user-dirs"]
+user_commands = [["xdg-user-dirs-update"]]
+
+[[module]]
+id = "firefox"
+name = "Firefox"
+description = "Web browser."
+profiles = ["desktop", "gaming", "developer"]
+packages = ["firefox"]
+
+[[module]]
+id = "desktop-essentials"
+name = "Desktop essentials"
+description = "Fill the gaps archinstall's desktop profile leaves: core apps, portals, polkit agent, bar/lock tools and applets for each detected desktop."
+default = true
+when = ["desktop"]
+builtin = "desktop"

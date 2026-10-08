@@ -1,0 +1,32 @@
+name: release
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    container: archlinux:base-devel
+    steps:
+      # rust-musl: the ISO binary must be fully static so it runs on any ISO's glibc.
+      - run: pacman -Syu --noconfirm --needed rust rust-musl git curl python file
+      - uses: actions/checkout@v4
+      - run: cargo test --workspace --locked
+      - name: Static binary for the live ISO
+        run: |
+          cargo build --release --locked -p bindle-cli --target x86_64-unknown-linux-musl
+          mkdir -p dist
+          cp target/x86_64-unknown-linux-musl/release/bindle dist/bindle-x86_64
+          file dist/bindle-x86_64 | grep -q 'static' || { echo "binary is not static"; exit 1; }
+          (cd dist && sha256sum bindle-x86_64 > bindle-x86_64.sha256)
+          cp install.sh dist/install.sh
+      - name: AppImage
+        run: packaging/appimage/build-appimage.sh
+      - uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: dist/*

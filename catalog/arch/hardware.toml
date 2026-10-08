@@ -1,0 +1,57 @@
+[category]
+id = "hardware"
+name = "Hardware & drivers"
+description = "Graphics, audio, Bluetooth, printing and power."
+order = 20
+
+[[module]]
+id = "gpu-driver"
+name = "Graphics drivers"
+description = "Mesa/Vulkan for AMD and Intel, nvidia-open for NVIDIA; lib32 variants when multilib is on."
+default = true
+builtin = "gpu"
+
+[[module]]
+id = "audio-pipewire"
+name = "PipeWire audio"
+description = "PipeWire with PulseAudio, ALSA and JACK compatibility, managed by WirePlumber."
+profiles = ["desktop", "gaming", "developer"]
+packages = ["pipewire", "pipewire-pulse", "pipewire-alsa", "pipewire-jack", "wireplumber"]
+notes = ["PipeWire user services are socket-activated; nothing to enable."]
+
+[[module]]
+id = "bluetooth"
+name = "Bluetooth"
+description = "BlueZ stack with bluetooth.service enabled."
+profiles = ["desktop", "gaming", "developer"]
+when = ["bluetooth"]
+packages = ["bluez", "bluez-utils"]
+enable = ["bluetooth.service"]
+
+[[module]]
+id = "printing"
+name = "Printing (CUPS)"
+description = "CUPS print server, socket-activated."
+packages = ["cups", "cups-pdf"]
+enable = ["cups.socket"]
+
+[[module]]
+id = "power-profiles"
+name = "Power profiles daemon"
+description = "Balanced/performance/power-saver switching that desktops integrate with."
+profiles = ["desktop", "gaming", "developer"]
+when = ["laptop"]
+conflicts = ["tlp"]
+packages = ["power-profiles-daemon"]
+enable = ["power-profiles-daemon.service"]
+
+[[module]]
+id = "tlp"
+name = "TLP (advanced laptop power)"
+description = "Aggressive battery tuning; replaces power-profiles-daemon."
+risk = "moderate"
+when = ["laptop"]
+conflicts = ["power-profiles"]
+packages = ["tlp", "tlp-rdw"]
+enable = ["tlp.service"]
+root_commands = [["systemctl", "mask", "systemd-rfkill.service", "systemd-rfkill.socket"]]

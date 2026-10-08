@@ -1,0 +1,6 @@
+/target
+/dist
+/packaging/appimage/AppDir
+/packaging/appimage/tools
+*.AppImage
+/tests/vm/.work

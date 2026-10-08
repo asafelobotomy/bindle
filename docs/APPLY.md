@@ -1,0 +1,74 @@
+# Applying changes
+
+```bash
+bindle apply --profile desktop            # shows the plan, asks, applies
+bindle apply --from ~/.config/bindle/selection.toml --yes
+bindle undo --list
+bindle undo                               # latest snapshot
+```
+
+In the wizard, press **a** on the Review screen. Bindle leaves the TUI, asks
+for confirmation and your password in the terminal, then streams progress.
+
+## How it runs
+
+1. **Plan**: same pure resolver as `bindle plan`; anything already done is dropped.
+2. **Root helper**: Bindle runs as you and refuses to run as root. It starts one helper
+   (`bindle helper`, hidden) through `sudo` on a terminal (credentials validated
+   first with `sudo -v`), or `pkexec` in a desktop session without a terminal. The
+   two speak JSON lines; the helper greets with its version, which must match.
+   From an AppImage, the binary is first copied to a private `0700` directory in
+   `$XDG_RUNTIME_DIR`, because root cannot read a user's FUSE mount.
+3. **Snapshot**: before any change, the helper records every file the plan will write
+   in `/var/lib/bindle/snapshots/<id>/`. Copies of the originals sit in a root-only `files/`;
+   `manifest.json` (paths, units, packages; world-readable) drives `bindle undo`.
+   If the snapshot fails, nothing has changed.
+4. **Steps**, in plan order. Root steps go to the helper; AUR builds (`makepkg` as you,
+   then `pacman -U` via the helper), `paru`/`yay` installs and user commands run as you.
+5. **Stop on first failure** with the log path and the undo command. Every step is
+   idempotent, so fixing the cause and re-running continues where it stopped.
+6. **Finish**: reboot hint (kernel, microcode, drivers, initramfs) or a relogin hint (groups),
+   and the selection saved to `~/.config/bindle/selection.toml` for replay.
+
+| Step | Runs as | Command |
+|---|---|---|
+| edit pacman.conf | root | line-level edit, atomic replace |
+| install packages | root | `pacman -Syu --needed --noconfirm …` |
+| write file | root | atomic write with mode |
+| enable units | root | `systemctl enable --now …` |
+| groups | root | `usermod -aG … <you>` |
+| root command | root | as declared in the catalog |
+| initramfs | root | `mkinitcpio -P` |
+| AUR helper bootstrap | you, then root | `git clone` + `makepkg`, then `pacman -U` |
+| AUR packages | you | `paru -S --needed --noconfirm --skipreview …` |
+| user command | you | as declared |
+
+Logs: `/var/log/bindle/apply-<id>.log` (and `undo-<id>.log`).
+
+## Undo
+
+`bindle undo [ID]` restores each snapshotted file byte-for-byte (removing ones
+that didn't exist before) and disables the units that apply enabled. Units that
+were already enabled are never in the plan, so they're never disabled. Packages
+are left installed: removing them automatically is too risky. Undo prints the
+`pacman -Rns` command for the ones still present.
+
+## Trust model
+
+The helper executes privileged plan steps the orchestrator sends, so it is
+exactly as powerful as `sudo` for the user who authenticated. Code already
+running as that user could equally hijack `sudo` itself, so the helper doesn't
+pretend otherwise. It does refuse non-privileged steps, unsafe paths (relative
+or with `..`), invalid user/group/package names, and snapshot ids that aren't
+timestamps.
+
+## Testing without root
+
+`--sandbox <dir>` (hidden, on `apply`, `undo` and `wizard`) runs the real
+helper process unprivileged against `<dir>` as the filesystem root: files,
+snapshots and logs are written there, and commands are recorded as
+`would run: …` instead of executed. Seed it with `etc/pacman.conf` first.
+Detection still reads the real system.
+
+This exercises the whole pipeline except real package installs and
+`systemctl`. Before a release, run a real apply in an Arch VM.
