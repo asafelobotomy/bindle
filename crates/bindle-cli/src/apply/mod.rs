@@ -146,7 +146,7 @@ pub fn apply(plan: &Plan, facts: &Facts, opts: &Options) -> Result<Outcome> {
                     root_request(h, &Request::InstallFiles { paths: files }, &mut out).map(drop)
                 }
             }),
-            (Step::InstallAur { packages }, _) => user::install_aur(&aur_helper, packages, fake),
+            (Step::InstallAur { packages }, _) => user::install_aur(&aur_helper, packages, opts.yes, fake),
             (Step::RunAsUser { argv, .. }, _) => user::run(argv, fake),
             (s, None) => Err(anyhow::anyhow!("no root helper for {s:?}")),
             _ => unreachable!("privileged steps handled above"),

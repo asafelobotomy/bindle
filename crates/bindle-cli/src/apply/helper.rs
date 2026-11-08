@@ -21,6 +21,8 @@ use super::sys::{
 
 /// Held for the whole helper session: one apply or undo at a time.
 const LOCK: &str = "/var/lib/bindle/lock";
+/// Root-owned copies of AUR packages built as the user.
+const STAGING: &str = "/var/cache/bindle/pkg";
 
 pub struct HelperOpts {
     pub root: PathBuf,
@@ -188,14 +190,10 @@ impl Helper {
                 self.run_step(step).map(|()| None)
             }
             Request::InstallFiles { paths } => {
-                for p in &paths {
-                    check_system_path(p)?;
-                    if !p.contains(".pkg.tar") || !Path::new(p).is_file() {
-                        bail!("not a package file: {p}");
-                    }
-                }
-                let mut argv = vec!["pacman".to_string(), "-U".into(), "--needed".into(), "--noconfirm".into()];
-                argv.extend(paths);
+                let copies = self.stage_packages(&paths)?;
+                let mut argv =
+                    vec!["pacman".to_string(), "-U".into(), "--needed".into(), "--noconfirm".into(), "--".into()];
+                argv.extend(copies);
                 self.cmd_owned(&argv).map(|()| None)
             }
             Request::Restore { id } => {
@@ -227,6 +225,27 @@ impl Helper {
             Request::Complete { id } => snapshot::mark_complete(self.root(), &id).map(|()| None),
             Request::Quit => Ok(None),
         }
+    }
+
+    /// Copy user-built package files into a root-owned directory, so they
+    /// can't change between the checks here and pacman reading them.
+    fn stage_packages(&self, paths: &[String]) -> Result<Vec<String>> {
+        let dir = host(self.root(), STAGING);
+        let _ = fs::remove_dir_all(&dir);
+        create_dirs(&dir)?;
+        let mut out = Vec::new();
+        for p in paths {
+            check_system_path(p)?;
+            let name = Path::new(p).file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+            let regular = fs::symlink_metadata(p).is_ok_and(|m| m.is_file());
+            if !name.contains(".pkg.tar") || name.starts_with('.') || !regular {
+                bail!("not a package file: {p}");
+            }
+            let data = fs::read(p).with_context(|| format!("read {p}"))?;
+            write_atomic(&dir.join(&name), &data, 0o644)?;
+            out.push(format!("{STAGING}/{name}"));
+        }
+        Ok(out)
     }
 
     fn run_step(&mut self, step: Step) -> Result<()> {

@@ -13,6 +13,12 @@ pub const KNOWN: &[&str] = &["aur-helper", "desktop", "gpu", "microcode", "zram"
 /// AUR package bootstrapped by the `aur-helper` builtin.
 pub const AUR_HELPER: &str = "paru-bin";
 
+/// The AUR commit Bindle builds `AUR_HELPER` from, and that commit's PKGBUILD
+/// sha256. The PKGBUILD's own sha256sums pin the release binary, so this pins
+/// exactly what gets installed as root. Bump both together (docs/APPLY.md).
+pub const AUR_HELPER_COMMIT: &str = "0056e0fbe08ed6cce4cae19fa416d328319a0841";
+pub const AUR_HELPER_PKGBUILD_SHA256: &str = "c148e2dfb9214cc6abefed9b34ffb47ebc1b7043fc8e4cee9f9d29aaf58a2080";
+
 /// Repo packages builtins can add outside desktops.toml, for
 /// scripts/check-packages.py (which parses these const lists).
 pub const PACKAGES: &[&str] = &["intel-ucode", "amd-ucode", "zram-generator"];

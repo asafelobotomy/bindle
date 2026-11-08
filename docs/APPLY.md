@@ -37,14 +37,15 @@ for confirmation and your password in the terminal, then streams progress.
 | Step | Runs as | Command |
 |---|---|---|
 | edit pacman.conf | root | line-level edit, atomic replace |
-| install packages | root | `pacman -Syu --needed --noconfirm -- …` |
+| replace conflicts | root | `pacman -Rdd --noconfirm -- …` (only after you confirm; the next step installs the replacements) |
+| install packages | root | `pacman -Syu --needed --noconfirm -- …` (a full system upgrade) |
 | write file | root | atomic write: exclusive temp file created with the final mode, keeps the owner, refuses to replace a symlink |
 | enable units | root | `systemctl enable --now -- …` |
 | groups | root | `usermod -aG … <you>` |
 | root command | root | as declared in the catalog |
 | initramfs | root | `mkinitcpio -P` |
-| AUR helper bootstrap | you, then root | `git clone` + `makepkg`, then `pacman -U` |
-| AUR packages | you | `paru -S --needed --noconfirm --skipreview …` |
+| AUR helper bootstrap | you, then root | `git clone` at a pinned commit + PKGBUILD checksum + `makepkg`, then `pacman -U` of root-owned copies |
+| AUR packages | you | `paru -S --needed -- …` (you review PKGBUILDs); with `--yes`: `--noconfirm --skipreview` |
 | user command | you | as declared |
 
 Logs: `/var/log/bindle/apply-<id>.log` (and `undo-<id>.log`), root-only (`0600`).
@@ -55,13 +56,22 @@ umask, so `bindle undo` can list snapshots as you.
 ## Undo
 
 `bindle undo [ID]` restores each snapshotted file byte-for-byte (removing ones
-that didn't exist before), with their original owner and mode, and stops and
+that didn't exist before, then the directories apply created for them), with
+their original owner and mode, and stops and
 disables (`systemctl disable --now`) the units that apply enabled. Units that
 were already enabled are never in the plan, so they're never disabled. Packages
 are left installed: removing them automatically is too risky. Undo prints the
 `pacman -Rns` command for the ones still present. Group membership and catalog
 commands (for example `ufw enable`, `systemctl mask`, `snapper create-config`)
-aren't reversible in general; undo lists them under "Not reverted".
+aren't reversible in general; undo lists them under "Not reverted", as are
+packages removed to make way for replacements (with the `pacman -S` to get
+them back).
+
+Without an ID, undo reverts the latest apply **and** any failed applies it
+resumed (a failed apply's snapshot stays "incomplete"), newest first, so the
+system ends up as it was before the first attempt. A file that can't be
+restored doesn't stop the rest; undo lists what it couldn't do and exits
+non-zero. Only one apply or undo runs at a time (`/var/lib/bindle/lock`).
 
 ## Trust model
 
@@ -72,6 +82,15 @@ pretend otherwise. It does refuse non-privileged steps, unsafe paths (relative
 or with `..`), invalid user/group/package/unit names (including ones starting
 with `-`; names are also passed after `--`), and snapshot ids that aren't
 timestamps.
+
+The AUR helper bootstrap is the one step where code from outside the Arch
+repos runs as root (its package's install scriptlet, via `pacman -U`). Bindle
+builds `paru-bin` only from the AUR commit pinned in
+`crates/bindle-core/src/builtins/mod.rs` (`AUR_HELPER_COMMIT`) and refuses a
+PKGBUILD whose sha256 differs from `AUR_HELPER_PKGBUILD_SHA256`; that PKGBUILD's
+own `sha256sums` pin the release binary. To bump: read the new PKGBUILD, then
+update both constants together. Other AUR packages go through paru/yay as you,
+which show the PKGBUILDs for review unless you passed `--yes`.
 
 ## Testing without root
 
