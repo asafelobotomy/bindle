@@ -29,7 +29,7 @@ if curl -fsS --max-time 5 -o /tmp/bindle.new http://10.0.2.2:8765/bindle-x86_64 
 fi
 # SECOND_LOGIN=1 on the host: pretend the wizard already opened once, so this
 # graphical login should show the reminder notification instead.
-if curl -fsS --max-time 5 -o /dev/null http://10.0.2.2:8765/second-login; then
+if curl -fs --max-time 5 -o /dev/null http://10.0.2.2:8765/second-login; then
     runuser -u tester -- sh -c 'mkdir -p ~/.local/state/bindle && touch ~/.local/state/bindle/first-login-seen'
     echo "BINDLE-VM: second-login mode (first-login-seen pre-set)"
 fi

@@ -221,7 +221,16 @@ pub fn install_lines(f: &Facts) -> Vec<String> {
         ("Bootloader", format!("{}{}", f.bootloader, if r.uki == Some(true) { " · UKI" } else { "" })),
         ("Storage", storage.join(" · ")),
         ("Swap", swap),
-        ("Network", opt(&r.network)),
+        (
+            "Network",
+            // archinstall's network_config types, in words.
+            r.network.as_deref().map_or_else(dash, |n| match n {
+                "nm" => "NetworkManager".into(),
+                "nm_iwd" => "NetworkManager (iwd backend)".into(),
+                "iso" => "copied from the ISO".into(),
+                other => other.into(),
+            }),
+        ),
         ("Audio", opt(&r.audio)),
         ("Bluetooth", yes(r.bluetooth)),
         ("Power", opt(&r.power)),

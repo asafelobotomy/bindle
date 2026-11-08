@@ -37,8 +37,11 @@ trap cleanup EXIT
 # Host-side helpers: guest files (8765) and a caching pacman mirror (8766).
 # A server left over from an earlier run would serve stale files or old proxy
 # code, so both ports must be free.
+SERVERS_UP=0
 start_servers() {
     local p
+    # `all` runs both phases in one process: keep the servers the install started.
+    ((SERVERS_UP)) && return 0
     for p in "$PORT" 8766; do
         if (exec 3<>"/dev/tcp/127.0.0.1/$p") 2>/dev/null; then
             die "port $p is already in use (a server from an earlier run?); stop it first"
@@ -48,6 +51,7 @@ start_servers() {
     PIDS+=($!)
     python3 -I "$HERE/pkgproxy.py" "$WORK/pkgcache" 8766 >>"$WORK/pkgproxy.log" 2>&1 &
     PIDS+=($!)
+    SERVERS_UP=1
 }
 
 monitor() { socat - "UNIX-CONNECT:$WORK/mon.sock" <<<"$1" >/dev/null 2>&1 || true; }

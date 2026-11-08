@@ -119,13 +119,14 @@ After every apply, a second `bindle plan` leaves only the always-run user comman
 | **UX:** desktop welcome apps (GNOME tour, KDE Welcome Center, Hyprland welcome, Enlightenment wizard, i3 config prompt) open on top of Bindle | resolved: `bindle iso` suppresses them; otherwise Bindle waits for them to close (see below) |
 | **UX:** first-login terminal is 80×24 (GNOME Console); summary lines clipped | shorter summary lines; narrow layout for the module picker |
 
-## Last result (archiso 2026.10.01, archinstall 4.5, GNOME, `desktop` profile)
+## Last result (archiso 2026.11.01, archinstall 4.5, GNOME, `desktop` profile)
 
-- Install: `install.sh` → `bindle iso --silent` → archinstall with Bindle's preset; the plugin installed Bindle into the target. **OK**
+- Install: `install.sh` (signature and checksum verified) → `bindle iso --silent` → archinstall with Bindle's preset; the plugin installed Bindle into the target. **OK**
 - First boot: `bindle archinstall` read archinstall's logged config (exact); PipeWire, fonts and ufw shown as done.
-- Real `bindle apply`: 9/9 steps, including pacman installs, unit enables and paru-bin built from the AUR; snapshot + log written. **OK**
-- Second `plan`: only the always-run user command remains.
-- GDM autologin → Bindle's first-login wizard opens in GNOME Console. **OK** (behind GNOME's welcome dialog; this run predates suppression)
+- Real `bindle apply`: 10/10 steps, including a full upgrade with 106 packages, unit enables and paru-bin built from the pinned AUR commit; snapshot and log written. **OK**
+- Second `plan`: "Nothing to do: this system already matches the selection."
+- GDM autologin → the first-login wizard opens on its own in GNOME Console (80×24), with no GNOME welcome dialog. **OK**
+- Not covered: key presses from the QEMU monitor reach GNOME Shell but not the unfocused Console window, so the screens after the first are checked by the 80×24 render tests and a pty-driven run on the host instead.
 
 ### Welcome apps and reminders (archiso 2026.10.01)
 
