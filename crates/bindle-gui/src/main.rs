@@ -8,18 +8,20 @@
 use cxx_qt_lib::{QGuiApplication, QQmlApplicationEngine, QQuickStyle, QString, QUrl};
 
 mod app;
+mod apply;
 mod backend;
 mod model;
 mod theme;
 
-/// The directory given with `--screenshots`, if any.
-pub fn screenshot_dir() -> Option<String> {
+/// The value after `flag` on the command line: `--screenshots <dir>`, and
+/// the hidden `--sandbox <dir>` (apply records commands there, as the CLI's).
+pub fn arg(flag: &str) -> Option<String> {
     let args: Vec<String> = std::env::args().collect();
-    args.iter().position(|a| a == "--screenshots").and_then(|i| args.get(i + 1)).cloned()
+    args.iter().position(|a| a == flag).and_then(|i| args.get(i + 1)).cloned()
 }
 
 fn main() {
-    if screenshot_dir().is_some() && std::env::var_os("QT_QPA_PLATFORM").is_none() {
+    if arg("--screenshots").is_some() && std::env::var_os("QT_QPA_PLATFORM").is_none() {
         // SAFETY: single-threaded here, before Qt or any other thread starts.
         unsafe { std::env::set_var("QT_QPA_PLATFORM", "offscreen") };
     }

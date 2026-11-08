@@ -13,6 +13,7 @@ fn main() {
         QmlFile::from("qml/ChoosePage.qml"),
         QmlFile::from("qml/ModuleDetails.qml"),
         QmlFile::from("qml/ReviewPage.qml"),
+        QmlFile::from("qml/ApplyPage.qml"),
     ]))
     .qt_module("Gui")
     .qt_module("Quick")

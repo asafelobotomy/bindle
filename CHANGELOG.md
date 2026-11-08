@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Desktop wizard, second part: Apply and Done screens. The window runs the
+  reviewed plan with live per-step status and output, asks for the password
+  through pkexec (a new polkit action, installed by `first-login install`,
+  explains why), offers a terminal when no polkit agent is running, and on
+  success saves the selection like `bindle apply`. `bindle-gui --sandbox`
+  applies in a sandbox as the CLI does.
 - Desktop wizard, first part (`bindle-gui`, Qt 6 + Kirigami): Welcome,
   Profile, Choose (with search and module details) and Review screens, themed
   from uQ's tokens and following uQ theme changes live; the desktop's Qt

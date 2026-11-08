@@ -12,7 +12,7 @@ use anyhow::{Error, Result, anyhow};
 use bindle_core::catalog::AssetKind;
 use bindle_core::{Facts, Plan, Step};
 
-use crate::client::HelperClient;
+use crate::client::{HelperClient, Launch};
 use crate::protocol::{Request, SnapshotPlan};
 use crate::{release, sys, user};
 
@@ -21,6 +21,8 @@ pub struct Options {
     pub yes: bool,
     /// Run unprivileged against this directory, recording commands only.
     pub sandbox: Option<PathBuf>,
+    /// How to start the root helper (the CLI's defaults: itself, sudo on a terminal).
+    pub launch: Launch,
 }
 
 impl Options {
@@ -67,7 +69,8 @@ pub fn run(plan: &Plan, facts: &Facts, opts: &Options, progress: &mut dyn Progre
             || matches!(s, Step::InstallReleases { assets }
                 if assets.iter().any(|a| a.kind() == Some(AssetKind::Package)))
     });
-    let mut helper = if wants_root { Some(HelperClient::start(opts.sandbox.as_deref(), &log)?) } else { None };
+    let mut helper =
+        if wants_root { Some(HelperClient::launch(opts.sandbox.as_deref(), &log, &opts.launch)?) } else { None };
 
     let snapshot = match helper.as_mut() {
         Some(h) => {

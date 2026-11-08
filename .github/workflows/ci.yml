@@ -41,7 +41,7 @@ jobs:
       - run: cargo test -p bindle-gui --locked
       - run: make gui-shots
       - name: Every screenshot was written
-        run: test "$(find dist/shots -name '*.png' | wc -l)" -eq 25
+        run: test "$(find dist/shots -name '*.png' | wc -l)" -eq 31
 
   msrv:
     # rust-version in Cargo.toml is a promise; build with exactly that toolchain.

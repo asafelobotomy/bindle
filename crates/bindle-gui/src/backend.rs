@@ -2,6 +2,7 @@
 //! Screens read JSON properties; QML calls invokables, which update the
 //! wizard and refresh the properties that changed.
 
+use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::time::Duration;
 
@@ -10,6 +11,7 @@ use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::QString;
 use serde_json::Value;
 
+use crate::apply::ApplyState;
 use crate::model::Wizard;
 use crate::theme;
 
@@ -37,6 +39,10 @@ pub mod qobject {
         #[qproperty(QString, notice)]
         /// `--screenshots <dir>`: QML walks the screens and saves each here.
         #[qproperty(QString, screenshot_dir)]
+        /// `--sandbox <dir>`: apply records commands under this directory.
+        #[qproperty(QString, sandbox)]
+        /// The Apply screen: `crate::apply::ApplyState`.
+        #[qproperty(QString, apply_json)]
         type Backend = super::BackendRust;
 
         #[qinvokable]
@@ -46,6 +52,14 @@ pub mod qobject {
         /// Resolve the plan for the Review screen.
         #[qinvokable]
         fn refresh_review(self: Pin<&mut Backend>);
+        /// Run the reviewed plan; progress arrives in `apply_json`.
+        #[qinvokable]
+        fn start_apply(self: Pin<&mut Backend>);
+        /// No polkit agent: finish in a terminal instead.
+        #[qinvokable]
+        fn continue_in_terminal(self: Pin<&mut Backend>);
+        #[qinvokable]
+        fn reboot(self: &Backend);
         /// Save the window as a PNG (screenshot tests).
         #[qinvokable]
         fn grab_window(self: &Backend, path: &QString) -> bool;
@@ -68,7 +82,10 @@ pub struct BackendRust {
     theme_json: QString,
     notice: QString,
     screenshot_dir: QString,
+    sandbox: QString,
+    apply_json: QString,
     wizard: Option<Wizard>,
+    applying: bool,
 }
 
 fn json(v: &Value) -> QString {
@@ -84,9 +101,13 @@ impl cxx_qt::Initialize for Backend {
         self.as_mut().set_profiles_json(json(&wizard.profiles()));
         self.as_mut().rust_mut().wizard = Some(wizard);
         self.as_mut().refresh_selection();
-        if let Some(dir) = crate::screenshot_dir() {
+        if let Some(dir) = crate::arg("--screenshots") {
             self.as_mut().set_screenshot_dir(QString::from(&dir));
         }
+        if let Some(dir) = crate::arg("--sandbox") {
+            self.as_mut().set_sandbox(QString::from(&dir));
+        }
+        self.as_mut().set_apply_json(QString::from(r#"{"state":"idle"}"#));
 
         let path = theme::tokens_path();
         self.as_mut().set_theme_json(json(&theme::load(path.as_ref())));
@@ -143,9 +164,64 @@ impl Backend {
         self.refresh_selection();
     }
 
+    fn root(&self) -> PathBuf {
+        let sandbox = self.rust().sandbox.to_string();
+        if sandbox.is_empty() { PathBuf::from("/") } else { PathBuf::from(sandbox) }
+    }
+
     fn refresh_review(mut self: Pin<&mut Self>) {
-        let review = json(&self.wizard().review());
+        let review = json(&self.wizard().review(&self.root()));
         self.as_mut().set_review_json(review);
+    }
+
+    fn start_apply(mut self: Pin<&mut Self>) {
+        if self.rust().applying {
+            return;
+        }
+        let root = self.root();
+        let plan = match self.wizard().plan(&root) {
+            Ok(p) => p,
+            Err(e) => {
+                let state = ApplyState { state: "error".into(), error: format!("{e:#}"), ..Default::default() };
+                self.as_mut().set_apply_json(json(&serde_json::json!(state)));
+                return;
+            }
+        };
+        let facts = self.wizard().facts().clone();
+        let sel = self.wizard().selection();
+        let sandbox = (root != Path::new("/")).then_some(root);
+        self.as_mut().rust_mut().get_mut().applying = true;
+        self.as_mut().set_apply_json(json(&serde_json::json!(ApplyState::starting(&plan))));
+        let qt = self.qt_thread();
+        std::thread::Builder::new()
+            .name("apply".into())
+            .spawn(move || {
+                let publish = |s: &ApplyState| {
+                    let text = serde_json::to_string(s).unwrap_or_default();
+                    let _ = qt.queue(move |b| b.set_apply_json(QString::from(&text)));
+                };
+                let last = crate::apply::run(&plan, &facts, &sel, sandbox, publish);
+                let text = serde_json::to_string(&last).unwrap_or_default();
+                let _ = qt.queue(move |mut b| {
+                    b.as_mut().rust_mut().get_mut().applying = false;
+                    b.set_apply_json(QString::from(&text));
+                });
+            })
+            .expect("spawning the apply thread");
+    }
+
+    fn continue_in_terminal(mut self: Pin<&mut Self>) {
+        let note = match crate::apply::continue_in_terminal(&self.wizard().selection()) {
+            Ok(()) => String::new(),
+            Err(e) => format!("Couldn't open a terminal: {e:#}"),
+        };
+        self.as_mut().set_notice(QString::from(&note));
+    }
+
+    fn reboot(&self) {
+        if self.rust().sandbox.is_empty() {
+            let _ = std::process::Command::new("systemctl").arg("reboot").spawn();
+        }
     }
 
     fn grab_window(&self, path: &QString) -> bool {

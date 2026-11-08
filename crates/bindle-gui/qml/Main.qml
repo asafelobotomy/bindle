@@ -7,8 +7,10 @@ import org.bindle.wizard
 QQC2.ApplicationWindow {
     id: root
 
-    // 0 Welcome, 1 Profile, 2 Choose, 3 Review.
+    // 0 Welcome, 1 Profile, 2 Choose, 3 Review, 4 Apply.
     property int page: 0
+    readonly property var apply: JSON.parse(backend.applyJson || '{"state": "idle"}')
+    readonly property bool running: apply.state === "running"
     property string footerNote: ""
     readonly property var steps: ["Welcome", "Profile", "Choose", "Review", "Apply"]
     readonly property var nextLabels: ["Get started", "Continue", "Review changes", "Apply changes"]
@@ -55,7 +57,7 @@ QQC2.ApplicationWindow {
         root.footerNote = "";
         if (to === 3)
             backend.refreshReview();
-        root.page = Math.max(0, Math.min(3, to));
+        root.page = Math.max(0, Math.min(4, to));
     }
 
     header: Rectangle {
@@ -116,6 +118,9 @@ QQC2.ApplicationWindow {
         ReviewPage {
             review: JSON.parse(backend.reviewJson || "{}")
         }
+        ApplyPage {
+            apply: root.apply
+        }
     }
 
     footer: Rectangle {
@@ -135,25 +140,43 @@ QQC2.ApplicationWindow {
             anchors.rightMargin: Kirigami.Units.largeSpacing
 
             ActionButton {
-                text: "Back"
-                visible: root.page > 0
-                onClicked: root.go(root.page - 1)
+                text: root.page === 4 ? "Back to review" : "Back"
+                visible: root.page > 0 && !root.running && root.apply.state !== "done"
+                onClicked: root.go(root.page === 4 ? 3 : root.page - 1)
+            }
+            ActionButton {
+                text: "Restart now"
+                visible: root.page === 4 && root.apply.state === "done" && root.apply.needsReboot
+                onClicked: backend.reboot()
             }
             QQC2.Label {
                 Layout.fillWidth: true
                 horizontalAlignment: Text.AlignRight
-                text: root.footerNote
+                text: root.running ? "Keep the computer on until this finishes." : (backend.notice !== "" && root.page === 4 ? backend.notice : root.footerNote)
                 color: Theme.textMuted
                 elide: Text.ElideLeft
             }
             ActionButton {
-                text: root.nextLabels[root.page]
+                visible: !root.running
                 primary: true
+                text: {
+                    if (root.page < 4)
+                        return root.nextLabels[root.page];
+                    if (root.apply.state === "done")
+                        return "Close";
+                    return root.apply.noAgent ? "Continue in a terminal" : "Try again";
+                }
                 onClicked: {
-                    if (root.page < 3)
+                    if (root.page < 3) {
                         root.go(root.page + 1);
-                    else
-                        root.footerNote = "Applying from this window arrives in the next version.";
+                    } else if (root.page === 3 || (root.page === 4 && root.apply.state !== "done" && !root.apply.noAgent)) {
+                        root.go(4);
+                        backend.startApply();
+                    } else if (root.apply.noAgent) {
+                        backend.continueInTerminal();
+                    } else {
+                        Qt.quit();
+                    }
                 }
             }
         }
@@ -169,13 +192,19 @@ QQC2.ApplicationWindow {
             { page: 1, name: "2-profile" },
             { page: 2, name: "3-choose", category: 0 },
             { page: 2, name: "4-choose-hardware", category: 1, module: 1 },
-            { page: 3, name: "5-review" }
+            { page: 3, name: "5-review" },
+            // Only with --sandbox: apply for real (recording commands) and wait.
+            { page: 4, name: "6-applied", apply: true }
         ]
+        property bool waiting: false
 
         interval: 600
         repeat: true
         running: backend.screenshotDir !== ""
         onTriggered: {
+            if (waiting && root.running)
+                return;
+            waiting = false;
             if (step > 0)
                 backend.grabWindow(backend.screenshotDir + "/" + plan[step - 1].name + ".png");
             if (step === plan.length) {
@@ -183,7 +212,15 @@ QQC2.ApplicationWindow {
                 return;
             }
             const s = plan[step];
+            if (s.apply && backend.sandbox === "") {
+                Qt.quit();
+                return;
+            }
             root.go(s.page);
+            if (s.apply) {
+                backend.startApply();
+                waiting = true;
+            }
             if (s.category !== undefined)
                 choose.show(s.category, s.module === undefined ? -1 : s.module);
             step += 1;

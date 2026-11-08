@@ -14,8 +14,13 @@ for confirmation and your password in the terminal, then streams progress.
 
 1. **Plan**: same pure resolver as `bindle plan`; anything already done is dropped.
 2. **Root helper**: Bindle runs as you and refuses to run as root. It starts one helper
-   (`bindle helper`, hidden) through `sudo` on a terminal (credentials validated
-   first with `sudo -v`), or `pkexec` in a desktop session without a terminal. The
+   (`bindle helper`, hidden) through `sudo` on a terminal (credentials checked
+   first with `sudo true`), or `pkexec` in a desktop session without a terminal. The
+   desktop window (`bindle-gui`) always uses `pkexec`, running the `bindle` binary
+   installed next to it; `first-login install` adds a polkit action
+   (`/usr/share/polkit-1/actions/io.github.asafelobotomy.bindle.policy`) so the
+   password dialog says why. With no polkit agent running, the window offers to
+   finish in a terminal (`bindle in-terminal apply --from <selection>`). The
    two speak JSON lines; the helper greets with its version, which must match.
    From an AppImage, the binary is first copied to a private `0700` directory in
    `$XDG_RUNTIME_DIR` (or `~/.cache/bindle`, never a shared `/tmp` path), because

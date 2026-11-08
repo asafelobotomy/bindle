@@ -44,9 +44,30 @@ fn helper_binary() -> Result<(PathBuf, Option<PathBuf>)> {
     Ok((copy, Some(dir)))
 }
 
+/// How to start the root helper.
+#[derive(Debug, Clone, Default)]
+pub struct Launch {
+    /// The `bindle` binary to run as `bindle helper`; by default this program.
+    pub exe: Option<PathBuf>,
+    /// A desktop window, not a terminal: always ask through pkexec (polkit's
+    /// password dialog) and report pkexec's own errors.
+    pub graphical: bool,
+}
+
+/// pkexec found no polkit agent to ask for the password (some window
+/// managers before Bindle installs one).
+pub const NO_AGENT: &str = "no polkit authentication agent is running";
+
 impl HelperClient {
     pub fn start(sandbox: Option<&Path>, log: &str) -> Result<Self> {
-        let (exe, private_copy) = helper_binary()?;
+        Self::launch(sandbox, log, &Launch::default())
+    }
+
+    pub fn launch(sandbox: Option<&Path>, log: &str, how: &Launch) -> Result<Self> {
+        let (exe, private_copy) = match &how.exe {
+            Some(exe) => (exe.clone(), None),
+            None => helper_binary()?,
+        };
         let mut cmd = match sandbox {
             Some(root) => {
                 let mut c = Command::new(&exe);
@@ -54,7 +75,12 @@ impl HelperClient {
                 c
             }
             None => {
-                let mut c = if std::io::stdin().is_terminal() && on_path("sudo") {
+                let mut c = if how.graphical {
+                    if !on_path("pkexec") {
+                        bail!("pkexec is not installed, so Bindle can't ask for your password here");
+                    }
+                    Command::new("pkexec")
+                } else if std::io::stdin().is_terminal() && on_path("sudo") {
                     println!("Bindle needs administrator rights for system changes.");
                     // `sudo true`, not `sudo -v`: -v demands a password unless *every*
                     // sudoers entry is NOPASSWD, while `true` follows the same rules as
@@ -75,12 +101,44 @@ impl HelperClient {
                 c
             }
         };
-        cmd.args(["--log", log]).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::inherit());
+        let stderr = if how.graphical { Stdio::piped() } else { Stdio::inherit() };
+        cmd.args(["--log", log]).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(stderr);
         let mut child = cmd.spawn().context("start the Bindle helper")?;
+        // Keep what pkexec says (no agent, dismissed), drained so it can't block.
+        let errors = std::sync::Arc::new(std::sync::Mutex::new(String::new()));
+        let mut reader = None;
+        if let Some(err) = child.stderr.take() {
+            let errors = errors.clone();
+            reader = Some(std::thread::spawn(move || {
+                for line in BufReader::new(err).lines().map_while(Result::ok) {
+                    let mut e = errors.lock().unwrap_or_else(|p| p.into_inner());
+                    if e.len() < 4096 {
+                        e.push_str(&line);
+                        e.push('\n');
+                    }
+                }
+            }));
+        }
         let stdin = child.stdin.take().context("helper stdin")?;
         let stdout = BufReader::new(child.stdout.take().context("helper stdout")?);
         let mut client = Self { child, stdin, stdout, private_copy };
-        match client.next_event()? {
+        let greeting = client.next_event().map_err(|e| {
+            // The pipe closed: pkexec refused or found no agent. Its message
+            // arrives on stderr just before it exits.
+            let _ = client.child.wait();
+            if let Some(r) = reader.take() {
+                let _ = r.join(); // stderr closed with the process: read it all
+            }
+            let said = errors.lock().map(|e| e.trim().to_string()).unwrap_or_default();
+            if said.contains("authentication agent") {
+                anyhow::anyhow!(NO_AGENT)
+            } else if said.is_empty() {
+                e
+            } else {
+                anyhow::anyhow!("{said}")
+            }
+        })?;
+        match greeting {
             Event::Hello { version } if version == VERSION => Ok(client),
             Event::Hello { version } => bail!("helper version {version} does not match {VERSION}"),
             other => bail!("unexpected helper greeting: {other:?}"),

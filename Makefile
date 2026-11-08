@@ -37,5 +37,5 @@ gui-test:
 # Every screen in each uQ theme fixture, plus the desktop's own theme
 # ("none"), into dist/shots/<theme>/.
 gui-shots:
-	cargo build -p bindle-gui
+	cargo build -p bindle-gui -p bindle-cli
 	scripts/gui-shots.sh

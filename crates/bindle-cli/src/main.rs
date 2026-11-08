@@ -114,6 +114,13 @@ enum Cmd {
         #[arg(long, hide = true)]
         workdir: Option<PathBuf>,
     },
+    /// Open a terminal running `bindle <args>`, kept open at the end
+    /// (the desktop window's fallback when it can't ask for a password).
+    #[command(hide = true)]
+    InTerminal {
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true, required = true)]
+        args: Vec<String>,
+    },
     /// Root helper used by `apply` (internal).
     #[command(hide = true)]
     Helper {
@@ -249,10 +256,20 @@ fn main() -> Result<()> {
         Cmd::Helper { log, root, fake_commands } => {
             return apply::helper::serve(apply::helper::HelperOpts { root, fake_commands, log });
         }
+        Cmd::InTerminal { args } => {
+            let exe = std::env::current_exe()?.to_string_lossy().into_owned();
+            // Arguments travel as "$@", never through the script text.
+            let script = r#""$0" "$@"; echo; printf 'Press Enter to close. '; read -r _"#;
+            let mut argv = vec!["sh".to_string(), "-c".into(), script.into(), exe];
+            argv.extend(args);
+            return terminal::spawn(&argv);
+        }
         Cmd::FirstLogin { action } if !matches!(action, FirstLoginCmd::Run { .. }) => {
             return firstlogin_cmd::dispatch(action);
         }
-        Cmd::Undo { id, list, yes, sandbox } => return apply::undo(id, list, &apply::Options { yes, sandbox }),
+        Cmd::Undo { id, list, yes, sandbox } => {
+            return apply::undo(id, list, &apply::Options { yes, sandbox, launch: Default::default() });
+        }
         _ => {}
     }
 
@@ -311,9 +328,12 @@ fn main() -> Result<()> {
             let mut sel = sel.resolve()?;
             // Interactive: the confirmation shows what gets replaced.
             sel.replace_conflicts |= !yes;
-            apply_selection(&catalog, &facts, &sel, apply::Options { yes, sandbox }).map(drop)
+            apply_selection(&catalog, &facts, &sel, apply::Options { yes, sandbox, launch: Default::default() })
+                .map(drop)
         }
-        Cmd::Helper { .. } | Cmd::Undo { .. } | Cmd::FirstLogin { .. } => unreachable!("handled above"),
+        Cmd::Helper { .. } | Cmd::InTerminal { .. } | Cmd::Undo { .. } | Cmd::FirstLogin { .. } => {
+            unreachable!("handled above")
+        }
     }
 }
 
@@ -341,7 +361,9 @@ fn wizard(catalog: &Catalog, facts: &Facts, sandbox: Option<PathBuf>) -> Result<
     // A profile chosen before install (`bindle iso`) seeds the wizard.
     let seed = selection::load(std::path::Path::new(SYSTEM_SELECTION)).ok();
     match tui::run(catalog, facts, seed)? {
-        Some(sel) => apply_selection(catalog, facts, &sel, apply::Options { yes: false, sandbox }),
+        Some(sel) => {
+            apply_selection(catalog, facts, &sel, apply::Options { yes: false, sandbox, launch: Default::default() })
+        }
         None => Ok(false),
     }
 }

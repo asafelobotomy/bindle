@@ -23,7 +23,10 @@ pub const LAUNCHER: &str = "/usr/local/share/applications/bindle.desktop";
 pub const ICON: &str = "/usr/local/share/icons/hicolor/scalable/apps/bindle.svg";
 pub const USER_UNIT: &str = "/etc/systemd/user/bindle-first-login.service";
 pub const USER_UNIT_WANTS: &str = "/etc/systemd/user/default.target.wants/bindle-first-login.service";
+/// The desktop window's password dialog message (pkexec).
+pub const POLKIT: &str = "/usr/share/polkit-1/actions/io.github.asafelobotomy.bindle.policy";
 const SVG: &str = include_str!("../../../branding/bindle.svg");
+const POLICY: &str = include_str!("../../../packaging/polkit/io.github.asafelobotomy.bindle.policy");
 
 const USER_UNIT_FILE: &str = "[Unit]
 Description=Open Bindle on the first graphical login
@@ -96,8 +99,13 @@ pub fn install(root: &Path, tty_hook: bool) -> Result<Vec<String>> {
         write_atomic(&target, &data, 0o755)?;
         done.push(format!("installed {BIN}"));
     }
-    let mut files =
-        vec![(AUTOSTART, AUTOSTART_ENTRY), (LAUNCHER, LAUNCHER_ENTRY), (ICON, SVG), (USER_UNIT, USER_UNIT_FILE)];
+    let mut files = vec![
+        (AUTOSTART, AUTOSTART_ENTRY),
+        (LAUNCHER, LAUNCHER_ENTRY),
+        (ICON, SVG),
+        (USER_UNIT, USER_UNIT_FILE),
+        (POLKIT, POLICY),
+    ];
     if tty_hook {
         files.push((PROFILE_HOOK, HOOK));
     }
@@ -118,7 +126,7 @@ pub fn remove(root: &Path, purge: bool) -> Result<Vec<String>> {
     require_root(root)?;
     let mut paths = vec![AUTOSTART, PROFILE_HOOK, USER_UNIT_WANTS, USER_UNIT];
     if purge {
-        paths.extend([LAUNCHER, ICON, BIN]);
+        paths.extend([LAUNCHER, ICON, POLKIT, BIN]);
     }
     let mut done = Vec::new();
     for p in paths {
@@ -132,7 +140,7 @@ pub fn remove(root: &Path, purge: bool) -> Result<Vec<String>> {
 }
 
 pub fn status(root: &Path) -> Vec<String> {
-    let mut out: Vec<String> = [BIN, AUTOSTART, USER_UNIT, USER_UNIT_WANTS, PROFILE_HOOK, LAUNCHER, ICON]
+    let mut out: Vec<String> = [BIN, AUTOSTART, USER_UNIT, USER_UNIT_WANTS, PROFILE_HOOK, LAUNCHER, ICON, POLKIT]
         .iter()
         .map(|p| format!("{} {p}", if host(root, p).exists() { "✓" } else { "·" }))
         .collect();
@@ -262,11 +270,12 @@ mod tests {
         let unit = fs::read_to_string(host(&root, USER_UNIT)).unwrap();
         assert!(unit.contains("ConditionUser=!@system"));
         assert!(fs::read_to_string(host(&root, PROFILE_HOOK)).unwrap().contains("UID_MIN"));
+        assert!(fs::read_to_string(host(&root, POLKIT)).unwrap().contains(&format!(">{BIN}<")));
         remove(&root, false).unwrap();
         assert!(!host(&root, AUTOSTART).exists() && host(&root, BIN).exists());
         assert!(host(&root, USER_UNIT_WANTS).symlink_metadata().is_err());
         remove(&root, true).unwrap();
-        assert!(!host(&root, BIN).exists());
+        assert!(!host(&root, BIN).exists() && !host(&root, POLKIT).exists());
     }
 
     #[test]

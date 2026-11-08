@@ -135,9 +135,19 @@ impl Wizard {
         })
     }
 
-    pub fn review(&self) -> Value {
-        let read = |p: &str| std::fs::read_to_string(p).ok();
-        match plan::resolve(&self.catalog, &self.facts, &self.selection(), &read) {
+    pub fn facts(&self) -> &Facts {
+        &self.facts
+    }
+
+    /// The plan for the current selection, reading files from `root`
+    /// (`/`, or the sandbox).
+    pub fn plan(&self, root: &std::path::Path) -> anyhow::Result<Plan> {
+        let read = |p: &str| std::fs::read_to_string(bindle_run::sys::host(root, p)).ok();
+        plan::resolve(&self.catalog, &self.facts, &self.selection(), &read)
+    }
+
+    pub fn review(&self, root: &std::path::Path) -> Value {
+        match self.plan(root) {
             Ok(p) => review_json(&p, &self.catalog),
             Err(e) => json!({ "ok": false, "error": format!("{e:#}") }),
         }
@@ -252,7 +262,7 @@ mod tests {
     fn review_counts_what_changes() {
         let mut w = wizard(arch());
         w.toggle("blender");
-        let r = w.review();
+        let r = w.review(std::path::Path::new("/"));
         assert_eq!(r["ok"], true, "{r}");
         assert!(r["counts"]["packages"].as_u64().unwrap() > 0);
         let steps = r["steps"].as_array().unwrap();

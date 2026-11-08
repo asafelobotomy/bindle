@@ -98,8 +98,11 @@ terminal wizard does: `print::install_lines`, `print::module_details`,
 
 ## Phases (one commit each)
 
-Done: 1 (engine), 2 (screens up to Review; the Apply button says applying
-from the window comes next).
+Done: 1 (engine), 2 (Welcome to Review), 3 (Apply and Done, pkexec with a
+polkit action, terminal fallback when no polkit agent runs). The window applies
+unattended: the Review screen is the confirmation, so AUR helpers skip their
+own prompts, and output from AUR builds goes to the window's stdout rather
+than its log (the helper's output, pacman's included, is shown).
 
 
 1. Extract `bindle-run` and the `Progress` trait; CLI output unchanged.
