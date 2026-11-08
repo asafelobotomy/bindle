@@ -33,6 +33,9 @@ Fixes from the November 2026 audit.
 - Interactive applies let paru/yay show PKGBUILDs for review.
 
 ### Live ISO
+- Releases are GPG-signed (`SHA256SUMS` + `SHA256SUMS.sig`); `install.sh`
+  verifies the signature against its embedded key and refuses anything else,
+  pins "latest" to one tag, requires HTTPS, and validates its environment.
 - `bindle iso` checks three signals that it's on the Arch live ISO.
 - `--silent` requires and shows the target disks; the merged config is deleted
   afterwards.

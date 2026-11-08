@@ -56,7 +56,8 @@ for f in archinstall-test.json creds-test.json firstboot-check.sh bindle-vm-chec
     curl -fsSO "$base/$f" || { echo "BINDLE-VM: INSTALL FAILED (fetch $f)"; poweroff; exit 1; }
 done
 
-if BINDLE_BASE_URL=$base bash <(curl -fsSL "$base/install.sh") \
+# The host serves over plain http and signs with a throwaway key (run.sh).
+if BINDLE_INSECURE=1 BINDLE_BASE_URL=$base bash <(curl -fsSL "$base/install.sh") \
     --desktop "$desktop" --profile "$profile" --yes --silent \
     --config /tmp/archinstall-test.json --creds /tmp/creds-test.json "${extra[@]}"; then
     # Test-only: run checks on first boot (it also sets passwordless sudo), GDM autologin.

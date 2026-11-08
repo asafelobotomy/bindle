@@ -22,6 +22,13 @@ making Bindle act on another user's behalf, is in scope.
 
 ## Verifying releases
 
-The ISO binary ships with a `.sha256` file from the same release, so for now it
-only detects corrupted downloads. GPG-signed checksums are planned; the
-signing key's fingerprint will be listed here.
+Every release carries `SHA256SUMS` and a detached GPG signature
+`SHA256SUMS.sig`, made in CI with the Bindle release key:
+
+    75C4 0FA1 27FB F8D4 FBF9  E710 FAC4 0EFF E02D 69FC   Bindle release signing (ed25519, expires 2028-11-07)
+
+The public key is [packaging/bindle-release.asc](packaging/bindle-release.asc);
+`install.sh` embeds it and refuses anything it didn't sign. See
+[docs/ISO.md](docs/ISO.md#trust) to verify by hand. If the key ever has to be
+replaced, the new one will be signed by this one and announced in the
+CHANGELOG.

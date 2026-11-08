@@ -7,7 +7,7 @@
 | H1 non-UTF-8 output kills pacman | Fixed | 9b04ffb |
 | H2 GPU ignores installed NVIDIA driver | Fixed (incl. derivative kernel packages) | 9b04ffb, e0cc44a |
 | H3 conflicts abort the transaction | Fixed: skip, or replace after confirmation | 9b04ffb, 2111ff1 |
-| M1 release authenticity | **Open**: GPG signing waits for a key (plan phase 2) | — |
+| M1 release authenticity | Fixed: GPG-signed SHA256SUMS, verified by install.sh (key 75C4…69FC) | see git log |
 | M2 unpinned checkout | Fixed | e0cc44a |
 | M3 weak live-ISO guard | Fixed | fad4dae |
 | M4 silent mode disk checks | Fixed | fad4dae |

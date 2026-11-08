@@ -23,7 +23,10 @@ install.sh ──► bindle iso ──► pre-install screen ──► archinsta
 
 1. **install.sh** checks it's on the live ISO (it refuses elsewhere because
    archinstall wipes disks), x86_64, root and online. It downloads the static
-   `bindle-x86_64` from the release, verifies the `.sha256`, and starts `bindle iso`.
+   `bindle-x86_64`, `SHA256SUMS` and `SHA256SUMS.sig` from one release (resolving
+   "latest" to a tag first), checks the signature against the release key embedded
+   in the script, checks the binary against `SHA256SUMS`, and only then starts
+   `bindle iso`. Any mismatch stops it before anything runs.
 2. **Pre-install screen**: pick a desktop (any of archinstall's 21, or "choose in
    archinstall") and a Bindle profile. The right pane shows what archinstall
    will be pre-filled with, based on the detected hardware.
@@ -117,19 +120,37 @@ must exist as a block device, and Bindle prints the target disks before starting
 archinstall, since they can be erased.
 
 `install.sh` passes its arguments through, and honours `BINDLE_VERSION`,
-`BINDLE_REPO` and `BINDLE_BASE_URL` (mirrors and testing).
+`BINDLE_REPO` and `BINDLE_BASE_URL` (mirrors and testing; non-https needs
+`BINDLE_INSECURE=1`). Downloads from any of them must carry the release signature.
 
 ## Trust
 
-The checksum comes from the same release as the binary, so it catches
-corrupted downloads, not a compromised release. Signing releases (minisign) is
-on the roadmap. As with any `curl | bash`, you can download `install.sh` and
-read it first.
+Releases are signed. CI signs `SHA256SUMS` (covering `bindle-x86_64`,
+`install.sh` and the AppImages) with the Bindle release key:
+
+    75C4 0FA1 27FB F8D4 FBF9  E710 FAC4 0EFF E02D 69FC   Bindle release signing
+
+The public key is `packaging/bindle-release.asc` and is embedded in
+`install.sh`, which refuses a download whose signature or checksum doesn't
+match. A compromised release would need the private key as well. To verify by
+hand (for example the AppImage):
+
+```bash
+gpg --import packaging/bindle-release.asc
+gpg --verify SHA256SUMS.sig SHA256SUMS
+sha256sum -c --ignore-missing SHA256SUMS
+```
+
+`install.sh` itself is fetched from `main` over HTTPS; as with any
+`curl | bash`, you can download it and read it first.
 
 ## Testing without an ISO
 
-- `BINDLE_FORCE=1 BINDLE_BASE_URL=file:///path/to/release bash install.sh --dry-run`
-  exercises download, checksum and handoff (the path needs `bindle-x86_64` + `.sha256`).
+- `BINDLE_FORCE=1 BINDLE_INSECURE=1 BINDLE_BASE_URL=file:///path/to/release bash install.sh --dry-run`
+  exercises download, verification and handoff. The path needs `bindle-x86_64`,
+  `SHA256SUMS` and a `SHA256SUMS.sig` by the embedded key; `tests/vm/run.sh` shows
+  how to test with a throwaway key instead (it serves a copy of `install.sh`
+  embedding that key).
 - `bindle iso --dry-run` writes the preset, plugin and selection without running archinstall.
 - The plugin can be driven with a mock `installation` object whose `target` is a temp directory.
 - Before a release: one full install in a VM from the current ISO.

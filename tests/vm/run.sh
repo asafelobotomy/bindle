@@ -72,7 +72,8 @@ install_phase() {
     say "building bindle"
     rm -rf "$WORK/serve"
     serve_build
-    cp "$ROOT/install.sh" "$HERE"/guest/* "$WORK/serve/"
+    cp "$HERE"/guest/* "$WORK/serve/"
+    sign_test_release
 
     say "extracting kernel from $(basename "$ISO")"
     # ISO contents extract read-only.
@@ -124,6 +125,27 @@ serve_build() {
     mkdir -p "$WORK/serve"
     cp "$ROOT/target/debug/bindle" "$WORK/serve/bindle-x86_64"
     (cd "$WORK/serve" && sha256sum bindle-x86_64 >bindle-x86_64.sha256)
+}
+
+# install.sh only runs a binary whose SHA256SUMS is signed by its embedded
+# key. The VM serves a local build, so sign it with a throwaway key and serve
+# an install.sh that embeds that key instead (test copy only).
+sign_test_release() {
+    local gh="$WORK/test-gnupg" fpr
+    rm -rf "$gh" && mkdir -m 700 "$gh"
+    GNUPGHOME="$gh" gpg --batch -q --pinentry-mode loopback --passphrase '' \
+        --quick-gen-key "Bindle VM test (not a release key)" ed25519 sign 1d
+    fpr="$(GNUPGHOME="$gh" gpg --list-keys --with-colons | awk -F: '/^fpr/ { print $10; exit }')"
+    python3 -I - "$ROOT/install.sh" "$WORK/serve/install.sh" "$fpr" "$(GNUPGHOME="$gh" gpg --armor --export "$fpr")" <<'PY'
+import re, sys
+src, dst, fpr, key = sys.argv[1:]
+s = open(src).read()
+s = re.sub(r"^SIGNING_FPR=.*$", f"SIGNING_FPR={fpr}", s, count=1, flags=re.M)
+s = re.sub(r"^SIGNING_KEY='[^']*'", lambda _: f"SIGNING_KEY='{key}'", s, count=1, flags=re.M)
+open(dst, "w").write(s)
+PY
+    (cd "$WORK/serve" && sha256sum bindle-x86_64 install.sh >SHA256SUMS \
+        && GNUPGHOME="$gh" gpg --batch -q --yes --local-user "$fpr" --output SHA256SUMS.sig --detach-sign SHA256SUMS)
 }
 
 boot_phase() {

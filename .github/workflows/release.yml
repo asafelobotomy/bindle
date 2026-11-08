@@ -15,6 +15,9 @@ permissions:
 env:
   # Pinned so a release doesn't change with whatever Arch shipped that day.
   RUST_VERSION: '1.99.1'
+  # The release signing key (public half: packaging/bindle-release.asc, also
+  # embedded in install.sh). The private half is the BINDLE_GPG_KEY secret.
+  SIGNING_FPR: 75C40FA127FBF8D4FBF9E710FAC40EFFE02D69FC
   TAG: ${{ inputs.tag || github.ref_name }}
 
 jobs:
@@ -50,6 +53,24 @@ jobs:
           cp install.sh dist/install.sh
       - name: AppImage
         run: packaging/appimage/build-appimage.sh
+      - name: Sign checksums
+        shell: bash
+        env:
+          BINDLE_GPG_KEY: ${{ secrets.BINDLE_GPG_KEY }}
+        run: |
+          [ -n "$BINDLE_GPG_KEY" ] || { echo "BINDLE_GPG_KEY secret is missing"; exit 1; }
+          export GNUPGHOME="$(mktemp -d)"
+          printf '%s\n' "$BINDLE_GPG_KEY" | gpg --batch --quiet --import
+          cd dist
+          sha256sum bindle-x86_64 install.sh *.AppImage > SHA256SUMS
+          gpg --batch --yes --local-user "$SIGNING_FPR" --output SHA256SUMS.sig --detach-sign SHA256SUMS
+          # The secret must match the key users verify against.
+          gpg --batch --dearmor < ../packaging/bindle-release.asc > "$GNUPGHOME/release.gpg"
+          gpgv --status-fd 1 --keyring "$GNUPGHOME/release.gpg" SHA256SUMS.sig SHA256SUMS | grep -q "VALIDSIG $SIGNING_FPR "
+          # install.sh must embed the same key.
+          grep -q "$SIGNING_FPR" install.sh
+          rm -rf "$GNUPGHOME"
+          cat SHA256SUMS
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         with:
