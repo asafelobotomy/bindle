@@ -122,6 +122,9 @@ pub fn resolve(
         if let Some(c) = m.conflicts.iter().find(|c| provided.contains_key(*c)) {
             plan.skipped.push((id.clone(), format!("`{c}` is already set up")));
             dropped.insert(id.clone());
+        } else if let Some(p) = m.package_conflicts.iter().find(|p| facts.installed.contains(*p)) {
+            plan.skipped.push((id.clone(), format!("conflicts with installed `{p}`; remove it first to use this")));
+            dropped.insert(id.clone());
         } else if let Err(reason) = facts.matches(&m.when) {
             plan.skipped.push((id.clone(), reason));
             dropped.insert(id.clone());

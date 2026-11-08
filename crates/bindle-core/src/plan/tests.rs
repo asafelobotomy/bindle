@@ -48,6 +48,24 @@ fn conflicts_are_rejected() {
 }
 
 #[test]
+fn installed_conflicting_packages_skip_the_module() {
+    let mut f = facts();
+    f.laptop = true;
+    f.installed.extend(["rust", "pulseaudio", "power-profiles-daemon"].map(String::from));
+    let sel = Selection { profile: Some("developer".into()), include: vec!["tlp".into()], ..Default::default() };
+    let p = plan(sel, &f).unwrap();
+    for (id, pkg) in [("rustup", "rust"), ("audio-pipewire", "pulseaudio"), ("tlp", "power-profiles-daemon")] {
+        assert!(p.skipped.iter().any(|(m, why)| m == id && why.contains(pkg)), "{id}: {:?}", p.skipped);
+        assert!(!p.modules.contains(&id.to_string()), "{id}");
+    }
+    let json = serde_json::to_string(&p.steps).unwrap();
+    for pkg in ["\"rustup\"", "\"pipewire-pulse\"", "\"tlp-pd\""] {
+        assert!(!json.contains(pkg), "{pkg} still planned");
+    }
+    assert!(!json.contains("rustup\",\"default"), "user command of a skipped module");
+}
+
+#[test]
 fn excluding_a_requirement_fails() {
     let sel = Selection { profile: Some("gaming".into()), exclude: vec!["multilib".into()], ..Default::default() };
     assert!(plan(sel, &facts()).is_err());

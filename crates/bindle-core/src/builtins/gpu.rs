@@ -44,11 +44,18 @@ pub(super) fn gpu(ctx: &Ctx) -> Expansion {
             e.packages.extend(lib32.iter().map(|p| format!("lib32-{p}")));
         }
     };
-    let proprietary = nvidia_open_supported(f);
+    let existing = installed_nvidia_driver(f);
+    let proprietary = existing.is_some() || nvidia_open_supported(f);
     for gpu in &f.gpus {
         match gpu.as_str() {
             "amd" => add(&mut e, &["mesa", "vulkan-radeon"], &["mesa", "vulkan-radeon"]),
             "intel" => add(&mut e, &["mesa", "vulkan-intel", "intel-media-driver"], &["mesa", "vulkan-intel"]),
+            // Adding nvidia-open-dkms (or nouveau's Vulkan driver) next to an
+            // installed NVIDIA kernel module conflicts, and under --noconfirm
+            // that aborts the whole package transaction.
+            "nvidia" if let Some(pkg) = existing => {
+                e.notes.push(format!("Keeping the installed NVIDIA driver ({pkg})."));
+            }
             "nvidia" if proprietary => {
                 add(&mut e, &["nvidia-open-dkms", "nvidia-utils"], &["nvidia-utils"]);
                 e.packages.extend(kernel_headers(f));
@@ -87,6 +94,35 @@ pub(super) fn gpu(ctx: &Ctx) -> Expansion {
     let mut seen = BTreeSet::new();
     e.packages.retain(|p| seen.insert(p.clone()));
     e
+}
+
+/// An installed NVIDIA driver: a kernel-module package (`nvidia`,
+/// `nvidia-open`, `nvidia-dkms`, `nvidia-open-lts`, `nvidia-580xx-dkms`, or
+/// kernel-prefixed ones on derivatives such as `linux612-nvidia-580xx`), or a
+/// legacy branch's userspace (`nvidia-580xx-utils`, which conflicts with
+/// `nvidia-utils`). Plain `nvidia-utils`/`nvidia-settings` don't count.
+fn installed_nvidia_driver(f: &Facts) -> Option<&str> {
+    let legacy = |t: &str| t.strip_suffix("xx").is_some_and(|n| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()));
+    let module_suffix = |rest: &str| {
+        rest.is_empty()
+            || rest.strip_prefix('-').is_some_and(|rest| {
+                rest.split('-')
+                    .all(|t| matches!(t, "open" | "dkms" | "lts" | "beta" | "zen" | "hardened" | "git") || legacy(t))
+            })
+    };
+    let is_driver = |p: &str| {
+        if let Some(rest) = p.strip_prefix("nvidia") {
+            return module_suffix(rest)
+                || rest.strip_prefix('-').and_then(|r| r.strip_suffix("-utils")).is_some_and(legacy);
+        }
+        p.split_once("-nvidia").is_some_and(|(kernel, rest)| {
+            kernel.starts_with("linux")
+                && !kernel.contains("firmware")
+                && !kernel.contains("headers")
+                && module_suffix(rest)
+        })
+    };
+    f.installed.iter().map(String::as_str).find(|p| is_driver(p))
 }
 
 fn kernel_headers(f: &Facts) -> Vec<String> {
@@ -134,6 +170,39 @@ mod tests {
         let e = run(&nvidia(&[0x1f08]), false); // RTX 2060
         assert!(e.packages.contains(&"nvidia-open-dkms".to_string()));
         assert!(run(&nvidia(&[]), false).packages.contains(&"nvidia-open-dkms".to_string()));
+    }
+
+    #[test]
+    fn keeps_an_installed_nvidia_driver() {
+        for (driver, device) in [
+            ("nvidia-open", 0x2684),
+            ("nvidia-dkms", 0x2684),
+            ("nvidia-580xx-dkms", 0x1b80),
+            ("nvidia-580xx-utils", 0x1c20),
+            ("linux612-nvidia-580xx", 0x1c20),
+            ("linux-cachyos-nvidia-open", 0x2684),
+        ] {
+            let mut f = nvidia(&[device]);
+            f.installed.extend(["nvidia-utils", "nvidia-settings", "linux-firmware-nvidia", driver].map(String::from));
+            let e = run(&f, true);
+            assert!(
+                !e.packages.iter().any(|p| p.contains("nvidia") || p.contains("nouveau")),
+                "{driver}: {:?}",
+                e.packages
+            );
+            assert!(e.notes.iter().any(|n| n.contains(driver)), "{driver}");
+        }
+        // Userspace alone is not a driver.
+        let mut f = nvidia(&[0x2684]);
+        f.installed.extend(["nvidia-utils", "nvidia-settings", "nvidia-prime"].map(String::from));
+        assert!(run(&f, false).packages.contains(&"nvidia-open-dkms".to_string()));
+        // Hybrid laptop on an installed legacy driver still gets PRIME offload.
+        let mut f = nvidia(&[0x1c8d]);
+        f.gpus = vec!["intel".into(), "nvidia".into()];
+        f.installed.insert("nvidia-580xx-dkms".into());
+        let e = run(&f, false);
+        assert!(e.packages.contains(&"nvidia-prime".to_string()));
+        assert!(e.notes.iter().any(|n| n.contains("prime-run")));
     }
 
     #[test]

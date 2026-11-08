@@ -17,6 +17,7 @@ name = "PipeWire audio"
 description = "PipeWire with PulseAudio, ALSA and JACK compatibility, managed by WirePlumber."
 profiles = ["desktop", "gaming", "developer"]
 packages = ["pipewire", "pipewire-pulse", "pipewire-alsa", "pipewire-jack", "wireplumber"]
+package_conflicts = ["pulseaudio", "jack", "jack2", "pipewire-jack-client", "pipewire-media-session"]
 notes = ["PipeWire user services are socket-activated; nothing to enable."]
 
 [[module]]
@@ -43,6 +44,7 @@ profiles = ["desktop", "gaming", "developer"]
 when = ["laptop"]
 conflicts = ["tlp"]
 packages = ["power-profiles-daemon"]
+package_conflicts = ["tlp-pd", "tuned-ppd"]
 enable = ["power-profiles-daemon.service"]
 
 [[module]]
@@ -53,6 +55,7 @@ risk = "moderate"
 when = ["laptop"]
 conflicts = ["power-profiles"]
 packages = ["tlp", "tlp-pd"]
+package_conflicts = ["power-profiles-daemon", "tuned", "tuned-ppd"]
 enable = ["tlp.service", "tlp-pd.service"]
 # A masked unit is a symlink to /dev/null, which reads as empty.
 root_commands = [{ argv = ["systemctl", "mask", "systemd-rfkill.service", "systemd-rfkill.socket"], unless = [{ path = "/etc/systemd/system/systemd-rfkill.service", content = "" }, { path = "/etc/systemd/system/systemd-rfkill.socket", content = "" }] }]

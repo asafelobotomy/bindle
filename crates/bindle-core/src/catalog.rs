@@ -143,6 +143,10 @@ pub struct Module {
     pub conflicts: Vec<String>,
     #[serde(default)]
     pub packages: Vec<String>,
+    /// Installed packages that `packages` conflict with; the module is
+    /// skipped while any is installed (pacman --noconfirm would abort).
+    #[serde(default)]
+    pub package_conflicts: Vec<String>,
     #[serde(default)]
     pub aur: Vec<String>,
     #[serde(default)]
@@ -259,6 +263,9 @@ impl Catalog {
             }
             if let Some(f) = m.files.iter().find(|f| !f.path.starts_with('/')) {
                 bail!("module `{}` writes non-absolute path `{}`", m.id, f.path);
+            }
+            if let Some(p) = m.package_conflicts.iter().find(|p| p.is_empty() || m.packages.contains(p)) {
+                bail!("module `{}` lists `{p}` in package_conflicts", m.id);
             }
             if m.root_commands.iter().chain(&m.user_commands).any(|c| c.argv.is_empty()) {
                 bail!("module `{}` has an empty command", m.id);

@@ -10,8 +10,9 @@ name = "Rust (rustup)"
 description = "rustup with the stable toolchain."
 profiles = ["developer"]
 packages = ["rustup"]
+package_conflicts = ["rust", "cargo", "rustfmt"]
 user_commands = [{ argv = ["rustup", "default", "stable"], unless = [{ path = "~/.rustup/settings.toml", contains = 'default_toolchain = "stable' }] }]
-notes = ["Conflicts with the distro 'rust' package; pacman will offer to replace it."]
+notes = ["Replaces the distro 'rust' package: while that is installed this module is skipped; remove it (pacman -R rust) to switch."]
 
 [[module]]
 id = "nodejs"
@@ -19,6 +20,7 @@ name = "Node.js"
 description = "Node.js LTS runtime with npm."
 profiles = ["developer"]
 packages = ["nodejs-lts-krypton", "npm"]
+package_conflicts = ["nodejs", "nodejs-lts-jod", "nodejs-lts-iron", "nodejs-lts-hydrogen"]
 
 [[module]]
 id = "python"

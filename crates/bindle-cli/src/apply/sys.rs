@@ -155,9 +155,15 @@ pub fn run_streaming(argv: &[String], on_line: &mut dyn FnMut(&str)) -> Result<(
     .flatten()
     .map(|stream| {
         let tx = tx.clone();
+        // Read raw bytes: a non-UTF-8 line must not stop the drain, or the
+        // child (pacman mid-transaction) dies of SIGPIPE.
         thread::spawn(move || {
-            for line in BufReader::new(stream).lines().map_while(Result::ok) {
-                let _ = tx.send(line);
+            let mut reader = BufReader::new(stream);
+            let mut buf = Vec::new();
+            while matches!(reader.read_until(b'\n', &mut buf), Ok(n) if n > 0) {
+                let line = String::from_utf8_lossy(&buf);
+                let _ = tx.send(line.trim_end_matches(['\n', '\r']).to_string());
+                buf.clear();
             }
         })
     })
@@ -220,5 +226,23 @@ mod tests {
         lines.sort();
         assert_eq!(lines, ["err", "out"]);
         assert!(run_streaming(&["false".into()], &mut |_| {}).is_err());
+    }
+
+    #[test]
+    fn non_utf8_output_keeps_draining() {
+        // A bad byte followed by more output than a pipe buffer holds: the
+        // child must still finish successfully and every line must arrive.
+        let script = "printf 'bad \\377\\n'; i=0; while [ $i -lt 20000 ]; do echo line$i; i=$((i+1)); done";
+        let mut count = 0;
+        let mut first = String::new();
+        run_streaming(&["sh".into(), "-c".into(), script.into()], &mut |l| {
+            if count == 0 {
+                first = l.to_string();
+            }
+            count += 1;
+        })
+        .unwrap();
+        assert_eq!(count, 20001);
+        assert_eq!(first, "bad \u{FFFD}");
     }
 }
