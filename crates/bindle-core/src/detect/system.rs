@@ -146,6 +146,23 @@ pub(super) fn user_groups(user: &str) -> BTreeSet<String> {
         .unwrap_or_default()
 }
 
+/// Name of the user this process runs as, from the passwd database. Not
+/// `$SUDO_USER`/`$USER`: after `sudo -u dev -i`, SUDO_USER names someone else,
+/// and group changes would go to the wrong account.
+pub(super) fn current_user() -> String {
+    use std::os::unix::fs::MetadataExt;
+    let Ok(uid) = std::fs::metadata("/proc/self").map(|m| m.uid()) else {
+        return std::env::var("USER").unwrap_or_default();
+    };
+    stdout(Command::new("getent").args(["passwd", &uid.to_string()]))
+        .and_then(|s| passwd_name(&s))
+        .unwrap_or_else(|| std::env::var("USER").unwrap_or_default())
+}
+
+fn passwd_name(getent: &str) -> Option<String> {
+    getent.lines().next()?.split(':').next().filter(|n| !n.is_empty()).map(String::from)
+}
+
 /// Home directory from `getent passwd` (not $HOME, which sudo may change).
 pub(super) fn user_home(user: &str) -> String {
     if user.is_empty() {
@@ -159,6 +176,16 @@ pub(super) fn user_home(user: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn user_comes_from_the_uid_not_the_environment() {
+        assert_eq!(passwd_name("dev:x:1001:1001::/home/dev:/bin/bash\n").as_deref(), Some("dev"));
+        assert_eq!(passwd_name(""), None);
+        // SAFETY: test-only; no other thread in this test reads SUDO_USER.
+        unsafe { std::env::set_var("SUDO_USER", "someone-else") };
+        let user = current_user();
+        assert!(!user.is_empty() && user != "someone-else");
+    }
 
     #[test]
     fn parses_os_release() {

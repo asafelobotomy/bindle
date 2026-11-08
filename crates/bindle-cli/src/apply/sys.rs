@@ -136,6 +136,38 @@ pub fn shell_words(argv: &[String]) -> String {
         .join(" ")
 }
 
+/// Hold an exclusive lock on `path` (created 0600) for as long as the
+/// returned file is open; fails at once if another process holds it.
+pub fn lock_exclusive(path: &Path) -> Result<fs::File> {
+    if let Some(dir) = path.parent() {
+        create_dirs(dir)?;
+    }
+    let file = fs::OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .write(true)
+        .mode(0o600)
+        .custom_flags(libc::O_NOFOLLOW)
+        .open(path)
+        .with_context(|| format!("open {}", path.display()))?;
+    // SAFETY: flock on a file descriptor we own; no memory is passed.
+    if unsafe { libc::flock(std::os::fd::AsRawFd::as_raw_fd(&file), libc::LOCK_EX | libc::LOCK_NB) } != 0 {
+        bail!("another Bindle apply or undo is running (lock {})", path.display());
+    }
+    Ok(file)
+}
+
+/// Ignore Ctrl-C (`true`) or restore the default (`false`). Used around root
+/// steps: interrupting pacman or the helper mid-step can leave the system
+/// half-changed, and pacman handles its own interrupts safely.
+pub fn ignore_interrupts(ignore: bool) {
+    let handler = if ignore { libc::SIG_IGN } else { libc::SIG_DFL };
+    // SAFETY: installs a disposition constant, not a Rust handler.
+    unsafe {
+        libc::signal(libc::SIGINT, handler);
+    }
+}
+
 /// Run a command, passing each stdout/stderr line to `on_line` as it arrives.
 pub fn run_streaming(argv: &[String], on_line: &mut dyn FnMut(&str)) -> Result<()> {
     let (prog, args) = argv.split_first().context("empty command")?;
@@ -226,6 +258,17 @@ mod tests {
         lines.sort();
         assert_eq!(lines, ["err", "out"]);
         assert!(run_streaming(&["false".into()], &mut |_| {}).is_err());
+    }
+
+    #[test]
+    fn lock_is_exclusive_and_refuses_symlinks() {
+        let dir = test_dir("lock");
+        let held = lock_exclusive(&dir.join("lock")).unwrap();
+        assert!(lock_exclusive(&dir.join("lock")).is_err(), "second holder must be refused");
+        drop(held);
+        assert!(lock_exclusive(&dir.join("lock")).is_ok());
+        std::os::unix::fs::symlink(dir.join("lock"), dir.join("link")).unwrap();
+        assert!(lock_exclusive(&dir.join("link")).is_err());
     }
 
     #[test]

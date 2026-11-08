@@ -86,7 +86,7 @@ pub fn describe(step: &Step) -> String {
             format!("edit /etc/pacman.conf: {}", parts.join(", "))
         }
         Step::InstallPackages { packages } => {
-            format!("pacman -Syu --needed ({}): {}", packages.len(), packages.join(" "))
+            format!("full system upgrade, then install ({}): {}", packages.len(), packages.join(" "))
         }
         Step::WriteFile { module, file } => {
             format!("write {} (mode {:o}) [{module}]", file.path, file.mode)

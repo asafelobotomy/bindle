@@ -126,7 +126,7 @@ impl Facts {
         }
         let virt = hw::virt();
         let gpu = hw::gpus(&virt);
-        let user = std::env::var("SUDO_USER").or_else(|_| std::env::var("USER")).unwrap_or_default();
+        let user = system::current_user();
         let mounts = read("/proc/mounts");
         let mut f = Facts {
             distro_id: os_field(&os, "ID").unwrap_or_default(),

@@ -24,6 +24,10 @@ pub enum Request {
     Restore {
         id: String,
     },
+    /// The apply that took this snapshot finished every step.
+    Complete {
+        id: String,
+    },
     Quit,
 }
 

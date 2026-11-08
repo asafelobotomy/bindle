@@ -73,8 +73,18 @@ fn snapshot_plan(plan: &Plan, facts: &Facts) -> SnapshotPlan {
             _ => {}
         }
     }
-    s.files.dedup();
+    let mut seen = std::collections::BTreeSet::new();
+    s.files.retain(|f| seen.insert(f.clone()));
     s
+}
+
+/// A request to the root helper with Ctrl-C ignored here: dying mid-step
+/// would leave the helper (and pacman) running with nobody reporting.
+fn root_request(h: &mut HelperClient, req: &Request, out: &mut dyn FnMut(&str)) -> Result<Option<String>> {
+    sys::ignore_interrupts(true);
+    let result = h.request(req, out);
+    sys::ignore_interrupts(false);
+    result
 }
 
 fn needs_reboot(plan: &Plan) -> bool {
@@ -112,8 +122,7 @@ pub fn apply(plan: &Plan, facts: &Facts, opts: &Options) -> Result<Outcome> {
     let mut out = |line: &str| println!("    │ {line}");
 
     let snapshot = match helper.as_mut() {
-        Some(h) => h
-            .request(&Request::Snapshot { plan: snapshot_plan(plan, facts) }, &mut out)
+        Some(h) => root_request(h, &Request::Snapshot { plan: snapshot_plan(plan, facts) }, &mut out)
             .map_err(|e| e.context("could not snapshot before applying; nothing was changed"))?,
         None => None,
     };
@@ -126,12 +135,12 @@ pub fn apply(plan: &Plan, facts: &Facts, opts: &Options) -> Result<Outcome> {
     for (i, step) in plan.steps.iter().enumerate() {
         println!("\n[{}/{total}] {}", i + 1, print::describe(step));
         let result = match (step, helper.as_mut()) {
-            (s, Some(h)) if s.privileged() => h.request(&Request::Run { step: s.clone() }, &mut out).map(drop),
+            (s, Some(h)) if s.privileged() => root_request(h, &Request::Run { step: s.clone() }, &mut out).map(drop),
             (Step::BootstrapAurHelper { package }, Some(h)) => user::build_aur(package, fake).and_then(|files| {
                 if files.is_empty() {
                     Ok(())
                 } else {
-                    h.request(&Request::InstallFiles { paths: files }, &mut out).map(drop)
+                    root_request(h, &Request::InstallFiles { paths: files }, &mut out).map(drop)
                 }
             }),
             (Step::InstallAur { packages }, _) => user::install_aur(&aur_helper, packages, fake),
@@ -143,8 +152,8 @@ pub fn apply(plan: &Plan, facts: &Facts, opts: &Options) -> Result<Outcome> {
             println!("  ✗ {e:#}");
             println!("\nStopped at step {}/{total}. Nothing after it ran.", i + 1);
             println!("Log: {}", sys::host(&opts.root(), &log).display());
-            if let Some(id) = &snapshot {
-                println!("Undo file changes: bindle undo {id}");
+            if snapshot.is_some() {
+                println!("Undo file changes: bindle undo (also reverts earlier failed runs this one resumes)");
             }
             println!("Steps are idempotent: fix the cause and run Bindle again to continue.");
             if let Some(h) = helper {
@@ -154,7 +163,10 @@ pub fn apply(plan: &Plan, facts: &Facts, opts: &Options) -> Result<Outcome> {
         }
         println!("  ✓ done");
     }
-    if let Some(h) = helper {
+    if let Some(mut h) = helper {
+        if let Some(id) = &snapshot {
+            root_request(&mut h, &Request::Complete { id: id.clone() }, &mut out)?;
+        }
         h.quit();
     }
 
@@ -187,32 +199,47 @@ pub fn undo(id: Option<String>, list: bool, opts: &Options) -> Result<()> {
         }
         return Ok(());
     }
-    let m = match id {
-        Some(id) => snapshot::load(&root, &id)?,
-        None => snaps.first().cloned().expect("checked above"),
+    // Newest first: each restore puts files back as they were before that run.
+    let session = match id {
+        Some(id) => vec![snapshot::load(&root, &id)?],
+        None => snapshot::latest_session(&snaps),
     };
-    println!("Undo snapshot {} ({}):", m.id, m.created);
-    for f in &m.files {
-        println!("  {} {}", if f.existed { "restore" } else { "remove " }, f.path);
-    }
-    if !m.units.is_empty() {
-        println!("  systemctl disable --now {}", m.units.join(" "));
-    }
-    if !m.manual.is_empty() {
-        println!("Not reverted (undo by hand if needed):");
-        m.manual.iter().for_each(|c| println!("  {c}"));
+    for m in &session {
+        println!("Undo snapshot {} ({}){}:", m.id, m.created, if m.complete { "" } else { ", an apply that failed" });
+        for f in &m.files {
+            println!("  {} {}", if f.existed { "restore" } else { "remove " }, f.path);
+        }
+        if !m.units.is_empty() {
+            println!("  systemctl disable --now {}", m.units.join(" "));
+        }
+        if !m.manual.is_empty() {
+            println!("Not reverted (undo by hand if needed):");
+            m.manual.iter().for_each(|c| println!("  {c}"));
+        }
     }
     if !opts.yes && !confirm("Proceed?", false) {
         return Ok(());
     }
     let log = format!("/var/log/bindle/undo-{}.log", sys::now_id());
     let mut helper = HelperClient::start(opts.sandbox.as_deref(), &log)?;
-    helper.request(&Request::Restore { id: m.id.clone() }, &mut |l| println!("    │ {l}"))?;
+    let mut failed = Vec::new();
+    for m in &session {
+        if let Err(e) =
+            root_request(&mut helper, &Request::Restore { id: m.id.clone() }, &mut |l| println!("    │ {l}"))
+        {
+            println!("  ✗ {e:#}");
+            failed.push(m.id.clone());
+        }
+    }
     helper.quit();
-    let pkgs: Vec<&String> = m.packages.iter().chain(&m.aur).filter(|p| still_installed(p, &root)).collect();
+    let pkgs: Vec<&String> =
+        session.iter().flat_map(|m| m.packages.iter().chain(&m.aur)).filter(|p| still_installed(p, &root)).collect();
     if !pkgs.is_empty() {
         println!("\nPackages are left installed. To remove them:");
         println!("  sudo pacman -Rns {}", pkgs.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(" "));
+    }
+    if !failed.is_empty() {
+        bail!("undo incomplete for snapshot(s) {}; see the log", failed.join(", "));
     }
     Ok(())
 }

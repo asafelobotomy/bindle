@@ -18,4 +18,5 @@ ratatui.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 toml.workspace = true
+libc = "0.2"
 zbus = "5"

@@ -3,6 +3,7 @@
 //! In sandbox mode it runs unprivileged against a temp root and only records
 //! the commands it would run.
 
+use std::collections::BTreeMap;
 use std::fs::{self, OpenOptions};
 use std::io::{self, BufRead, Write};
 use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
@@ -13,7 +14,13 @@ use bindle_core::{Step, pacman_conf};
 
 use super::protocol::{Event, Request, VERSION};
 use super::snapshot;
-use super::sys::{check_system_path, create_dirs, host, is_root, run_streaming, shell_words, valid_name, write_atomic};
+use super::sys::{
+    check_system_path, create_dirs, host, ignore_interrupts, is_root, lock_exclusive, run_streaming, shell_words,
+    valid_name, write_atomic,
+};
+
+/// Held for the whole helper session: one apply or undo at a time.
+const LOCK: &str = "/var/lib/bindle/lock";
 
 pub struct HelperOpts {
     pub root: PathBuf,
@@ -38,10 +45,18 @@ pub fn serve(opts: HelperOpts) -> Result<()> {
     if let Some(dir) = log_path.parent() {
         create_dirs(dir)?;
     }
+    let _lock = lock_exclusive(&host(&opts.root, LOCK))?;
+    // A Ctrl-C meant for the terminal must not kill the helper mid-step.
+    ignore_interrupts(true);
     // Root-only: command output can include whatever the commands print.
-    let log = OpenOptions::new().create(true).append(true).mode(0o600).open(&log_path).ok();
-    let mut h = Helper { opts, log, out: io::stdout(), snapshot: None };
+    // Never follow a symlink planted at the log path.
+    let log = OpenOptions::new().create(true).append(true).mode(0o600).custom_flags(libc::O_NOFOLLOW).open(&log_path);
+    let log_error = log.as_ref().err().map(|e| format!("warning: no log at {}: {e}", log_path.display()));
+    let mut h = Helper { opts, log: log.ok(), out: io::stdout(), snapshot: None };
     h.emit(&Event::Hello { version: VERSION.into() });
+    if let Some(warning) = log_error {
+        h.emit(&Event::Output { line: warning });
+    }
     for line in io::stdin().lock().lines() {
         let line = line?;
         let req: Request = match serde_json::from_str(&line) {
@@ -65,6 +80,20 @@ pub fn serve(opts: HelperOpts) -> Result<()> {
         }
     }
     Ok(())
+}
+
+/// pacman.conf `[options]` keys are single words; values are one line. Anything
+/// else could inject sections or directives.
+fn check_pacman_edit(options: &BTreeMap<String, String>, repos: &[String]) -> Result<()> {
+    for (k, v) in options {
+        if k.is_empty() || !k.chars().all(|c| c.is_ascii_alphanumeric()) || v.contains(['\n', '\r', '[', ']']) {
+            bail!("refusing pacman.conf option `{k}`");
+        }
+    }
+    match repos.iter().find(|r| r.is_empty() || !r.chars().all(|c| c.is_ascii_alphanumeric() || c == '-')) {
+        Some(r) => bail!("refusing repo name `{r}`"),
+        None => Ok(()),
+    }
 }
 
 fn check_names(names: &[String]) -> Result<()> {
@@ -155,16 +184,31 @@ impl Helper {
             }
             Request::Restore { id } => {
                 let m = snapshot::load(self.root(), &id)?;
-                for line in snapshot::restore_files(self.root(), &m)? {
-                    self.output(&line);
+                let report = snapshot::restore_files(self.root(), &m);
+                for line in &report.done {
+                    self.output(line);
                 }
+                let mut errors = report.errors;
                 if !m.units.is_empty() {
-                    let mut argv: Vec<String> = ["systemctl", "disable", "--now", "--"].map(String::from).into();
-                    argv.extend(m.units.iter().cloned());
-                    self.cmd_owned(&argv)?;
+                    let units = m.units.clone();
+                    let disabled = check_names(&units).and_then(|()| {
+                        let mut argv: Vec<String> = ["systemctl", "disable", "--now", "--"].map(String::from).into();
+                        argv.extend(units);
+                        self.cmd_owned(&argv)
+                    });
+                    if let Err(e) = disabled {
+                        errors.push(format!("disable units: {e:#}"));
+                    }
+                }
+                if !errors.is_empty() {
+                    for e in &errors {
+                        self.output(&format!("not restored: {e}"));
+                    }
+                    bail!("snapshot {id}: {} item(s) could not be restored (listed above)", errors.len());
                 }
                 Ok(None)
             }
+            Request::Complete { id } => snapshot::mark_complete(self.root(), &id).map(|()| None),
             Request::Quit => Ok(None),
         }
     }
@@ -175,6 +219,7 @@ impl Helper {
         }
         match step {
             Step::EditPacmanConf { options, enable_repos } => {
+                check_pacman_edit(&options, &enable_repos)?;
                 self.capture_late("/etc/pacman.conf")?;
                 let path = host(self.root(), "/etc/pacman.conf");
                 let mut text = fs::read_to_string(&path).context("read /etc/pacman.conf")?;
