@@ -144,13 +144,13 @@ pub fn apply(plan: &Plan, facts: &Facts, opts: &Options) -> Result<Outcome> {
         None => None,
     };
     if let Some(id) = &snapshot {
-        println!("Snapshot {id} saved (undo with `bindle undo {id}`).");
+        println!("Snapshot {id} saved: `bindle undo` reverts this run.\n");
     }
 
     let aur_helper = facts.aur_helper.clone().unwrap_or_else(|| "paru".into());
     let total = plan.steps.len();
     for (i, step) in plan.steps.iter().enumerate() {
-        println!("\n[{}/{total}] {}", i + 1, print::describe(step));
+        println!("[{}/{total}] {}", i + 1, print::describe(step));
         let result = match (step, helper.as_mut()) {
             (s, Some(h)) if s.privileged() => root_request(h, &Request::Run { step: s.clone() }, &mut out).map(drop),
             (Step::BootstrapAurHelper { package }, Some(h)) => user::build_aur(package, fake).and_then(|files| {
@@ -177,7 +177,7 @@ pub fn apply(plan: &Plan, facts: &Facts, opts: &Options) -> Result<Outcome> {
             println!("\nStopped at step {}/{total}. Nothing after it ran.", i + 1);
             println!("Log: {}", sys::host(&opts.root(), &log).display());
             if snapshot.is_some() {
-                println!("Undo file changes: bindle undo (also reverts earlier failed runs this one resumes)");
+                println!("Undo the changes so far: bindle undo");
             }
             println!("Steps are idempotent: fix the cause and run Bindle again to continue.");
             if let Some(h) = helper {
@@ -185,7 +185,6 @@ pub fn apply(plan: &Plan, facts: &Facts, opts: &Options) -> Result<Outcome> {
             }
             bail!("apply failed");
         }
-        println!("  ✓ done");
     }
     if let Some(mut h) = helper {
         if let Some(id) = &snapshot {
@@ -195,6 +194,9 @@ pub fn apply(plan: &Plan, facts: &Facts, opts: &Options) -> Result<Outcome> {
     }
 
     println!("\nAll {total} steps applied. Log: {}", sys::host(&opts.root(), &log).display());
+    if snapshot.is_some() {
+        println!("Undo with `bindle undo`.");
+    }
     if needs_reboot(plan) {
         println!("Reboot to load the new kernel, microcode or drivers.");
     } else if plan.steps.iter().any(|s| matches!(s, Step::AddToGroups { .. })) {
@@ -211,14 +213,18 @@ pub fn undo(id: Option<String>, list: bool, opts: &Options) -> Result<()> {
             println!("No snapshots in {}.", sys::host(&root, snapshot::DIR).display());
         }
         for m in &snaps {
+            let mods: Vec<&str> = m.label.split(", ").collect();
+            let label = match mods.len() {
+                0..=4 => m.label.clone(),
+                n => format!("{}, +{} more", mods[..3].join(", "), n - 3),
+            };
             println!(
-                "{}  {}  {} files, {} units, {} packages  [{}]",
+                "{}  {}  {} files, {} units, {} packages  [{label}]",
                 m.id,
                 m.created,
                 m.files.len(),
                 m.units.len(),
                 m.packages.len() + m.aur.len(),
-                m.label
             );
         }
         return Ok(());
@@ -229,12 +235,23 @@ pub fn undo(id: Option<String>, list: bool, opts: &Options) -> Result<()> {
         None => snapshot::latest_session(&snaps),
     };
     for m in &session {
-        println!("Undo snapshot {} ({}){}:", m.id, m.created, if m.complete { "" } else { ", an apply that failed" });
+        println!(
+            "Undo snapshot {} ({}){}:",
+            m.id,
+            m.created,
+            if m.complete { "" } else { ", an apply that stopped early" }
+        );
         for f in &m.files {
             println!("  {} {}", if f.existed { "restore" } else { "remove " }, f.path);
         }
         if !m.units.is_empty() {
             println!("  systemctl disable --now {}", m.units.join(" "));
+        }
+        if !m.packages.is_empty() || !m.aur.is_empty() {
+            println!(
+                "  packages stay installed ({}); the command to remove them is printed at the end",
+                m.packages.len() + m.aur.len()
+            );
         }
         if !m.manual.is_empty() {
             println!("Not reverted (undo by hand if needed):");
@@ -265,6 +282,7 @@ pub fn undo(id: Option<String>, list: bool, opts: &Options) -> Result<()> {
     if !failed.is_empty() {
         bail!("undo incomplete for snapshot(s) {}; see the log", failed.join(", "));
     }
+    println!("\nUndo complete.");
     Ok(())
 }
 

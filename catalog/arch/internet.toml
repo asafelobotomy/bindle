@@ -1,33 +1,33 @@
 [category]
 id = "internet"
-name = "Internet & communication"
-description = "Browsers, mail, messaging, Proton apps, sync, VPN and downloads."
+name = "Internet"
+description = "Browsers, mail, messaging, Proton, sync, VPN and downloads."
 order = 42
 
 [[module]]
 id = "firefox"
 name = "Firefox"
-description = "Web browser."
+description = "Mozilla's web browser."
 profiles = ["desktop", "gaming", "developer"]
 packages = ["firefox"]
 
 [[module]]
 id = "chromium"
 name = "Chromium"
-description = "Open-source build of Chrome from the Arch repos."
+description = "Open-source base of Google Chrome."
 packages = ["chromium"]
 
 [[module]]
 id = "brave"
 name = "Brave"
-description = "Brave browser (Brave's official build, repackaged in the AUR)."
+description = "Privacy-focused Chromium browser with built-in ad blocking."
 requires = ["aur-helper"]
 aur = ["brave-bin"]
 
 [[module]]
 id = "brave-origin"
 name = "Brave Origin"
-description = "Brave's minimalist browser, without extras such as Rewards, Wallet and Leo (official build, repackaged in the AUR)."
+description = "Brave without extras such as Rewards, Wallet and Leo."
 requires = ["aur-helper"]
 aur = ["brave-origin-bin"]
 
@@ -40,14 +40,14 @@ packages = ["vivaldi"]
 [[module]]
 id = "zen-browser"
 name = "Zen Browser"
-description = "Firefox-based browser with vertical tabs and workspaces (upstream build, from the AUR)."
+description = "Firefox-based browser with vertical tabs and workspaces."
 requires = ["aur-helper"]
 aur = ["zen-browser-bin"]
 
 [[module]]
 id = "google-chrome"
 name = "Google Chrome"
-description = "Google's Chrome browser (official build, repackaged in the AUR)."
+description = "Google's Chrome browser."
 risk = "moderate"
 requires = ["aur-helper"]
 aur = ["google-chrome"]
@@ -59,9 +59,27 @@ description = "Mail, calendar and contacts."
 packages = ["thunderbird"]
 
 [[module]]
+id = "signal"
+name = "Signal"
+description = "Signal messenger."
+packages = ["signal-desktop"]
+
+[[module]]
+id = "telegram"
+name = "Telegram"
+description = "Telegram messenger."
+packages = ["telegram-desktop"]
+
+[[module]]
+id = "element"
+name = "Element"
+description = "Matrix chat client."
+packages = ["element-desktop"]
+
+[[module]]
 id = "proton-mail"
 name = "Proton Mail"
-description = "Proton Mail and Calendar desktop app (official build, repackaged in the AUR)."
+description = "Proton Mail and Calendar desktop app."
 requires = ["aur-helper"]
 aur = ["proton-mail-bin"]
 
@@ -72,55 +90,36 @@ description = "Use Proton Mail from Thunderbird or any IMAP/SMTP client."
 packages = ["protonmail-bridge"]
 
 [[module]]
-id = "proton-vpn"
-name = "Proton VPN"
-description = "Official Proton VPN app."
-packages = ["proton-vpn-gtk-app"]
-
-[[module]]
 id = "proton-pass"
 name = "Proton Pass"
-description = "Proton password manager (official build, repackaged in the AUR)."
+description = "Proton's password manager."
 requires = ["aur-helper"]
 aur = ["proton-pass-bin"]
 
 [[module]]
+id = "proton-vpn"
+name = "Proton VPN"
+description = "Proton VPN app."
+packages = ["proton-vpn-gtk-app"]
+
+[[module]]
 id = "proton-authenticator"
 name = "Proton Authenticator"
-description = "Proton 2FA code app with encrypted sync (official build, repackaged in the AUR)."
+description = "Proton's 2FA code app, with encrypted sync."
 requires = ["aur-helper"]
 aur = ["proton-authenticator-bin"]
 
 [[module]]
 id = "proton-drive-cli"
 name = "Proton Drive (CLI)"
-description = "Official Proton Drive command-line client."
+description = "Proton Drive command-line client; there is no Proton Drive desktop app for Linux yet."
 requires = ["aur-helper"]
 aur = ["proton-drive-cli-bin"]
-notes = ["Proton has no Proton Drive desktop app for Linux yet; this is the official CLI."]
-
-[[module]]
-id = "signal"
-name = "Signal"
-description = "Signal Desktop messenger."
-packages = ["signal-desktop"]
-
-[[module]]
-id = "telegram"
-name = "Telegram"
-description = "Telegram Desktop messenger."
-packages = ["telegram-desktop"]
-
-[[module]]
-id = "element"
-name = "Element"
-description = "Matrix chat client."
-packages = ["element-desktop"]
 
 [[module]]
 id = "syncthing"
 name = "Syncthing"
-description = "Continuous peer-to-peer file sync between your devices. Runs as your user."
+description = "Peer-to-peer file sync between your devices, running as your user."
 packages = ["syncthing"]
 user_commands = [{ argv = ["systemctl", "--user", "enable", "--now", "syncthing.service"], unless = [{ path = "~/.config/systemd/user/default.target.wants/syncthing.service" }] }]
 notes = ["Open http://127.0.0.1:8384 to pair devices."]
@@ -149,7 +148,7 @@ packages = ["qbittorrent"]
 [[module]]
 id = "qbittorrent-enhanced"
 name = "qBittorrent Enhanced Edition"
-description = "qBittorrent fork that blocks leeching clients and adds tracker auto-update (built from the AUR)."
+description = "qBittorrent fork that blocks leeching clients and auto-updates trackers."
 requires = ["aur-helper"]
 conflicts = ["qbittorrent"]
 package_conflicts = ["qbittorrent"]
@@ -159,7 +158,7 @@ notes = ["Builds from source, which takes a while."]
 [[module]]
 id = "qbit-plugin-dl"
 name = "qbit Plugin Manager"
-description = "Pick and install qBittorrent search plugins from allowlisted catalogs. By asafelobotomy; AppImage from its GitHub release, installed to ~/.local/bin."
+description = "Finds and installs qBittorrent search plugins from allowlisted catalogs. By asafelobotomy."
 packages = ["fuse2"]
 requires = ["qbittorrent"]
 [[module.release]]
@@ -170,9 +169,20 @@ sha256 = "43bd1684d54697dcd8c1fffdfd9192b5908cfc75fb9659e2d25cc62fb75af104"
 name = "qbit-plugin-dl"
 
 [[module]]
+id = "hauler"
+name = "hauler (download manager)"
+description = "Fast, resumable downloads over parallel connections; CLI, daemon and Kirigami app. By asafelobotomy."
+[[module.release]]
+repo = "asafelobotomy/hauler"
+tag = "v0.1.2"
+asset = "hauler-0.1.2-1-x86_64.pkg.tar.zst"
+sha256 = "c464fcf42aceaf2a61c65cedbe58358829f9366df7eddeeb59466d081abe5a1b"
+name = "hauler"
+
+[[module]]
 id = "av-morning-star"
 name = "AV Morning Star (video downloader)"
-description = "Download video and audio from YouTube, Odysee and 1000+ sites (a yt-dlp front end). By asafelobotomy; AppImage from its GitHub release, installed to ~/.local/bin."
+description = "Downloads video and audio from YouTube, Odysee and 1000+ sites (a yt-dlp front end). By asafelobotomy."
 packages = ["fuse2", "yt-dlp"]
 [[module.release]]
 repo = "asafelobotomy/AV-Morning-Star"
@@ -180,14 +190,3 @@ tag = "v0.4.2"
 asset = "AV-Morning-Star-0.4.2-x86_64.AppImage"
 sha256 = "e12b3c7d125936b6ed9776b2da1513f9a1e9c10e466e6f8a9bde0a581e8d4a47"
 name = "av-morning-star"
-
-[[module]]
-id = "hauler"
-name = "hauler (download manager)"
-description = "Fast, resumable downloads over parallel connections; CLI, daemon and Kirigami app. By asafelobotomy; installed from its GitHub release."
-[[module.release]]
-repo = "asafelobotomy/hauler"
-tag = "v0.1.2"
-asset = "hauler-0.1.2-1-x86_64.pkg.tar.zst"
-sha256 = "c464fcf42aceaf2a61c65cedbe58358829f9366df7eddeeb59466d081abe5a1b"
-name = "hauler"

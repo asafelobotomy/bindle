@@ -1,7 +1,7 @@
 [category]
 id = "gaming"
 name = "Gaming"
-description = "Steam, Wine and performance overlays."
+description = "Steam, Wine and Proton tools, launchers, overlays and emulators."
 order = 60
 
 [[module]]
@@ -31,51 +31,11 @@ requires = ["multilib"]
 packages = ["mangohud", "lib32-mangohud"]
 
 [[module]]
-id = "wine"
-name = "Wine"
-description = "Wine staging with winetricks."
-profiles = ["gaming"]
-requires = ["multilib"]
-packages = ["wine-staging", "winetricks", "wine-mono", "wine-gecko"]
-
-[[module]]
-id = "lutris"
-name = "Lutris"
-description = "Launcher for GOG, Epic, emulators and Wine games."
-requires = ["wine"]
-packages = ["lutris", "umu-launcher"]
-
-[[module]]
-id = "heroic"
-name = "Heroic Games Launcher"
-description = "Epic, GOG and Amazon launcher (AUR)."
-risk = "moderate"
-requires = ["aur-helper"]
-aur = ["heroic-games-launcher-bin"]
-
-[[module]]
-id = "romforge"
-name = "romforge (ROM library)"
-description = "Identify, tidy, enrich and play your ROM collection. By asafelobotomy; AppImage from its GitHub release, installed to ~/.local/bin."
-packages = ["fuse2"]
-[[module.release]]
-repo = "asafelobotomy/romforge"
-tag = "v0.15.0"
-asset = "romforge_0.15.0_amd64.AppImage"
-sha256 = "b6144f61a37edbc72c4af1ff3b17d7b32c5d98f49befc190b9301c008c9f9037"
-name = "romforge"
-
-[[module]]
-id = "reshadelinux"
-name = "ReShadeLinux"
-description = "Install the official ReShade runtime for Wine and Proton games. By asafelobotomy; AppImage from its GitHub release, installed to ~/.local/bin."
-packages = ["fuse2"]
-[[module.release]]
-repo = "asafelobotomy/reshadelinux"
-tag = "v1.4.1"
-asset = "reshadelinux-1.4.1-x86_64.AppImage"
-sha256 = "974b66a99d9c3447161a111a61deca49381d587330494dedc627107e64ec0bae"
-name = "reshadelinux"
+id = "goverlay"
+name = "GOverlay"
+description = "GUI to configure MangoHud."
+requires = ["mangohud"]
+packages = ["goverlay"]
 
 [[module]]
 id = "gamescope"
@@ -83,6 +43,14 @@ name = "gamescope"
 description = "Micro-compositor for games: upscaling, frame limits, HDR."
 profiles = ["gaming"]
 packages = ["gamescope"]
+
+[[module]]
+id = "wine"
+name = "Wine"
+description = "Wine (staging) with winetricks, Mono and Gecko."
+profiles = ["gaming"]
+requires = ["multilib"]
+packages = ["wine-staging", "winetricks", "wine-mono", "wine-gecko"]
 
 [[module]]
 id = "protontricks"
@@ -100,24 +68,32 @@ requires = ["aur-helper", "steam"]
 aur = ["protonup-qt"]
 
 [[module]]
-id = "goverlay"
-name = "GOverlay"
-description = "GUI to configure MangoHud."
-requires = ["mangohud"]
-packages = ["goverlay"]
+id = "lutris"
+name = "Lutris"
+description = "Launcher for GOG, Epic, emulators and Wine games."
+requires = ["wine"]
+packages = ["lutris", "umu-launcher"]
 
 [[module]]
-id = "lact"
-name = "LACT (GPU control)"
-description = "Monitor, overclock and set fan curves on AMD, NVIDIA and Intel GPUs."
-when = ["!virt"]
-packages = ["lact"]
-enable = ["lactd.service"]
+id = "heroic"
+name = "Heroic Games Launcher"
+description = "Launcher for Epic, GOG and Amazon games."
+risk = "moderate"
+requires = ["aur-helper"]
+aur = ["heroic-games-launcher-bin"]
+
+[[module]]
+id = "bottles"
+name = "Bottles"
+description = "Run Windows software in managed Wine prefixes."
+notes = ["Upstream recommends the Flathub build; this is the AUR package."]
+requires = ["aur-helper"]
+aur = ["bottles"]
 
 [[module]]
 id = "discord"
 name = "Discord"
-description = "Discord client."
+description = "Discord voice and text chat."
 conflicts = ["vesktop"]
 packages = ["discord"]
 
@@ -130,12 +106,12 @@ conflicts = ["discord"]
 aur = ["vesktop-bin"]
 
 [[module]]
-id = "bottles"
-name = "Bottles"
-description = "Run Windows software in managed Wine prefixes."
-requires = ["aur-helper"]
-aur = ["bottles"]
-notes = ["Upstream recommends the Flathub build; this is the AUR package."]
+id = "lact"
+name = "LACT (GPU control)"
+description = "Monitor, overclock and set fan curves on AMD, NVIDIA and Intel GPUs."
+when = ["!virt"]
+packages = ["lact"]
+enable = ["lactd.service"]
 
 [[module]]
 id = "emulators"
@@ -168,3 +144,27 @@ id = "prismlauncher"
 name = "Prism Launcher"
 description = "Minecraft launcher with multiple instances and mod pack support."
 packages = ["prismlauncher"]
+
+[[module]]
+id = "romforge"
+name = "romforge (ROM library)"
+description = "Identifies, tidies, enriches and plays your ROM collection. By asafelobotomy."
+packages = ["fuse2"]
+[[module.release]]
+repo = "asafelobotomy/romforge"
+tag = "v0.15.0"
+asset = "romforge_0.15.0_amd64.AppImage"
+sha256 = "b6144f61a37edbc72c4af1ff3b17d7b32c5d98f49befc190b9301c008c9f9037"
+name = "romforge"
+
+[[module]]
+id = "reshadelinux"
+name = "ReShadeLinux"
+description = "Installs the official ReShade runtime for Wine and Proton games. By asafelobotomy."
+packages = ["fuse2"]
+[[module.release]]
+repo = "asafelobotomy/reshadelinux"
+tag = "v1.4.1"
+asset = "reshadelinux-1.4.1-x86_64.AppImage"
+sha256 = "974b66a99d9c3447161a111a61deca49381d587330494dedc627107e64ec0bae"
+name = "reshadelinux"

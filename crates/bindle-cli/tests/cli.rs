@@ -68,7 +68,7 @@ fn sandbox_apply_then_undo_restores_files() {
     let out = ok(&["apply", "--sandbox", s(&root), "--yes", "--profile", "minimal", "--with", "printing"]);
     assert!(out.contains("steps applied"), "{out}");
     assert_ne!(fs::read_to_string(root.join("etc/pacman.conf")).unwrap(), PACMAN_CONF, "pacman-qol edits it");
-    assert!(ok(&["undo", "--sandbox", s(&root), "--list"]).contains("printing"));
+    assert!(ok(&["undo", "--sandbox", s(&root), "--list"]).contains(" files, "));
     ok(&["undo", "--sandbox", s(&root), "--yes"]);
     assert_eq!(fs::read_to_string(root.join("etc/pacman.conf")).unwrap(), PACMAN_CONF);
 }

@@ -47,6 +47,12 @@ description = "Video editor."
 packages = ["kdenlive"]
 
 [[module]]
+id = "handbrake"
+name = "HandBrake"
+description = "Video transcoder."
+packages = ["handbrake"]
+
+[[module]]
 id = "obs-studio"
 name = "OBS Studio"
 description = "Screen recording and live streaming."
@@ -57,12 +63,6 @@ id = "audacity"
 name = "Audacity"
 description = "Audio editor and recorder."
 packages = ["audacity"]
-
-[[module]]
-id = "handbrake"
-name = "HandBrake"
-description = "Video transcoder."
-packages = ["handbrake"]
 
 [[module]]
 id = "blender"
@@ -81,7 +81,6 @@ name = "PhotoCraft (alpha)"
 description = "ArtCraft's open-source take on Photoshop. Early alpha: expect missing features and bugs, especially on Wayland."
 risk = "moderate"
 package_conflicts = ["photocraft", "photocraft-bin", "photocraft-git"]
-notes = ["Installed from its GitHub release (not in the Arch repos or Flathub); Bindle pins the version, so updates come with Bindle updates."]
 [[module.release]]
 repo = "storytold/photocraft"
 tag = "v0.21.0"
@@ -95,7 +94,6 @@ name = "LightCraft (alpha)"
 description = "ArtCraft's open-source take on Lightroom. Early alpha: expect missing features and bugs, especially on Wayland."
 risk = "moderate"
 package_conflicts = ["lightcraft", "lightcraft-bin", "lightcraft-git"]
-notes = ["Installed from its GitHub release (not in the Arch repos or Flathub); Bindle pins the version, so updates come with Bindle updates."]
 [[module.release]]
 repo = "storytold/lightcraft"
 tag = "v0.19.0"
@@ -109,7 +107,6 @@ name = "FilmCraft (alpha)"
 description = "ArtCraft's open-source take on Premiere Pro. Early alpha: expect missing features and bugs, especially on Wayland."
 risk = "moderate"
 package_conflicts = ["filmcraft", "filmcraft-bin", "filmcraft-git"]
-notes = ["Installed from its GitHub release (not in the Arch repos or Flathub); Bindle pins the version, so updates come with Bindle updates."]
 [[module.release]]
 repo = "storytold/filmcraft"
 tag = "v0.18.0"
@@ -123,7 +120,6 @@ name = "VectorCraft (alpha)"
 description = "ArtCraft's open-source take on Illustrator. Early alpha: expect missing features and bugs, especially on Wayland."
 risk = "moderate"
 package_conflicts = ["vectorcraft", "vectorcraft-bin", "vectorcraft-git"]
-notes = ["Installed from its GitHub release (not in the Arch repos or Flathub); Bindle pins the version, so updates come with Bindle updates."]
 [[module.release]]
 repo = "storytold/vectorcraft"
 tag = "v0.22.0"
@@ -137,7 +133,6 @@ name = "EffectCraft (alpha)"
 description = "ArtCraft's open-source take on After Effects. Early alpha: expect missing features and bugs, especially on Wayland."
 risk = "moderate"
 package_conflicts = ["effectcraft", "effectcraft-bin", "effectcraft-git"]
-notes = ["Installed from its GitHub release (not in the Arch repos or Flathub); Bindle pins the version, so updates come with Bindle updates."]
 [[module.release]]
 repo = "storytold/effectcraft"
 tag = "v0.22.0"
@@ -151,7 +146,6 @@ name = "DesignCraft (alpha)"
 description = "ArtCraft's open-source take on InDesign. Early alpha: expect missing features and bugs, especially on Wayland."
 risk = "moderate"
 package_conflicts = ["designcraft", "designcraft-bin", "designcraft-git"]
-notes = ["Installed from its GitHub release (not in the Arch repos or Flathub); Bindle pins the version, so updates come with Bindle updates."]
 [[module.release]]
 repo = "storytold/designcraft"
 tag = "v0.18.0"
@@ -165,7 +159,6 @@ name = "PdfCraft (alpha)"
 description = "ArtCraft's open-source take on Acrobat. Early alpha: expect missing features and bugs, especially on Wayland."
 risk = "moderate"
 package_conflicts = ["pdfcraft", "pdfcraft-bin", "pdfcraft-git"]
-notes = ["Installed from its GitHub release (not in the Arch repos or Flathub); Bindle pins the version, so updates come with Bindle updates."]
 [[module.release]]
 repo = "storytold/pdfcraft"
 tag = "v0.19.0"
@@ -179,7 +172,6 @@ name = "WordCraft (alpha)"
 description = "ArtCraft's open-source take on Word. Early alpha: expect missing features and bugs, especially on Wayland."
 risk = "moderate"
 package_conflicts = ["wordcraft", "wordcraft-bin", "wordcraft-git"]
-notes = ["Installed from its GitHub release (not in the Arch repos or Flathub); Bindle pins the version, so updates come with Bindle updates."]
 [[module.release]]
 repo = "storytold/wordcraft"
 tag = "v0.16.0"
@@ -193,7 +185,6 @@ name = "DeckCraft (alpha)"
 description = "ArtCraft's open-source take on PowerPoint. Early alpha: expect missing features and bugs, especially on Wayland."
 risk = "moderate"
 package_conflicts = ["deckcraft", "deckcraft-bin", "deckcraft-git"]
-notes = ["Installed from its GitHub release (not in the Arch repos or Flathub); Bindle pins the version, so updates come with Bindle updates."]
 [[module.release]]
 repo = "storytold/deckcraft"
 tag = "v0.16.0"
@@ -207,7 +198,6 @@ name = "GridCraft (alpha)"
 description = "ArtCraft's open-source take on Excel. Early alpha: expect missing features and bugs, especially on Wayland."
 risk = "moderate"
 package_conflicts = ["gridcraft", "gridcraft-bin", "gridcraft-git"]
-notes = ["Installed from its GitHub release (not in the Arch repos or Flathub); Bindle pins the version, so updates come with Bindle updates."]
 [[module.release]]
 repo = "storytold/gridcraft"
 tag = "v0.17.0"

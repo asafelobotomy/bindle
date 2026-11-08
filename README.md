@@ -44,8 +44,9 @@ sudo ./target/debug/bindle first-login install         # open on each user's fir
 ```
 
 Profiles: `minimal`, `desktop`, `gaming`, `developer`.
-Categories: System basics · Hardware & drivers · Performance (incl. ZRAM) ·
-Desktop & apps · Development · Gaming · Security & backups.
+Categories: System · Hardware · Performance · Desktop & apps · Internet ·
+Creative · Development · AI tools · Gaming · Security
+(every module: [docs/CATALOG.md](docs/CATALOG.md#arch-modules)).
 
 ## AppImage
 

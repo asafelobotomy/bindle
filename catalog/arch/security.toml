@@ -1,13 +1,13 @@
 [category]
 id = "security"
-name = "Security & backups"
-description = "Firewall and filesystem snapshots."
+name = "Security"
+description = "Firewalls, snapshots and backups."
 order = 70
 
 [[module]]
 id = "ufw"
 name = "Firewall (ufw)"
-description = "Deny incoming, allow outgoing."
+description = "Blocks incoming connections and allows outgoing ones."
 profiles = ["desktop", "gaming", "developer"]
 conflicts = ["firewalld"]
 packages = ["ufw"]
@@ -32,9 +32,18 @@ packages = ["firewalld"]
 enable = ["firewalld.service"]
 
 [[module]]
+id = "opensnitch"
+name = "Application firewall (OpenSnitch)"
+description = "Asks before each app makes a new outgoing connection."
+risk = "moderate"
+packages = ["opensnitch"]
+enable = ["opensnitchd.service"]
+notes = ["Start the OpenSnitch UI (opensnitch-ui) so it can show the prompts."]
+
+[[module]]
 id = "snapper"
-name = "Btrfs snapshots (snapper + snap-pac)"
-description = "Snapshot / before and after every pacman transaction."
+name = "Btrfs snapshots (snapper)"
+description = "Snapshots / before and after every pacman transaction."
 risk = "moderate"
 when = ["fs:btrfs"]
 conflicts = ["timeshift"]
@@ -63,14 +72,6 @@ enable = ["snapper-timeline.timer", "snapper-cleanup.timer"]
 notes = ["To boot into snapshots from GRUB, add grub-btrfs too."]
 
 [[module]]
-id = "oysterav"
-name = "oysterAV (security scans)"
-description = "One GUI and CLI over ClamAV, rkhunter, Lynis and friends. By asafelobotomy; from the AUR."
-requires = ["aur-helper"]
-aur = ["oysterav"]
-notes = ["Set it up with `oyst-cli setup run`, or open oysterAV from your app menu."]
-
-[[module]]
 id = "grub-btrfs"
 name = "Boot into snapshots (grub-btrfs)"
 description = "Adds snapper snapshots to the GRUB menu and keeps them current as snapshots come and go."
@@ -80,6 +81,14 @@ requires = ["snapper"]
 packages = ["grub-btrfs", "inotify-tools"]
 enable = ["grub-btrfsd.service"]
 root_commands = [["grub-mkconfig", "-o", "/boot/grub/grub.cfg"]]
+
+[[module]]
+id = "timeshift"
+name = "System snapshots (Timeshift)"
+description = "Scheduled system snapshots with a GUI, on ext4 (rsync) or Btrfs."
+conflicts = ["snapper"]
+packages = ["timeshift"]
+notes = ["Open Timeshift once to pick the snapshot location and schedule."]
 
 [[module]]
 id = "btrfs-maintenance"
@@ -93,25 +102,16 @@ notes = ["Schedules and mount points are in /etc/default/btrfsmaintenance."]
 [[module]]
 id = "secure-boot-tools"
 name = "Secure Boot tools (sbctl)"
-description = "Installs sbctl to create and enroll your own Secure Boot keys. Nothing is enrolled automatically."
+description = "sbctl, to create and enroll your own Secure Boot keys. Nothing is enrolled automatically."
 risk = "advanced"
 when = ["!virt"]
 packages = ["sbctl"]
 notes = ["Put the firmware in Setup Mode, then: sbctl create-keys; sbctl enroll-keys -m; sbctl verify; sign what it lists with sbctl sign -s. Read the Arch Wiki Secure Boot page first: a mistake can stop the machine booting."]
 
 [[module]]
-id = "timeshift"
-name = "System snapshots (Timeshift)"
-description = "Scheduled system snapshots with a GUI; works on ext4 (rsync) and btrfs."
-conflicts = ["snapper"]
-packages = ["timeshift"]
-notes = ["Open Timeshift once to pick the snapshot location and schedule."]
-
-[[module]]
-id = "opensnitch"
-name = "Application firewall (OpenSnitch)"
-description = "Asks before each app makes a new outgoing connection."
-risk = "moderate"
-packages = ["opensnitch"]
-enable = ["opensnitchd.service"]
-notes = ["Start the OpenSnitch UI (opensnitch-ui) so it can show the prompts."]
+id = "oysterav"
+name = "oysterAV (security scans)"
+description = "One GUI and CLI over ClamAV, rkhunter, Lynis and friends. By asafelobotomy."
+requires = ["aur-helper"]
+aur = ["oysterav"]
+notes = ["Set it up with `oyst-cli setup run`, or open oysterAV from your app menu."]

@@ -1,24 +1,17 @@
 [category]
 id = "base"
-name = "System basics"
-description = "Package manager, mirrors, AUR access and firmware."
+name = "System"
+description = "Pacman, mirrors, AUR access, microcode and firmware."
 order = 10
 
 [[module]]
 id = "pacman-qol"
 name = "Pacman quality-of-life"
-description = "Colour output, parallel downloads, verbose package lists, and a weekly package-cache cleanup."
+description = "Colour, parallel downloads, verbose package lists and a weekly package-cache cleanup."
 default = true
 pacman = { Color = "", ParallelDownloads = "10", VerbosePkgLists = "" }
 packages = ["pacman-contrib"]
 enable = ["paccache.timer"]
-
-[[module]]
-id = "multilib"
-name = "Enable [multilib]"
-description = "32-bit repository required by Steam, Wine and lib32 graphics drivers."
-profiles = ["gaming"]
-repos = ["multilib"]
 
 [[module]]
 id = "mirrors"
@@ -42,6 +35,13 @@ content = '''
 '''
 
 [[module]]
+id = "multilib"
+name = "32-bit packages (multilib)"
+description = "32-bit repository required by Steam, Wine and lib32 graphics drivers."
+profiles = ["gaming"]
+repos = ["multilib"]
+
+[[module]]
 id = "build-tools"
 name = "Build tools"
 description = "base-devel and git, needed for the AUR and most development."
@@ -51,7 +51,7 @@ packages = ["base-devel", "git"]
 [[module]]
 id = "aur-helper"
 name = "AUR helper (paru)"
-description = "Bootstrap paru from the AUR so community packages can be installed."
+description = "paru, to install community packages from the AUR."
 risk = "moderate"
 profiles = ["desktop", "gaming", "developer"]
 requires = ["build-tools"]
@@ -60,18 +60,10 @@ builtin = "aur-helper"
 [[module]]
 id = "microcode"
 name = "CPU microcode"
-description = "Install intel-ucode or amd-ucode for the detected CPU and rebuild the initramfs."
+description = "intel-ucode or amd-ucode for your CPU."
 default = true
 when = ["!virt"]
 builtin = "microcode"
-
-[[module]]
-id = "fstrim"
-name = "Weekly SSD TRIM"
-description = "Enable fstrim.timer to keep SSD performance steady."
-default = true
-when = ["ssd"]
-enable = ["fstrim.timer"]
 
 [[module]]
 id = "firmware-updates"
@@ -82,9 +74,17 @@ when = ["!virt"]
 packages = ["fwupd"]
 
 [[module]]
+id = "fstrim"
+name = "Weekly SSD TRIM"
+description = "Enable fstrim.timer to keep SSD performance steady."
+default = true
+when = ["ssd"]
+enable = ["fstrim.timer"]
+
+[[module]]
 id = "man-pages"
-name = "Manual pages and command lookup"
-description = "man, the Linux man pages, and pkgfile (find which package provides a command)."
+name = "Manual pages"
+description = "man and the Linux man pages, plus pkgfile to find which package provides a command."
 profiles = ["desktop", "gaming", "developer"]
 packages = ["man-db", "man-pages", "pkgfile"]
 enable = ["man-db.timer", "pkgfile-update.timer"]

@@ -1,20 +1,20 @@
 [category]
 id = "hardware"
-name = "Hardware & drivers"
-description = "Graphics, audio, Bluetooth, printing and power."
+name = "Hardware"
+description = "Graphics, audio, power, printing, scanning and peripherals."
 order = 20
 
 [[module]]
 id = "gpu-driver"
 name = "Graphics drivers"
-description = "Mesa/Vulkan for AMD and Intel, nvidia-open for NVIDIA; lib32 variants when multilib is on."
+description = "Mesa and Vulkan for AMD and Intel; the open NVIDIA driver on Arch. Keeps a driver you already have."
 default = true
 builtin = "gpu"
 
 [[module]]
 id = "audio-firmware"
 name = "Audio firmware"
-description = "Sound Open Firmware and ALSA firmware/UCM profiles: many Intel and AMD laptops have no sound without them."
+description = "Sound Open Firmware and ALSA profiles: many Intel and AMD laptops have no sound without them."
 default = true
 when = ["!virt"]
 packages = ["sof-firmware", "alsa-firmware", "alsa-ucm-conf"]
@@ -27,31 +27,20 @@ profiles = ["desktop", "gaming", "developer"]
 packages = ["pipewire", "pipewire-pulse", "pipewire-alsa", "pipewire-jack", "wireplumber", "alsa-utils"]
 # pulseaudio-* modules depend on pulseaudio by name: replaced along with it.
 package_conflicts = ["pulseaudio", "pulseaudio-alsa", "pulseaudio-bluetooth", "pulseaudio-jack", "pulseaudio-zeroconf", "pulseaudio-equalizer", "pulseaudio-lirc", "jack", "jack2", "jack2-dbus", "pipewire-jack-client"]
-notes = ["PipeWire user services are socket-activated; nothing to enable."]
 
 [[module]]
 id = "bluetooth"
 name = "Bluetooth"
-description = "BlueZ stack with bluetooth.service enabled."
+description = "BlueZ, with the Bluetooth service enabled."
 profiles = ["desktop", "gaming", "developer"]
 when = ["bluetooth"]
 packages = ["bluez", "bluez-utils"]
 enable = ["bluetooth.service"]
 
 [[module]]
-id = "printing"
-name = "Printing (CUPS)"
-description = "CUPS print server, socket-activated."
-# cups-browsed + Avahi find network (IPP Everywhere) printers; ipp-usb drives
-# driverless USB printers.
-packages = ["cups", "cups-pdf", "cups-browsed", "avahi", "ipp-usb"]
-enable = ["cups.socket", "cups-browsed.service", "avahi-daemon.socket"]
-notes = ["HP printers may also want hplip; scanners: sane-airscan."]
-
-[[module]]
 id = "power-profiles"
-name = "Power profiles daemon"
-description = "Balanced/performance/power-saver switching that desktops integrate with."
+name = "Power profiles (power-profiles-daemon)"
+description = "Balanced, performance and power-saver modes that desktops switch between."
 profiles = ["desktop", "gaming", "developer"]
 when = ["laptop"]
 conflicts = ["tlp"]
@@ -61,8 +50,8 @@ enable = ["power-profiles-daemon.service"]
 
 [[module]]
 id = "tlp"
-name = "TLP (advanced laptop power)"
-description = "Aggressive battery tuning; replaces power-profiles-daemon (tlp-pd keeps the desktop's power-mode switcher working)."
+name = "Laptop power tuning (TLP)"
+description = "Aggressive battery tuning in place of power-profiles-daemon; tlp-pd keeps the desktop's power-mode switch working."
 risk = "moderate"
 when = ["laptop"]
 conflicts = ["power-profiles"]
@@ -74,8 +63,8 @@ root_commands = [{ argv = ["systemctl", "mask", "systemd-rfkill.service", "syste
 
 [[module]]
 id = "tlp-rdw"
-name = "TLP radio device wizard"
-description = "Switch Wi-Fi/Bluetooth/WWAN on network events (needs NetworkManager's dispatcher)."
+name = "Radio switching (tlp-rdw)"
+description = "Turns Wi-Fi, Bluetooth and WWAN on and off on network events."
 risk = "moderate"
 when = ["laptop", "nm"]
 requires = ["tlp"]
@@ -84,12 +73,29 @@ enable = ["NetworkManager-dispatcher.service"]
 
 [[module]]
 id = "thermald"
-name = "thermald (Intel thermal daemon)"
-description = "Keeps Intel laptops out of thermal throttling by managing cooling before the firmware has to."
+name = "Intel thermal control (thermald)"
+description = "Manages cooling on Intel laptops before the firmware has to throttle."
 when = ["cpu:intel", "laptop", "!virt"]
 packages = ["thermald"]
 enable = ["thermald.service"]
 notes = ["Some laptops' firmware already does this well; turn it off again if fans or performance get worse."]
+
+[[module]]
+id = "fingerprint"
+name = "Fingerprint login (fprintd)"
+description = "Fingerprint reader support. Enrol with `fprintd-enroll`; GNOME and Plasma offer it in their settings."
+when = ["laptop", "!virt"]
+packages = ["fprintd"]
+
+[[module]]
+id = "printing"
+name = "Printing (CUPS)"
+description = "CUPS with network printer discovery (Avahi, cups-browsed) and driverless USB printing."
+notes = ["HP printers may also want hplip. Scanners: see the Scanning modules."]
+# cups-browsed + Avahi find network (IPP Everywhere) printers; ipp-usb drives
+# driverless USB printers.
+packages = ["cups", "cups-pdf", "cups-browsed", "avahi", "ipp-usb"]
+enable = ["cups.socket", "cups-browsed.service", "avahi-daemon.socket"]
 
 [[module]]
 id = "scanning-qt"
@@ -104,13 +110,6 @@ name = "Scanning (Document Scanner)"
 description = "SANE with driverless network scanning (eSCL/WSD) and GNOME's Document Scanner."
 when = ["!toolkit:qt"]
 packages = ["sane", "sane-airscan", "simple-scan"]
-
-[[module]]
-id = "fingerprint"
-name = "Fingerprint login (fprintd)"
-description = "Fingerprint reader support. Enrol with `fprintd-enroll`; GNOME and Plasma offer it in their settings."
-when = ["laptop", "!virt"]
-packages = ["fprintd"]
 
 [[module]]
 id = "solaar"

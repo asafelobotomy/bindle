@@ -194,7 +194,7 @@ fn arch_only_modules_are_skipped_on_derivatives() {
     let sel = Selection { include: vec!["kernel-zen".into()], ..Default::default() };
     let p = plan(sel, &f).unwrap();
     for id in ["mirrors", "kernel-zen"] {
-        assert!(p.skipped.iter().any(|(m, why)| m == id && why.contains("distro:arch")), "{id}: {:?}", p.skipped);
+        assert!(p.skipped.iter().any(|(m, why)| m == id && why == "needs Arch Linux"), "{id}: {:?}", p.skipped);
     }
     assert!(!serde_json::to_string(&p.steps).unwrap().contains("reflector"));
 }

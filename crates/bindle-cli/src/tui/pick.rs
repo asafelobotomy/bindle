@@ -8,6 +8,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, List, ListItem, Paragraph, Wrap};
 
 use super::App;
+use crate::print;
 
 impl App<'_> {
     pub(super) fn draw_profiles(&mut self, f: &mut Frame, area: Rect) {
@@ -81,26 +82,42 @@ impl App<'_> {
                 ListItem::new(line)
             })
             .collect();
-        let detail = modules.get(self.module.selected().unwrap_or(0)).map(|m| {
-            let mut lines = Vec::new();
-            if let Some(n) = &self.notice {
-                lines.push(Line::from(n.as_str()).fg(Color::Yellow));
-            }
-            lines.extend([Line::from(m.name.as_str()).bold(), Line::from(m.description.as_str())]);
-            if let Some(why) = self.provided.get(&m.id) {
-                lines.push(Line::from(format!("Already set up: {why}")).fg(Color::Green));
-            } else if let Err(r) = self.facts.matches(&m.when) {
-                lines.push(Line::from(format!("Not applicable here: {r}")).fg(Color::Red));
-            }
-            if !m.requires.is_empty() {
-                lines.push(Line::from(format!("Requires: {}", m.requires.join(", "))).dim());
-            }
-            if !m.conflicts.is_empty() {
-                lines.push(Line::from(format!("Conflicts: {}", m.conflicts.join(", "))).dim());
-            }
-            lines.extend(m.notes.iter().map(|n| Line::from(format!("• {n}")).dim()));
-            lines
-        });
+        let detail = if self.focus_modules {
+            modules.get(self.module.selected().unwrap_or(0)).map(|m| {
+                let mut lines = Vec::new();
+                if let Some(n) = &self.notice {
+                    lines.push(Line::from(n.as_str()).fg(Color::Yellow));
+                }
+                lines.extend([Line::from(m.name.as_str()).bold(), Line::from(m.description.as_str())]);
+                if let Some(why) = self.provided.get(&m.id) {
+                    lines.push(Line::from(format!("Already set up: {why}")).fg(Color::Green));
+                } else if let Err(r) = self.facts.matches(&m.when) {
+                    lines.push(Line::from(format!("Not available here: {r}")).fg(Color::Red));
+                }
+                lines.extend(m.notes.iter().map(|n| Line::from(format!("• {n}")).fg(Color::Cyan)));
+                lines.push(Line::from(""));
+                lines.extend(print::module_details(m, self.facts).into_iter().map(|l| Line::from(l).dim()));
+                if !m.requires.is_empty() {
+                    lines.push(Line::from(format!("Requires: {}", m.requires.join(", "))).dim());
+                }
+                if !m.conflicts.is_empty() {
+                    lines.push(Line::from(format!("Can't be combined with: {}", m.conflicts.join(", "))).dim());
+                }
+                lines
+            })
+        } else {
+            self.catalog.categories.get(self.category.selected().unwrap_or(0)).map(|c| {
+                let total = modules.len();
+                let picked = modules.iter().filter(|m| self.selected.contains(&m.id)).count();
+                vec![
+                    Line::from(c.name.as_str()).bold(),
+                    Line::from(c.description.as_str()),
+                    Line::from(format!("{picked} of {total} selected")).dim(),
+                    Line::from(""),
+                    Line::from("Tab or → to pick modules · Enter to review all changes").dim(),
+                ]
+            })
+        };
         let list = List::new(items)
             .block(Block::bordered().title(" Modules ").border_style(focused(self.focus_modules)))
             .highlight_style(if self.focus_modules { Style::new().bg(Color::DarkGray) } else { Style::new() });

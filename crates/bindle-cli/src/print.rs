@@ -1,5 +1,7 @@
 //! Plain-text rendering shared by the CLI and the wizard's review screen.
 
+use bindle_core::builtins::{self, Ctx};
+use bindle_core::catalog::{AssetKind, Module};
 use bindle_core::{Catalog, Facts, Plan, Step};
 
 pub fn facts(f: &Facts) {
@@ -47,29 +49,76 @@ pub fn list(c: &Catalog, f: &Facts) {
     }
 }
 
+/// What a module installs and changes, for the wizard's detail pane.
+/// Builtins are expanded for this machine.
+pub fn module_details(m: &Module, facts: &Facts) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut add = |label: &str, items: &[String]| {
+        if !items.is_empty() {
+            out.push(format!("{label}: {}", items.join(", ")));
+        }
+    };
+    if let Some(b) = &m.builtin {
+        let e = builtins::expand(b, &Ctx { facts, multilib: facts.multilib_enabled });
+        if e.aur_bootstrap {
+            add("Builds from the AUR", &[builtins::AUR_HELPER.to_string()]);
+        }
+        add("Installs (for this machine)", &e.packages);
+        add("Writes", &e.files.iter().map(|f| f.path.clone()).collect::<Vec<_>>());
+        add("Enables", &e.enable);
+    }
+    add("Installs", &m.packages);
+    add("From the AUR", &m.aur);
+    let releases: Vec<String> = m
+        .releases
+        .iter()
+        .map(|r| match r.kind() {
+            Some(AssetKind::AppImage) => format!("{} {} (AppImage in ~/.local/bin)", r.repo, r.tag),
+            _ => format!("{} {}", r.repo, r.tag),
+        })
+        .collect();
+    add("From GitHub, checksum-pinned", &releases);
+    add("Replaces if installed", &m.package_conflicts);
+    let pacman: Vec<String> =
+        m.pacman.iter().map(|(k, v)| if v.is_empty() { k.clone() } else { format!("{k} = {v}") }).collect();
+    add("Sets in pacman.conf", &pacman);
+    add("Enables repository", &m.repos.iter().map(|r| format!("[{r}]")).collect::<Vec<_>>());
+    add("Writes", &m.files.iter().map(|f| f.path.clone()).collect::<Vec<_>>());
+    add("Enables", &m.enable);
+    add("Adds you to group", &m.groups);
+    let cmds: Vec<String> = m
+        .root_commands
+        .iter()
+        .chain(&m.user_commands)
+        .map(|c| if c.argv[0] == "sh" { "a setup script (see the review)".into() } else { c.argv.join(" ") })
+        .collect();
+    add("Runs", &cmds);
+    out
+}
+
 pub fn plan_lines(p: &Plan) -> Vec<String> {
-    let mut out = vec![format!("Modules ({}): {}", p.modules.len(), p.modules.join(", "))];
-    for (id, why) in &p.provided {
-        out.push(format!("  ✓ {id}: {why}"));
+    let mut out = Vec::new();
+    let changes = p.provided.len() + p.pulled_in.len() + p.replaced.len() + p.skipped.len();
+    out.push(format!("{} modules selected", p.modules.len()));
+    out.extend(p.pulled_in.iter().map(|(dep, by)| format!("  + {dep}, needed by {by}")));
+    out.extend(p.replaced.iter().map(|(id, pkg)| format!("  ~ {id} replaces the installed {pkg}")));
+    out.extend(p.provided.iter().map(|(id, why)| format!("  ✓ {id}: {why}")));
+    out.extend(p.skipped.iter().map(|(id, why)| format!("  - {id} skipped: {why}")));
+    if changes > 0 {
+        out.push(String::new());
     }
-    for (dep, by) in &p.pulled_in {
-        out.push(format!("  + {dep} (required by {by})"));
-    }
-    for (id, pkg) in &p.replaced {
-        out.push(format!("  ~ {id} replaces installed `{pkg}`"));
-    }
-    for (id, why) in &p.skipped {
-        out.push(format!("  - {id} skipped: {why}"));
-    }
-    out.push(String::new());
     if p.is_empty() {
-        out.push("Nothing to do — this system already matches the selection.".into());
+        out.push("Nothing to do: this system already matches the selection.".into());
+    } else {
+        out.push(format!("Steps ({}):", p.steps.len()));
     }
     for (i, step) in p.steps.iter().enumerate() {
         let who = if step.privileged() { "root" } else { "user" };
         out.push(format!("{:>2}. [{who}] {}", i + 1, describe(step)));
         if let Step::WriteFile { file, .. } = step {
-            out.extend(file.content.lines().map(|l| format!("        │ {l}")));
+            out.extend(
+                file.content.lines().filter(|l| *l != "# Managed by Bindle").map(|l| format!("           │ {l}")),
+            );
         }
     }
     if !p.notes.is_empty() {
@@ -77,6 +126,8 @@ pub fn plan_lines(p: &Plan) -> Vec<String> {
         out.push("Notes:".into());
         out.extend(p.notes.iter().map(|(id, n)| format!("  • {id}: {n}")));
     }
+    out.push(String::new());
+    out.push(format!("Modules: {}", p.modules.join(", ")));
     out
 }
 
@@ -89,14 +140,13 @@ pub fn describe(step: &Step) -> String {
             format!("edit /etc/pacman.conf: {}", parts.join(", "))
         }
         Step::RemovePackages { packages } => {
-            format!("remove conflicting packages to replace them: {}", packages.join(" "))
+            format!("remove {} (replaced by the modules above)", packages.join(" "))
         }
         Step::InstallPackages { packages } => {
             format!("full system upgrade, then install ({}): {}", packages.len(), packages.join(" "))
         }
-        Step::WriteFile { module, file } => {
-            format!("write {} (mode {:o}) [{module}]", file.path, file.mode)
-        }
+        Step::WriteFile { module, file } if file.mode == 0o644 => format!("write {} [{module}]", file.path),
+        Step::WriteFile { module, file } => format!("write {} (mode {:o}) [{module}]", file.path, file.mode),
         Step::EnableUnits { units } => format!("systemctl enable {}", units.join(" ")),
         Step::AddToGroups { user, groups } => format!("usermod -aG {} {user}", groups.join(",")),
         Step::RunAsRoot { module, argv } | Step::RunAsUser { module, argv } => {
@@ -105,7 +155,7 @@ pub fn describe(step: &Step) -> String {
         Step::RebuildInitramfs => "mkinitcpio -P".into(),
         Step::InstallReleases { assets } => {
             let names: Vec<String> = assets.iter().map(|a| format!("{} {}", a.name, a.tag)).collect();
-            format!("install from GitHub releases (checksum-pinned): {}", names.join(", "))
+            format!("download and install from GitHub (checksum-pinned): {}", names.join(", "))
         }
         Step::BootstrapAurHelper { package } => format!("build and install {package} from the AUR"),
         Step::InstallAur { packages } => format!("paru -S --needed {}", packages.join(" ")),
@@ -126,7 +176,10 @@ pub fn install_lines(f: &Facts) -> Vec<String> {
         Source::Unknown => "no installer record found; showing the live system",
     };
     // Short lines: first-login opens in terminals as small as 80×24.
-    let mut out = vec![format!("Installed {} by {}", opt(&r.installed_at).get(..10).unwrap_or("—"), opt(&r.installer))];
+    let mut out = Vec::new();
+    if r.installed_at.is_some() || r.installer.is_some() {
+        out.push(format!("Installed {} by {}", opt(&r.installed_at).get(..10).unwrap_or("—"), opt(&r.installer)));
+    }
     out.push(match &r.archinstall_version {
         Some(v) => format!("Source: {source} · archinstall {v}"),
         None => format!("Source: {source}"),
@@ -160,7 +213,7 @@ pub fn install_lines(f: &Facts) -> Vec<String> {
         }
     };
     let rows = [
-        ("Profile", format!("{} · {desktops}", opt(&r.profile))),
+        ("Profile", r.profile.as_ref().map_or(desktops.clone(), |p| format!("{p} · {desktops}"))),
         ("Plasma", opt(&r.plasma_flavor)),
         ("Greeter", greeter),
         ("Graphics", opt(&r.gfx_driver)),
@@ -183,7 +236,8 @@ pub fn install_lines(f: &Facts) -> Vec<String> {
         ("Extra pkgs", if r.extra_packages.is_empty() { dash() } else { r.extra_packages.join(" ") }),
     ];
     for (k, v) in rows {
-        if (k == "Plasma" && r.plasma_flavor.is_none()) || (k == "Locale" && v.is_empty()) {
+        // Unknown values say nothing; leave them out.
+        if v.is_empty() || v == "—" {
             continue;
         }
         out.push(format!("  {k:<11} {v}"));

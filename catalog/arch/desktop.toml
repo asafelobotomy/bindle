@@ -1,15 +1,30 @@
 [category]
 id = "desktop"
 name = "Desktop & apps"
-description = "Fonts, codecs, Flatpak and everyday applications."
+description = "Desktop essentials, fonts, codecs, Flatpak and everyday apps."
 order = 40
+
+[[module]]
+id = "desktop-essentials"
+name = "Desktop essentials"
+description = "The apps, portals, polkit agent and applets archinstall leaves out of your desktop."
+default = true
+when = ["desktop"]
+builtin = "desktop"
 
 [[module]]
 id = "fonts"
 name = "Fonts"
-description = "Noto (incl. emoji and CJK), DejaVu and Liberation for web/document compatibility."
+description = "Noto (with emoji and CJK), DejaVu and Liberation."
 profiles = ["desktop", "gaming", "developer"]
 packages = ["noto-fonts", "noto-fonts-emoji", "noto-fonts-cjk", "ttf-dejavu", "ttf-liberation"]
+
+[[module]]
+id = "nerd-fonts"
+name = "Nerd Fonts"
+description = "JetBrains Mono and Fira Code with icon glyphs, for terminals and status bars."
+profiles = ["developer"]
+packages = ["ttf-jetbrains-mono-nerd", "ttf-firacode-nerd"]
 
 [[module]]
 id = "codecs"
@@ -17,13 +32,6 @@ name = "Multimedia codecs"
 description = "FFmpeg and the GStreamer plugin sets."
 profiles = ["desktop", "gaming", "developer"]
 packages = ["ffmpeg", "gst-plugins-good", "gst-plugins-bad", "gst-plugins-ugly", "gst-libav"]
-
-[[module]]
-id = "flatpak"
-name = "Flatpak + Flathub"
-description = "Sandboxed apps; Arch's flatpak package ships the Flathub remote."
-profiles = ["desktop", "gaming"]
-packages = ["flatpak"]
 
 [[module]]
 id = "archives"
@@ -35,36 +43,35 @@ packages = ["zip", "unzip", "7zip", "unrar"]
 [[module]]
 id = "user-dirs"
 name = "XDG user folders"
-description = "Create Documents, Downloads, Music, Pictures and Videos in your home folder."
+description = "Creates Documents, Downloads, Music, Pictures and Videos in your home folder."
 profiles = ["desktop", "gaming", "developer"]
 packages = ["xdg-user-dirs"]
 user_commands = [{ argv = ["xdg-user-dirs-update"], unless = [{ path = "~/.config/user-dirs.dirs" }] }]
 
 [[module]]
-id = "desktop-essentials"
-name = "Desktop essentials"
-description = "Fill the gaps archinstall's desktop profile leaves: core apps, portals, polkit agent, bar/lock tools and applets for each detected desktop."
-default = true
-when = ["desktop"]
-builtin = "desktop"
+id = "flatpak"
+name = "Flatpak + Flathub"
+description = "Sandboxed apps from Flathub."
+profiles = ["desktop", "gaming"]
+packages = ["flatpak"]
 
 [[module]]
-id = "emobie"
-name = "emobie (emoji palette)"
-description = "Compact emoji palette with a global hotkey, favourites and text macros. By asafelobotomy; AppImage from its GitHub release, installed to ~/.local/bin."
-packages = ["fuse2"]
-[[module.release]]
-repo = "asafelobotomy/emobie"
-tag = "v0.8.2"
-asset = "emobie_0.8.2_amd64.AppImage"
-sha256 = "3d36a1040d005545204bfe8475cf953292ced9389317950dac1e1892deab66c8"
-name = "emobie"
+id = "flatpak-discover"
+name = "Flatpak in Discover"
+description = "Browse and update Flathub apps in Plasma's Discover."
+profiles = ["desktop", "gaming"]
+when = ["desktop:plasma"]
+requires = ["flatpak"]
+packages = ["discover", "flatpak-kcm"]
 
 [[module]]
-id = "libreoffice"
-name = "LibreOffice"
-description = "Office suite: documents, spreadsheets, presentations (the 'fresh' branch)."
-packages = ["libreoffice-fresh"]
+id = "flatpak-gnome-software"
+name = "Flatpak in GNOME Software"
+description = "Browse and update Flathub apps in GNOME Software."
+profiles = ["desktop", "gaming"]
+when = ["desktop:gnome"]
+requires = ["flatpak"]
+packages = ["gnome-software"]
 
 [[module]]
 id = "media-players"
@@ -72,6 +79,24 @@ name = "Media players"
 description = "VLC and mpv for video and audio."
 profiles = ["desktop", "gaming", "developer"]
 packages = ["vlc", "mpv"]
+
+[[module]]
+id = "spotify"
+name = "Spotify"
+description = "spotify-launcher, which installs Spotify's official build and keeps it updated."
+packages = ["spotify-launcher"]
+
+[[module]]
+id = "libreoffice"
+name = "LibreOffice"
+description = "Office suite: documents, spreadsheets and presentations."
+packages = ["libreoffice-fresh"]
+
+[[module]]
+id = "obsidian"
+name = "Obsidian"
+description = "Markdown notes and knowledge base."
+packages = ["obsidian"]
 
 [[module]]
 id = "keepassxc"
@@ -99,31 +124,6 @@ description = "Simple scheduled backups to a drive or the cloud."
 packages = ["deja-dup"]
 
 [[module]]
-id = "flatpak-discover"
-name = "Flatpak in Discover"
-description = "Browse and update Flathub apps in Plasma's Discover."
-profiles = ["desktop", "gaming"]
-when = ["desktop:plasma"]
-requires = ["flatpak"]
-packages = ["discover", "flatpak-kcm"]
-
-[[module]]
-id = "flatpak-gnome-software"
-name = "Flatpak in GNOME Software"
-description = "Browse and update Flathub apps in GNOME Software."
-profiles = ["desktop", "gaming"]
-when = ["desktop:gnome"]
-requires = ["flatpak"]
-packages = ["gnome-software"]
-
-[[module]]
-id = "nerd-fonts"
-name = "Nerd Fonts"
-description = "JetBrains Mono and Fira Code with icon glyphs, for terminals and status bars."
-profiles = ["developer"]
-packages = ["ttf-jetbrains-mono-nerd", "ttf-firacode-nerd"]
-
-[[module]]
 id = "yakuake"
 name = "Yakuake"
 description = "Drop-down terminal for Plasma (F12 to toggle)."
@@ -131,13 +131,13 @@ when = ["desktop:plasma"]
 packages = ["yakuake"]
 
 [[module]]
-id = "obsidian"
-name = "Obsidian"
-description = "Markdown notes and knowledge base."
-packages = ["obsidian"]
-
-[[module]]
-id = "spotify"
-name = "Spotify"
-description = "Installs spotify-launcher, which downloads Spotify's official build and keeps it updated."
-packages = ["spotify-launcher"]
+id = "emobie"
+name = "emobie (emoji palette)"
+description = "Compact emoji palette with a global hotkey, favourites and text macros. By asafelobotomy."
+packages = ["fuse2"]
+[[module.release]]
+repo = "asafelobotomy/emobie"
+tag = "v0.8.2"
+asset = "emobie_0.8.2_amd64.AppImage"
+sha256 = "3d36a1040d005545204bfe8475cf953292ced9389317950dac1e1892deab66c8"
+name = "emobie"

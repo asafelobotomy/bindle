@@ -6,6 +6,9 @@
 mod boot;
 mod hw;
 mod system;
+mod tags;
+
+pub use tags::label as tag_label;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
@@ -250,7 +253,7 @@ impl Facts {
         for c in conditions {
             let (negate, tag) = c.strip_prefix('!').map_or((false, c.as_str()), |t| (true, t));
             if tags.contains(tag) == negate {
-                return Err(if negate { format!("{tag} detected") } else { format!("needs {tag}") });
+                return Err(tags::reason(tag, negate));
             }
         }
         Ok(())
@@ -294,9 +297,9 @@ mod tests {
     fn when_conditions() {
         let f = Facts { laptop: true, virt: "none".into(), ..Default::default() };
         assert!(f.matches(&["laptop".into(), "!virt".into()]).is_ok());
-        assert_eq!(f.matches(&["ssd".into()]).unwrap_err(), "needs ssd");
+        assert_eq!(f.matches(&["ssd".into()]).unwrap_err(), "needs an SSD");
         let vm = Facts { virt: "kvm".into(), ..Default::default() };
-        assert_eq!(vm.matches(&["!virt".into()]).unwrap_err(), "virt detected");
+        assert_eq!(vm.matches(&["!virt".into()]).unwrap_err(), "not for a virtual machine");
     }
 
     #[test]

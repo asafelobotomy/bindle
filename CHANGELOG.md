@@ -2,7 +2,21 @@
 
 ## Unreleased
 
-- New **Internet & communication** category. Firefox, Thunderbird, Signal,
+- Clearer wizard and output:
+  - Shorter category names, modules grouped logically within each category,
+    and consistent "What it does (tool)" names for system modules.
+  - The Pick screen's detail pane lists what a module installs, enables,
+    writes and runs (hardware modules are expanded for this machine), and
+    shows the category's description while the category list is focused.
+  - Reasons a module doesn't apply read as English ("needs Arch Linux",
+    "not for a virtual machine") instead of raw tags.
+  - The review leads with what changes (replacements, skips) and the steps;
+    long lines wrap under their step. The module list moves to the end.
+  - Apply prints one line per step instead of three; undo says up front that
+    packages stay installed and confirms when it's done.
+  - The install summary hides fields Bindle couldn't determine.
+  - The ISO pre-install screen fits an 80-column console.
+- New **Internet** category. Firefox, Thunderbird, Signal,
   Telegram, Element, qBittorrent and the download apps move here (module ids
   are unchanged). New:
   - Browsers: Chromium, Brave, Brave Origin, Vivaldi, Zen, Google Chrome.

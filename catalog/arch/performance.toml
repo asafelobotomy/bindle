@@ -1,38 +1,44 @@
 [category]
 id = "performance"
 name = "Performance"
-description = "Memory, I/O and build tuning."
+description = "Swap, memory pressure, CPU and disk scheduling, builds."
 order = 30
 
 [[module]]
 id = "zram"
-name = "ZRAM swap (compressed RAM)"
-description = "zram-generator sized from your RAM, zstd, swap-optimised sysctls, and zswap turned off."
+name = "Compressed RAM swap (zram)"
+description = "zram swap sized from your RAM (zstd), swap-friendly sysctls, and zswap turned off."
 default = true
 conflicts = ["xzram"]
 builtin = "zram"
-notes = ["For swap files, overflow tiers and snapshots, pick XZram instead."]
 
 [[module]]
-id = "io-schedulers"
-name = "I/O schedulers"
-description = "udev rule: BFQ for spinning hard disks, which keeps the desktop responsive during heavy disk I/O. SSDs and NVMe keep the kernel's defaults (mq-deadline / none)."
-when = ["!virt"]
-[[module.files]]
-path = "/etc/udev/rules.d/60-bindle-ioschedulers.rules"
-content = '''
-# Managed by Bindle
-ACTION=="add|change", KERNEL=="sd[a-z]*", ATTR{queue/rotational}=="1", ATTR{queue/scheduler}="bfq"
-'''
+id = "xzram"
+name = "XZram (swap manager)"
+description = "zram, swap files, partitions and sysctl tuning with staged, reversible changes; CLI and Qt GUI. By asafelobotomy."
+notes = ["Run `xzram doctor` after installing."]
+risk = "moderate"
+conflicts = ["zram"]
+[[module.release]]
+repo = "asafelobotomy/XZram"
+tag = "v0.4.3"
+asset = "xzram-0.4.3-1-x86_64.pkg.tar.zst"
+sha256 = "fba5e3bcabcdf07bd5ba3997d051edd6251c10357b675e3d2aacaec5527aefb4"
+name = "xzram"
+[[module.release]]
+repo = "asafelobotomy/XZram"
+tag = "v0.4.3"
+asset = "xzram-gui-0.4.3-1-x86_64.pkg.tar.zst"
+sha256 = "2b956a905e1057c6cca6d7f05048e42b2b979f7471e0e52106bb3ced4342908f"
+name = "xzram-gui"
 
 [[module]]
 id = "oomd"
-name = "systemd-oomd"
-description = "Kill runaway cgroups before the system locks up under memory pressure."
+name = "Out-of-memory killer (systemd-oomd)"
+description = "Kills runaway programs before the system locks up under memory pressure."
 profiles = ["desktop", "gaming", "developer"]
 conflicts = ["earlyoom"]
 enable = ["systemd-oomd.service"]
-notes = ["Uses the drop-ins from the Arch Wiki: kill on swap exhaustion system-wide and on sustained memory pressure in user sessions."]
 [[module.files]]
 path = "/etc/systemd/system/-.slice.d/10-oomd-root-slice-defaults.conf"
 content = '''
@@ -50,74 +56,29 @@ ManagedOOMMemoryPressureLimit=50%
 '''
 
 [[module]]
-id = "makepkg-parallel"
-name = "Parallel makepkg builds"
-description = "Use every CPU core when building AUR packages."
-default = true
-[[module.files]]
-path = "/etc/makepkg.conf.d/zz-bindle.conf"
-content = '''
-# Managed by Bindle
-MAKEFLAGS="-j$(nproc)"
-'''
-
-[[module]]
-id = "makepkg-native"
-name = "Native CPU optimisation for builds"
-description = "Compile AUR packages with -march=native. Packages built this way will not run on other CPUs."
-risk = "advanced"
-[[module.files]]
-# zz- sorts after Arch's rust.conf, which sets RUSTFLAGS outright.
-path = "/etc/makepkg.conf.d/zz-bindle-native.conf"
-content = '''
-# Managed by Bindle
-CFLAGS="${CFLAGS/-march=x86-64 -mtune=generic/-march=native}"
-CXXFLAGS="${CXXFLAGS/-march=x86-64 -mtune=generic/-march=native}"
-RUSTFLAGS="${RUSTFLAGS:+$RUSTFLAGS }-C target-cpu=native"
-'''
-
-[[module]]
-id = "kernel-zen"
-name = "linux-zen kernel"
-description = "Desktop-tuned kernel installed alongside the stock one."
-risk = "advanced"
-# Derivatives ship their own kernel packages (Manjaro: linuxNNN, CachyOS: linux-cachyos).
-when = ["distro:arch"]
-packages = ["linux-zen", "linux-zen-headers"]
-notes = ["Your bootloader needs an entry for linux-zen. GRUB picks it up after grub-mkconfig; systemd-boot needs a loader entry (automated in a later phase)."]
-
-[[module]]
-id = "xzram"
-name = "XZram (swap manager)"
-description = "zram, swap files, partitions and sysctl tuning with staged, rollback-able changes; CLI plus a Qt GUI. By asafelobotomy; installed from its GitHub release."
-risk = "moderate"
-conflicts = ["zram"]
-notes = ["Run `xzram doctor` after installing; XZram manages swap instead of Bindle's zram module."]
-[[module.release]]
-repo = "asafelobotomy/XZram"
-tag = "v0.4.3"
-asset = "xzram-0.4.3-1-x86_64.pkg.tar.zst"
-sha256 = "fba5e3bcabcdf07bd5ba3997d051edd6251c10357b675e3d2aacaec5527aefb4"
-name = "xzram"
-[[module.release]]
-repo = "asafelobotomy/XZram"
-tag = "v0.4.3"
-asset = "xzram-gui-0.4.3-1-x86_64.pkg.tar.zst"
-sha256 = "2b956a905e1057c6cca6d7f05048e42b2b979f7471e0e52106bb3ced4342908f"
-name = "xzram-gui"
-
-[[module]]
 id = "earlyoom"
-name = "earlyoom"
-description = "Simple userspace OOM killer that acts on free RAM and swap; an alternative to systemd-oomd for low-RAM or zram-only machines."
+name = "Out-of-memory killer (earlyoom)"
+description = "Simpler out-of-memory killer that acts on free RAM and swap; an alternative to systemd-oomd."
 conflicts = ["oomd"]
 packages = ["earlyoom"]
 enable = ["earlyoom.service"]
 
 [[module]]
+id = "io-schedulers"
+name = "Disk I/O schedulers"
+description = "BFQ for spinning hard disks, so the desktop stays responsive under heavy disk I/O. SSDs keep the kernel default."
+when = ["!virt"]
+[[module.files]]
+path = "/etc/udev/rules.d/60-bindle-ioschedulers.rules"
+content = '''
+# Managed by Bindle
+ACTION=="add|change", KERNEL=="sd[a-z]*", ATTR{queue/rotational}=="1", ATTR{queue/scheduler}="bfq"
+'''
+
+[[module]]
 id = "scx-schedulers"
-name = "sched_ext CPU schedulers"
-description = "scx_bpfland via scx_loader: lower latency for desktops and games under load, on kernels with sched_ext."
+name = "Low-latency CPU scheduler (sched_ext)"
+description = "scx_bpfland via scx_loader: lower latency for desktops and games under load."
 risk = "moderate"
 when = ["distro:arch", "!virt"]
 packages = ["scx-scheds", "scx-tools"]
@@ -129,4 +90,41 @@ content = '''
 # Managed by Bindle
 default_sched = "scx_bpfland"
 default_mode = "Auto"
+'''
+
+[[module]]
+id = "kernel-zen"
+name = "Desktop kernel (linux-zen)"
+description = "Desktop-tuned kernel, installed alongside the stock one."
+notes = ["Your bootloader needs an entry for it: GRUB adds one on the next grub-mkconfig; systemd-boot needs a loader entry."]
+risk = "advanced"
+# Derivatives ship their own kernel packages (Manjaro: linuxNNN, CachyOS: linux-cachyos).
+when = ["distro:arch"]
+packages = ["linux-zen", "linux-zen-headers"]
+
+[[module]]
+id = "makepkg-parallel"
+name = "Parallel builds (makepkg)"
+description = "Builds AUR packages on every CPU core."
+default = true
+[[module.files]]
+path = "/etc/makepkg.conf.d/zz-bindle.conf"
+content = '''
+# Managed by Bindle
+MAKEFLAGS="-j$(nproc)"
+'''
+
+[[module]]
+id = "makepkg-native"
+name = "Native CPU builds (makepkg)"
+description = "Builds AUR packages with -march=native. They won't run on other CPUs."
+risk = "advanced"
+[[module.files]]
+# zz- sorts after Arch's rust.conf, which sets RUSTFLAGS outright.
+path = "/etc/makepkg.conf.d/zz-bindle-native.conf"
+content = '''
+# Managed by Bindle
+CFLAGS="${CFLAGS/-march=x86-64 -mtune=generic/-march=native}"
+CXXFLAGS="${CXXFLAGS/-march=x86-64 -mtune=generic/-march=native}"
+RUSTFLAGS="${RUSTFLAGS:+$RUSTFLAGS }-C target-cpu=native"
 '''

@@ -16,6 +16,7 @@ use ratatui::{DefaultTerminal, Frame};
 use crate::print;
 
 mod pick;
+mod wrap;
 
 pub mod iso;
 
@@ -263,10 +264,21 @@ impl<'a> App<'a> {
             Screen::Profile => self.draw_profiles(f, body),
             Screen::Pick => self.draw_pick(f, body),
             Screen::Review => {
-                let text: Vec<Line> = self.review.iter().map(|l| Line::from(l.as_str())).collect();
+                let width = usize::from(body.width.saturating_sub(2));
+                let text: Vec<Line> = self
+                    .review
+                    .iter()
+                    .flat_map(|l| wrap::hanging(l, width))
+                    .map(|l| match l.trim_start().chars().next() {
+                        Some('~' | '+') => Line::from(l).fg(Color::Yellow),
+                        Some('-') => Line::from(l).dim(),
+                        Some('✓') => Line::from(l).fg(Color::Green),
+                        _ if l.starts_with("Steps") || l.starts_with("Notes") => Line::from(l).bold(),
+                        _ => Line::from(l),
+                    })
+                    .collect();
                 let p = Paragraph::new(text)
-                    .block(Block::bordered().title(" Review — nothing changes until you press a "))
-                    .wrap(Wrap { trim: false })
+                    .block(Block::bordered().title(" Review: nothing changes until you press a "))
                     .scroll((self.scroll, 0));
                 f.render_widget(p, body);
             }

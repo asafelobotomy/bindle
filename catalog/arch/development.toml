@@ -1,18 +1,24 @@
 [category]
 id = "development"
 name = "Development"
-description = "Toolchains, containers, VMs, shells and editors."
+description = "Languages, editors, terminals, shells, containers and VMs."
 order = 50
 
 [[module]]
 id = "rustup"
 name = "Rust (rustup)"
-description = "rustup with the stable toolchain."
+description = "Rust via rustup, with the stable toolchain."
 profiles = ["developer"]
 packages = ["rustup"]
 package_conflicts = ["rust", "cargo", "rustfmt"]
 user_commands = [{ argv = ["rustup", "default", "stable"], unless = [{ path = "~/.rustup/settings.toml", contains = 'default_toolchain = "stable' }] }]
-notes = ["Replaces the distro 'rust' package if it is installed (rustup provides rust and cargo)."]
+
+[[module]]
+id = "python"
+name = "Python tooling"
+description = "pip, pipx, uv and ruff."
+profiles = ["developer"]
+packages = ["python", "python-pip", "python-pipx", "uv", "ruff"]
 
 [[module]]
 id = "nodejs"
@@ -24,51 +30,16 @@ packages = ["nodejs-lts-krypton", "npm"]
 package_conflicts = ["nodejs", "nodejs-lts-jod", "nodejs-lts-iron", "nodejs-lts-hydrogen"]
 
 [[module]]
-id = "python"
-name = "Python tooling"
-description = "Python with pip, pipx and uv."
-profiles = ["developer"]
-packages = ["python", "python-pip", "python-pipx", "uv", "ruff"]
+id = "js-runtimes"
+name = "pnpm, Bun and Deno"
+description = "Extra JavaScript package managers and runtimes."
+packages = ["pnpm", "bun", "deno"]
 
 [[module]]
-id = "docker"
-name = "Docker"
-description = "Docker engine with compose and buildx; adds you to the docker group."
-risk = "moderate"
-profiles = ["developer"]
-packages = ["docker", "docker-compose", "docker-buildx"]
-enable = ["docker.socket"]
-groups = ["docker"]
-notes = ["Membership of the docker group is root-equivalent."]
-
-[[module]]
-id = "podman"
-name = "Podman"
-description = "Daemonless, rootless containers."
-packages = ["podman", "podman-compose", "buildah"]
-
-[[module]]
-id = "neovim"
-name = "Neovim"
-description = "Terminal editor."
-profiles = ["developer"]
-packages = ["neovim"]
-
-[[module]]
-id = "vscode"
-name = "Visual Studio Code"
-description = "Microsoft build from the AUR."
-risk = "moderate"
-requires = ["aur-helper"]
-conflicts = ["code-oss"]
-aur = ["visual-studio-code-bin"]
-
-[[module]]
-id = "git-tools"
-name = "Git tools"
-description = "GitHub CLI, lazygit and delta (better diffs)."
-profiles = ["developer"]
-packages = ["github-cli", "lazygit", "git-delta"]
+id = "go"
+name = "Go"
+description = "The Go toolchain."
+packages = ["go"]
 
 [[module]]
 id = "c-cpp"
@@ -77,12 +48,6 @@ description = "CMake, Clang and GDB (GCC and make come with base-devel)."
 profiles = ["developer"]
 requires = ["build-tools"]
 packages = ["cmake", "clang", "gdb"]
-
-[[module]]
-id = "go"
-name = "Go"
-description = "The Go toolchain."
-packages = ["go"]
 
 [[module]]
 id = "java"
@@ -111,42 +76,11 @@ packages = ["mise"]
 notes = ["Activate it in your shell: see `mise activate --help`."]
 
 [[module]]
-id = "js-runtimes"
-name = "pnpm, Bun and Deno"
-description = "Extra JavaScript package managers and runtimes."
-packages = ["pnpm", "bun", "deno"]
-
-[[module]]
-id = "distrobox"
-name = "Distrobox"
-description = "Other distros' userlands in containers, integrated with your desktop."
-requires = ["podman"]
-packages = ["distrobox"]
-
-[[module]]
-id = "code-oss"
-name = "Code - OSS"
-description = "Open-source build of VS Code from the Arch repos (Open VSX extensions)."
-conflicts = ["vscode"]
-packages = ["code"]
-
-[[module]]
-id = "zed"
-name = "Zed"
-description = "Fast, collaborative code editor."
-packages = ["zed"]
-
-[[module]]
-id = "helix"
-name = "Helix"
-description = "Modal terminal editor with built-in LSP support."
-packages = ["helix"]
-
-[[module]]
-id = "ghostty"
-name = "Ghostty"
-description = "GPU-accelerated terminal emulator."
-packages = ["ghostty"]
+id = "git-tools"
+name = "Git tools"
+description = "GitHub CLI, lazygit and delta (better diffs)."
+profiles = ["developer"]
+packages = ["github-cli", "lazygit", "git-delta"]
 
 [[module]]
 id = "jujutsu"
@@ -162,16 +96,52 @@ profiles = ["developer"]
 packages = ["fzf", "ripgrep", "fd", "bat", "eza", "zoxide", "btop", "fastfetch"]
 
 [[module]]
-id = "fish"
-name = "fish shell"
-description = "Friendly interactive shell. Installs it only; switch with `chsh -s /usr/bin/fish`."
-packages = ["fish"]
+id = "neovim"
+name = "Neovim"
+description = "Terminal text editor."
+profiles = ["developer"]
+packages = ["neovim"]
 
 [[module]]
-id = "zsh"
-name = "Zsh"
-description = "Z shell with extra completions. Installs it only; switch with `chsh -s /usr/bin/zsh`."
-packages = ["zsh", "zsh-completions"]
+id = "helix"
+name = "Helix"
+description = "Modal terminal editor with built-in LSP support."
+packages = ["helix"]
+
+[[module]]
+id = "code-oss"
+name = "Code - OSS"
+description = "Arch's open-source build of VS Code, using Open VSX extensions."
+conflicts = ["vscode"]
+packages = ["code"]
+
+[[module]]
+id = "vscodium"
+name = "VSCodium"
+description = "VS Code without Microsoft telemetry, using the Open VSX extension store."
+requires = ["aur-helper"]
+aur = ["vscodium-bin"]
+
+[[module]]
+id = "vscode"
+name = "Visual Studio Code"
+description = "Microsoft's build of VS Code, with its extension marketplace."
+risk = "moderate"
+requires = ["aur-helper"]
+conflicts = ["code-oss"]
+aur = ["visual-studio-code-bin"]
+
+[[module]]
+id = "zed"
+name = "Zed"
+description = "Fast, collaborative code editor."
+packages = ["zed"]
+
+[[module]]
+id = "ghostty"
+name = "Ghostty"
+description = "GPU-accelerated terminal emulator."
+packages = ["ghostty"]
 
 [[module]]
 id = "kitty"
@@ -186,16 +156,45 @@ description = "Minimal GPU-accelerated terminal."
 packages = ["alacritty"]
 
 [[module]]
-id = "vscodium"
-name = "VSCodium"
-description = "VS Code without Microsoft telemetry, using the Open VSX extension store (upstream build, from the AUR)."
-requires = ["aur-helper"]
-aur = ["vscodium-bin"]
+id = "fish"
+name = "fish"
+description = "Friendly interactive shell. Installed only; switch with `chsh -s /usr/bin/fish`."
+packages = ["fish"]
+
+[[module]]
+id = "zsh"
+name = "Zsh"
+description = "Z shell with extra completions. Installed only; switch with `chsh -s /usr/bin/zsh`."
+packages = ["zsh", "zsh-completions"]
+
+[[module]]
+id = "docker"
+name = "Docker"
+description = "Docker engine with compose and buildx; adds you to the docker group."
+risk = "moderate"
+profiles = ["developer"]
+packages = ["docker", "docker-compose", "docker-buildx"]
+enable = ["docker.socket"]
+groups = ["docker"]
+notes = ["Membership of the docker group is root-equivalent."]
+
+[[module]]
+id = "podman"
+name = "Podman"
+description = "Daemonless, rootless containers."
+packages = ["podman", "podman-compose", "buildah"]
+
+[[module]]
+id = "distrobox"
+name = "Distrobox"
+description = "Other distros' userlands in containers, integrated with your desktop."
+requires = ["podman"]
+packages = ["distrobox"]
 
 [[module]]
 id = "virt-manager"
 name = "Virtual machines (virt-manager)"
-description = "QEMU/KVM with libvirt and the virt-manager GUI, including UEFI and TPM for Windows 11 guests."
+description = "QEMU/KVM virtual machines with libvirt and a GUI, including UEFI and TPM for Windows 11 guests."
 risk = "moderate"
 packages = ["virt-manager", "qemu-desktop", "libvirt", "dnsmasq", "swtpm", "edk2-ovmf"]
 enable = ["libvirtd.socket"]

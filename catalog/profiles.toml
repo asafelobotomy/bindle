@@ -4,19 +4,19 @@
 [[profile]]
 id = "minimal"
 name = "Minimal"
-description = "Only the safe, universally useful defaults."
+description = "Only the safe defaults every install benefits from."
 
 [[profile]]
 id = "desktop"
 name = "Desktop"
-description = "Everyday desktop: audio, fonts, codecs, flatpak, power management."
+description = "Everyday desktop: audio, fonts, codecs, Flatpak, power and a firewall."
 
 [[profile]]
 id = "gaming"
 name = "Gaming"
-description = "Desktop plus multilib, Steam, Wine, GameMode, MangoHud, gamescope and Protontricks."
+description = "Desktop plus Steam, Wine, GameMode, MangoHud, gamescope, Protontricks."
 
 [[profile]]
 id = "developer"
 name = "Developer"
-description = "Desktop plus toolchains, containers and editors."
+description = "Desktop plus languages, Docker, Neovim, Git and modern CLI tools."
