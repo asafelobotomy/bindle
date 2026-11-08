@@ -11,7 +11,7 @@ use bindle_core::builtins::{AUR_HELPER, AUR_HELPER_COMMIT, AUR_HELPER_PKGBUILD_S
 
 use super::sys::{shell_words, valid_name};
 
-pub fn run(argv: &[String], fake: bool) -> Result<()> {
+pub(super) fn run(argv: &[String], fake: bool) -> Result<()> {
     let shown = shell_words(argv);
     if fake {
         println!("    would run: {shown}");
@@ -85,7 +85,7 @@ fn package_files(list: &str, package: &str) -> Vec<String> {
         .collect()
 }
 
-fn file_sha256(path: &Path) -> Result<String> {
+pub(super) fn file_sha256(path: &Path) -> Result<String> {
     let out = Command::new("sha256sum").arg("--").arg(path).output().context("run sha256sum")?;
     let text = String::from_utf8_lossy(&out.stdout);
     Ok(text.split_whitespace().next().unwrap_or_default().to_string())

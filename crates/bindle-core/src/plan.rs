@@ -6,7 +6,7 @@ use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
 
 use crate::builtins::{self, Ctx};
-use crate::catalog::{Catalog, Command, FileSpec};
+use crate::catalog::{AssetKind, Catalog, Command, FileSpec, ReleaseAsset};
 use crate::detect::Facts;
 
 #[derive(Debug, Clone, Default)]
@@ -81,6 +81,11 @@ pub enum Step {
     InstallAur {
         packages: Vec<String>,
     },
+    /// Pinned GitHub release assets: downloaded and checked as the user, then
+    /// packages go through the root helper and AppImages to ~/.local/bin.
+    InstallReleases {
+        assets: Vec<ReleaseAsset>,
+    },
     RunAsUser {
         module: String,
         argv: Vec<String>,
@@ -89,7 +94,13 @@ pub enum Step {
 
 impl Step {
     pub fn privileged(&self) -> bool {
-        !matches!(self, Step::BootstrapAurHelper { .. } | Step::InstallAur { .. } | Step::RunAsUser { .. })
+        !matches!(
+            self,
+            Step::BootstrapAurHelper { .. }
+                | Step::InstallAur { .. }
+                | Step::InstallReleases { .. }
+                | Step::RunAsUser { .. }
+        )
     }
 }
 
@@ -204,6 +215,7 @@ pub fn resolve(
     let mut root_cmds = Vec::new();
     let mut user_cmds = Vec::new();
     let mut aur = Vec::new();
+    let mut releases: Vec<ReleaseAsset> = Vec::new();
     let mut bootstrap = false;
     let mut initramfs = false;
 
@@ -223,6 +235,7 @@ pub fn resolve(
         root_cmds.extend(m.root_commands.iter().filter(pending).map(|c| (id.clone(), c.argv.clone())));
         user_cmds.extend(m.user_commands.iter().filter(pending).map(|c| (id.clone(), c.argv.clone())));
         aur.extend(m.aur.iter().cloned());
+        releases.extend(m.releases.iter().map(|r| ReleaseAsset { title: m.name.clone(), ..r.clone() }));
         plan.notes.extend(m.notes.iter().map(|n| (id.clone(), n.clone())));
         if let Some(b) = &m.builtin {
             let e = builtins::expand(b, &ctx);
@@ -276,6 +289,10 @@ pub fn resolve(
     if !aur.is_empty() {
         plan.steps.push(Step::InstallAur { packages: aur });
     }
+    releases.retain(|r| !release_installed(r, facts, current_file));
+    if !releases.is_empty() {
+        plan.steps.push(Step::InstallReleases { assets: releases });
+    }
     plan.steps.extend(user_cmds.into_iter().map(|(module, argv)| Step::RunAsUser { module, argv }));
 
     let advisories = crate::install::advisories(facts);
@@ -296,6 +313,19 @@ fn already_done(c: &Command, facts: &Facts, current_file: &dyn Fn(&str) -> Optio
             };
             u.holds(current_file(&path).as_deref())
         })
+}
+
+/// A package by name; an AppImage by its desktop entry naming this asset.
+fn release_installed(r: &ReleaseAsset, facts: &Facts, current_file: &dyn Fn(&str) -> Option<String>) -> bool {
+    match r.kind() {
+        Some(AssetKind::Package) => facts.installed.contains(&r.name),
+        Some(AssetKind::AppImage) if !facts.home.is_empty() => {
+            let entry = r.desktop_entry();
+            let path = format!("{}/{}", facts.home.trim_end_matches('/'), entry.trim_start_matches("~/"));
+            current_file(&path).is_some_and(|c| c.contains(&format!("X-Bindle-Asset={}", r.asset)))
+        }
+        _ => false,
+    }
 }
 
 fn dedup(items: impl IntoIterator<Item = String>) -> Vec<String> {

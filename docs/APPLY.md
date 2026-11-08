@@ -46,6 +46,7 @@ for confirmation and your password in the terminal, then streams progress.
 | initramfs | root | `mkinitcpio -P` |
 | AUR helper bootstrap | you, then root | `git clone` at a pinned commit + PKGBUILD checksum + `makepkg`, then `pacman -U` of root-owned copies |
 | AUR packages | you | `paru -S --needed -- …` (you review PKGBUILDs); with `--yes`: `--noconfirm --skipreview` |
+| release assets | you, then root | `curl --proto =https` + sha256 pin; packages via `pacman -U` (root-owned copies), AppImages to `~/.local/bin` |
 | user command | you | as declared |
 
 Logs: `/var/log/bindle/apply-<id>.log` (and `undo-<id>.log`), root-only (`0600`).

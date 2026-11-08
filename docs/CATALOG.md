@@ -40,6 +40,13 @@ user_commands = [{ argv = ["xdg-user-dirs-update"], unless = [{ path = "~/.confi
 builtin = "zram"                # hardware-computed steps (gpu, microcode, zram, aur-helper, desktop)
 notes = ["Shown on the review screen."]
 
+[[module.release]]              # a pinned GitHub release asset (repeatable)
+repo = "owner/repo"
+tag = "v1.2.3"
+asset = "app-1.2.3-1-x86_64.pkg.tar.zst"   # .pkg.tar.zst → pacman -U; .AppImage → ~/.local/bin
+sha256 = "…"                    # of the asset; a download that differs is refused
+name = "app"                    # package name, or the AppImage's command name
+
 [[module.files]]
 path = "/etc/udev/rules.d/60-bindle-ioschedulers.rules"
 mode = 0o644
@@ -48,6 +55,19 @@ content = '''
 …
 '''
 ```
+
+## Release assets
+
+For apps that ship on GitHub rather than in the repos or the AUR. Bindle
+downloads the asset as you over HTTPS, refuses it unless its sha256 matches the
+pin, then installs a `.pkg.tar.zst` through the root helper (`pacman -U`, which
+pulls its dependencies from the repos) or puts an `.AppImage` in `~/.local/bin`
+with a desktop entry (`~/.local/share/applications/bindle-<name>.desktop`).
+AppImage modules should list `fuse2` in `packages`. A package counts as
+installed by name; an AppImage when its desktop entry names the pinned asset,
+so bumping `tag`/`asset`/`sha256` upgrades it on the next apply. Take the
+sha256 from the release's `SHA256SUMS` when it has one. `make check-packages`
+with `--aur` checks every pinned URL still resolves.
 
 ## Command guards
 

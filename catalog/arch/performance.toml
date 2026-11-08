@@ -9,8 +9,9 @@ id = "zram"
 name = "ZRAM swap (compressed RAM)"
 description = "zram-generator sized from your RAM, zstd, swap-optimised sysctls, and zswap turned off."
 default = true
+conflicts = ["xzram"]
 builtin = "zram"
-notes = ["For swap files, overflow tiers and snapshots, use XZram."]
+notes = ["For swap files, overflow tiers and snapshots, pick XZram instead."]
 
 [[module]]
 id = "io-schedulers"
@@ -83,3 +84,23 @@ risk = "advanced"
 when = ["distro:arch"]
 packages = ["linux-zen", "linux-zen-headers"]
 notes = ["Your bootloader needs an entry for linux-zen. GRUB picks it up after grub-mkconfig; systemd-boot needs a loader entry (automated in a later phase)."]
+
+[[module]]
+id = "xzram"
+name = "XZram (swap manager)"
+description = "zram, swap files, partitions and sysctl tuning with staged, rollback-able changes; CLI plus a Qt GUI. By asafelobotomy; installed from its GitHub release."
+risk = "moderate"
+conflicts = ["zram"]
+notes = ["Run `xzram doctor` after installing; XZram manages swap instead of Bindle's zram module."]
+[[module.release]]
+repo = "asafelobotomy/XZram"
+tag = "v0.4.3"
+asset = "xzram-0.4.3-1-x86_64.pkg.tar.zst"
+sha256 = "fba5e3bcabcdf07bd5ba3997d051edd6251c10357b675e3d2aacaec5527aefb4"
+name = "xzram"
+[[module.release]]
+repo = "asafelobotomy/XZram"
+tag = "v0.4.3"
+asset = "xzram-gui-0.4.3-1-x86_64.pkg.tar.zst"
+sha256 = "2b956a905e1057c6cca6d7f05048e42b2b979f7471e0e52106bb3ced4342908f"
+name = "xzram-gui"

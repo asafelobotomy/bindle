@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- asafelobotomy's apps as opt-in modules: XZram (Performance, alternative to
+  the zram module), oysterAV (Security, AUR), romforge and ReShadeLinux
+  (Gaming), emobie, AV Morning Star, hauler and qbit Plugin Manager (Desktop).
+- Modules can install pinned, checksummed GitHub release assets
+  (`[[module.release]]`): Arch packages via `pacman -U`, AppImages to
+  `~/.local/bin` with a desktop entry.
+
 ## 0.1.2 — 2026-11-08
 
 (0.1.1 was tagged but never released: its release build failed.)

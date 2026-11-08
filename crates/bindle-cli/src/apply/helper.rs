@@ -308,7 +308,10 @@ impl Helper {
             }
             Step::RunAsRoot { argv, .. } => self.cmd_owned(&argv),
             Step::RebuildInitramfs => self.cmd(&["mkinitcpio", "-P"]),
-            Step::BootstrapAurHelper { .. } | Step::InstallAur { .. } | Step::RunAsUser { .. } => unreachable!(),
+            Step::BootstrapAurHelper { .. }
+            | Step::InstallAur { .. }
+            | Step::InstallReleases { .. }
+            | Step::RunAsUser { .. } => unreachable!(),
         }
     }
 }

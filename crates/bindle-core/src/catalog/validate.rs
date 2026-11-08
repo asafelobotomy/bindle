@@ -45,6 +45,7 @@ pub(super) fn validate(cat: &Catalog) -> Result<()> {
             bail!("module `{}` uses unknown builtin `{b}`", m.id);
         }
         check_names(m)?;
+        check_releases(m)?;
         check_files(m, &mut writers)?;
         if let Some(p) = m.package_conflicts.iter().find(|p| p.is_empty() || m.packages.contains(p)) {
             bail!("module `{}` lists `{p}` in package_conflicts", m.id);
@@ -113,6 +114,27 @@ fn check_names(m: &Module) -> Result<()> {
     Ok(())
 }
 
+/// Pinned, checksummed, and a kind Bindle knows how to install.
+fn check_releases(m: &Module) -> Result<()> {
+    let word = |s: &str| !s.is_empty() && s.chars().all(|c| c.is_ascii_alphanumeric() || "-_.".contains(c));
+    for r in &m.releases {
+        let repo_ok = r.repo.split_once('/').is_some_and(|(o, n)| word(o) && word(n) && !n.contains('/'));
+        let ok = repo_ok
+            && word(&r.tag)
+            && word(&r.asset)
+            && !r.asset.starts_with('.')
+            && r.sha256.len() == 64
+            && r.sha256.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
+            && word(&r.name)
+            && !r.name.starts_with('-')
+            && r.kind().is_some();
+        if !ok {
+            bail!("module `{}` has an invalid release asset `{}` from `{}`", m.id, r.asset, r.repo);
+        }
+    }
+    Ok(())
+}
+
 /// Absolute, no `..`, no setuid/setgid/sticky, one writer per path.
 fn check_files<'a>(m: &'a Module, writers: &mut BTreeMap<&'a str, &'a str>) -> Result<()> {
     for f in &m.files {
@@ -140,6 +162,13 @@ mod tests {
         Catalog::from_sources("t", &[("x", &file)], PROFILES).map(drop).unwrap_err().to_string()
     }
 
+    /// `[[module.release]]` with repo, asset and sha256 filled in by `format!`.
+    macro_rules! release_toml {
+        () => {
+            "[[module.release]]\nrepo = \"{}\"\ntag = \"v1\"\nasset = \"{}\"\nsha256 = \"{}\"\nname = \"x\""
+        };
+    }
+
     fn module(id: &str, extra: &str) -> String {
         format!("[[module]]\nid = \"{id}\"\nname = \"N\"\ndescription = \"\"\n{extra}\n")
     }
@@ -160,6 +189,27 @@ mod tests {
             (module("a", &file("/usr/bin/x", "0o4755")), "mode"),
             (module("a", &file("/etc/x", "0o644")) + &module("b", &file("/etc/x", "0o644")), "both write"),
             (module("a", "aur = [\"x-bin\"]"), "aur-helper"),
+            (
+                module(
+                    "a",
+                    &format!(
+                        release_toml!(),
+                        "o/r", "x.exe", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                    ),
+                ),
+                "release asset",
+            ),
+            (
+                module(
+                    "a",
+                    &format!(
+                        release_toml!(),
+                        "o/r/../x", "x.AppImage", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                    ),
+                ),
+                "release asset",
+            ),
+            (module("a", &format!(release_toml!(), "o/r", "x.AppImage", "abc")), "release asset"),
             (
                 module("a", "packages = [\"x\"]\naur = [\"x\"]\nrequires = [\"h\"]") + &module("h", ""),
                 "both packages and aur",

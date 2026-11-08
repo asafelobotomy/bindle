@@ -54,3 +54,51 @@ description = "Fill the gaps archinstall's desktop profile leaves: core apps, po
 default = true
 when = ["desktop"]
 builtin = "desktop"
+
+[[module]]
+id = "emobie"
+name = "emobie (emoji palette)"
+description = "Compact emoji palette with a global hotkey, favourites and text macros. By asafelobotomy; AppImage from its GitHub release, installed to ~/.local/bin."
+packages = ["fuse2"]
+[[module.release]]
+repo = "asafelobotomy/emobie"
+tag = "v0.8.2"
+asset = "emobie_0.8.2_amd64.AppImage"
+sha256 = "3d36a1040d005545204bfe8475cf953292ced9389317950dac1e1892deab66c8"
+name = "emobie"
+
+[[module]]
+id = "av-morning-star"
+name = "AV Morning Star (video downloader)"
+description = "Download video and audio from YouTube, Odysee and 1000+ sites (a yt-dlp front end). By asafelobotomy; AppImage from its GitHub release, installed to ~/.local/bin."
+packages = ["fuse2"]
+[[module.release]]
+repo = "asafelobotomy/AV-Morning-Star"
+tag = "v0.4.2"
+asset = "AV-Morning-Star-0.4.2-x86_64.AppImage"
+sha256 = "e12b3c7d125936b6ed9776b2da1513f9a1e9c10e466e6f8a9bde0a581e8d4a47"
+name = "av-morning-star"
+
+[[module]]
+id = "qbit-plugin-dl"
+name = "qbit Plugin Manager"
+description = "Pick and install qBittorrent search plugins from allowlisted catalogs. By asafelobotomy; AppImage from its GitHub release, installed to ~/.local/bin."
+packages = ["fuse2"]
+notes = ["For qBittorrent; install qbittorrent too."]
+[[module.release]]
+repo = "asafelobotomy/qbit-plugin-dl"
+tag = "v0.2.1"
+asset = "qbit-plugin-dl-x86_64.AppImage"
+sha256 = "43bd1684d54697dcd8c1fffdfd9192b5908cfc75fb9659e2d25cc62fb75af104"
+name = "qbit-plugin-dl"
+
+[[module]]
+id = "hauler"
+name = "hauler (download manager)"
+description = "Fast, resumable downloads over parallel connections; CLI, daemon and Kirigami app. By asafelobotomy; installed from its GitHub release."
+[[module.release]]
+repo = "asafelobotomy/hauler"
+tag = "v0.1.2"
+asset = "hauler-0.1.2-1-x86_64.pkg.tar.zst"
+sha256 = "c464fcf42aceaf2a61c65cedbe58358829f9366df7eddeeb59466d081abe5a1b"
+name = "hauler"

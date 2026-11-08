@@ -46,6 +46,53 @@ pub struct Profile {
     pub description: String,
 }
 
+/// One asset of a GitHub release, pinned by tag and sha256: a prebuilt Arch
+/// package (`.pkg.tar.zst`, installed with `pacman -U`) or an AppImage
+/// (installed for the user in ~/.local/bin with a desktop entry).
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct ReleaseAsset {
+    /// `owner/repo` on GitHub.
+    pub repo: String,
+    pub tag: String,
+    /// File name of the asset in that release.
+    pub asset: String,
+    pub sha256: String,
+    /// Package name (packages) or command name (AppImages).
+    pub name: String,
+    /// Shown in the AppImage's desktop entry; filled from the module name.
+    #[serde(default)]
+    pub title: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AssetKind {
+    Package,
+    AppImage,
+}
+
+impl ReleaseAsset {
+    pub fn kind(&self) -> Option<AssetKind> {
+        if self.asset.ends_with(".pkg.tar.zst") {
+            Some(AssetKind::Package)
+        } else if self.asset.ends_with(".AppImage") {
+            Some(AssetKind::AppImage)
+        } else {
+            None
+        }
+    }
+
+    pub fn url(&self) -> String {
+        format!("https://github.com/{}/releases/download/{}/{}", self.repo, self.tag, self.asset)
+    }
+
+    /// Desktop entry an installed AppImage gets; it records the asset, so a
+    /// newer pinned release is planned again.
+    pub fn desktop_entry(&self) -> String {
+        format!("~/.local/share/applications/bindle-{}.desktop", self.name)
+    }
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct FileSpec {
@@ -149,6 +196,9 @@ pub struct Module {
     pub package_conflicts: Vec<String>,
     #[serde(default)]
     pub aur: Vec<String>,
+    /// Pinned GitHub release assets (`[[module.release]]`).
+    #[serde(default, rename = "release")]
+    pub releases: Vec<ReleaseAsset>,
     #[serde(default)]
     pub enable: Vec<String>,
     #[serde(default)]

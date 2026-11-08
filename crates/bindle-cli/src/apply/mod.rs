@@ -7,6 +7,7 @@
 pub mod client;
 pub mod helper;
 pub mod protocol;
+mod release;
 pub mod snapshot;
 pub mod sys;
 mod user;
@@ -67,6 +68,14 @@ fn snapshot_plan(plan: &Plan, facts: &Facts) -> SnapshotPlan {
             }
             Step::InstallAur { packages } => s.aur.extend(packages.iter().cloned()),
             Step::BootstrapAurHelper { package } => s.aur.push(package.clone()),
+            Step::InstallReleases { assets } => {
+                for a in assets {
+                    match a.kind() {
+                        Some(bindle_core::catalog::AssetKind::Package) => s.packages.push(a.name.clone()),
+                        _ => s.manual.push(format!("installed ~/.local/bin/{} ({}); remove it by hand", a.name, a.tag)),
+                    }
+                }
+            }
             Step::AddToGroups { user, groups } => {
                 s.manual.push(format!("{user} added to groups {}", groups.join(", ")))
             }
@@ -120,7 +129,12 @@ pub fn apply(plan: &Plan, facts: &Facts, opts: &Options) -> Result<Outcome> {
     }
 
     let log = format!("/var/log/bindle/apply-{}.log", sys::now_id());
-    let wants_root = plan.steps.iter().any(|s| s.privileged() || matches!(s, Step::BootstrapAurHelper { .. }));
+    let wants_root = plan.steps.iter().any(|s| {
+        s.privileged()
+            || matches!(s, Step::BootstrapAurHelper { .. })
+            || matches!(s, Step::InstallReleases { assets }
+                if assets.iter().any(|a| a.kind() == Some(bindle_core::catalog::AssetKind::Package)))
+    });
     let mut helper = if wants_root { Some(HelperClient::start(opts.sandbox.as_deref(), &log)?) } else { None };
     let mut out = |line: &str| println!("    │ {line}");
 
@@ -146,6 +160,13 @@ pub fn apply(plan: &Plan, facts: &Facts, opts: &Options) -> Result<Outcome> {
                     root_request(h, &Request::InstallFiles { paths: files }, &mut out).map(drop)
                 }
             }),
+            (Step::InstallReleases { assets }, h) => {
+                release::install(assets, fake).and_then(|files| match (files.is_empty(), h) {
+                    (true, _) => Ok(()),
+                    (false, Some(h)) => root_request(h, &Request::InstallFiles { paths: files }, &mut out).map(drop),
+                    (false, None) => Err(anyhow::anyhow!("no root helper to install release packages")),
+                })
+            }
             (Step::InstallAur { packages }, _) => user::install_aur(&aur_helper, packages, opts.yes, fake),
             (Step::RunAsUser { argv, .. }, _) => user::run(argv, fake),
             (s, None) => Err(anyhow::anyhow!("no root helper for {s:?}")),

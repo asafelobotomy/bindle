@@ -18,7 +18,7 @@ python3 scripts/check-packages.py   # on Arch, after pacman -Sy (and -Fy for uni
 - Source files stay at or under 400 lines (`tests/loc.rs` enforces it).
 - The workspace must build with the `rust-version` in `Cargo.toml` (CI's
   `msrv` job).
-- New catalog modules: see [docs/CATALOG.md](docs/CATALOG.md). The loader
+- New catalog modules (including `[[module.release]]` assets): see [docs/CATALOG.md](docs/CATALOG.md). The loader
   validates them in `cargo test`.
 - Note user-visible changes in [CHANGELOG.md](CHANGELOG.md).
 

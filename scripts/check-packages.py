@@ -8,8 +8,8 @@ Run `sudo pacman -Sy` (or wait for a timer) first; a stale DB reports
 recently added packages as missing.
 
 Also checked: systemd units the catalog enables, against pacman's files DB
-(`sudo pacman -Fy`; skipped when it is missing), and with `--aur` the AUR
-packages, via the AUR RPC (online).
+(`sudo pacman -Fy`; skipped when it is missing), and with `--aur` (online) the
+AUR packages via the AUR RPC and the pinned GitHub release assets.
 """
 import json, pathlib, re, subprocess, sys, tomllib, urllib.parse, urllib.request
 
@@ -21,11 +21,13 @@ names = set()
 provided = set()
 units = set()
 aur = set()
+releases = []
 for f in (root / "arch").glob("*.toml"):
     for m in tomllib.loads(f.read_text()).get("module", []):
         names.update(m.get("packages", []))
         units.update(m.get("enable", []))
         aur.update(m.get("aur", []))
+        releases += m.get("release", [])
 for d in tomllib.loads((root / "desktops.toml").read_text())["desktop"]:
     for key in ("essentials", "nm", "bt"):
         names.update(d.get(key, []))
@@ -72,7 +74,19 @@ if ok(["-F", "usr/bin/pacman"]):
     print(f"checked {len(units)} units")
 else:
     print("no pacman files DB (sudo pacman -Fy); units not checked")
+def release_missing(r: dict) -> bool:
+    url = f"https://github.com/{r['repo']}/releases/download/{r['tag']}/{r['asset']}"
+    req = urllib.request.Request(url, method="HEAD")
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            return resp.status != 200
+    except Exception:
+        return True
+
+
 if "--aur" in sys.argv[1:]:
+    missing += [f"release:{r['repo']}/{r['tag']}/{r['asset']}" for r in releases if release_missing(r)]
+    print(f"checked {len(releases)} release assets")
     missing += [f"aur:{p}" for p in aur_missing(aur)]
     print(f"checked {len(aur)} AUR packages")
 if missing:

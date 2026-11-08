@@ -103,6 +103,10 @@ pub fn describe(step: &Step) -> String {
             format!("{} [{module}]", argv.join(" "))
         }
         Step::RebuildInitramfs => "mkinitcpio -P".into(),
+        Step::InstallReleases { assets } => {
+            let names: Vec<String> = assets.iter().map(|a| format!("{} {}", a.name, a.tag)).collect();
+            format!("install from GitHub releases (checksum-pinned): {}", names.join(", "))
+        }
         Step::BootstrapAurHelper { package } => format!("build and install {package} from the AUR"),
         Step::InstallAur { packages } => format!("paru -S --needed {}", packages.join(" ")),
     }

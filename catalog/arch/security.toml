@@ -60,3 +60,11 @@ mount /.snapshots"""], when = ["snapshots-mount"], unless = [{ path = "/proc/sel
 ]
 enable = ["snapper-timeline.timer", "snapper-cleanup.timer"]
 notes = ["Booting into snapshots needs grub-btrfs or limine-snapper-sync (later phase)."]
+
+[[module]]
+id = "oysterav"
+name = "oysterAV (security scans)"
+description = "One GUI and CLI over ClamAV, rkhunter, Lynis and friends. By asafelobotomy; from the AUR."
+requires = ["aur-helper"]
+aur = ["oysterav"]
+notes = ["Set it up with `oyst-cli setup run`, or open oysterAV from your app menu."]

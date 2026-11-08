@@ -212,3 +212,39 @@ fn snapper_resumes_after_a_partial_failure() {
     assert_eq!(snapper.len(), 1);
     assert!(snapper[0][2].contains("mount /.snapshots"));
 }
+
+#[test]
+fn release_assets_are_planned_until_installed() {
+    let mut f = facts();
+    f.home = "/home/tester".into();
+    let sel = Selection { include: vec!["hauler".into(), "emobie".into()], ..Default::default() };
+    let assets = |p: &Plan| -> Vec<String> {
+        p.steps
+            .iter()
+            .find_map(|s| match s {
+                Step::InstallReleases { assets } => Some(assets.iter().map(|a| a.name.clone()).collect()),
+                _ => None,
+            })
+            .unwrap_or_default()
+    };
+    let p = plan(sel.clone(), &f).unwrap();
+    assert_eq!(assets(&p), ["emobie", "hauler"]);
+    let Some(Step::InstallReleases { assets: a }) = p.steps.iter().find(|s| matches!(s, Step::InstallReleases { .. }))
+    else {
+        unreachable!()
+    };
+    assert_eq!(a[0].title, "emobie (emoji palette)", "title comes from the module");
+    // hauler's package is installed; emobie's desktop entry names this asset.
+    f.installed.insert("hauler".into());
+    let entry = |path: &str| {
+        (path == "/home/tester/.local/share/applications/bindle-emobie.desktop")
+            .then(|| "X-Bindle-Asset=emobie_0.8.2_amd64.AppImage\n".to_string())
+    };
+    let p = resolve(&Catalog::arch().unwrap(), &f, &sel, &entry).unwrap();
+    assert!(assets(&p).is_empty(), "{:?}", p.steps);
+    // An older AppImage is replaced by the pinned one.
+    let old = |path: &str| {
+        path.ends_with("bindle-emobie.desktop").then(|| "X-Bindle-Asset=emobie_0.7.0_amd64.AppImage\n".into())
+    };
+    assert_eq!(assets(&resolve(&Catalog::arch().unwrap(), &f, &sel, &old).unwrap()), ["emobie"]);
+}
