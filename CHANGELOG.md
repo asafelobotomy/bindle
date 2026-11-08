@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.1 — 2026-11-08
 
 Fixes from the November 2026 audit.
 
