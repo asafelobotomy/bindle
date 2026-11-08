@@ -21,7 +21,9 @@ pub fn dispatch(action: FirstLoginCmd) -> Result<()> {
         FirstLoginCmd::QuietWelcome { root } => quiet_welcome(&root)?,
         FirstLoginCmd::Dismiss => {
             firstlogin::mark_done()?;
-            vec!["Bindle won't open or remind you at login again. Run `bindle` any time.".into()]
+            println!("Bindle won't open or remind you at login again. Run `bindle` any time.");
+            offer_remove();
+            vec![]
         }
         FirstLoginCmd::Run { .. } => unreachable!("needs detection"),
     };
@@ -87,6 +89,10 @@ pub fn run(catalog: &Catalog, facts: &Facts, in_terminal: bool, lock: Option<Str
         );
         return Ok(());
     }
+    if in_terminal {
+        // Hold the launch lock for as long as the wizard runs.
+        session::adopt_launch(lock.as_deref());
+    }
     let result = wizard_once(catalog, facts);
     if in_terminal {
         // The window closes with this process: show any error and wait.
@@ -108,8 +114,28 @@ fn wizard_once(catalog: &Catalog, facts: &Facts) -> Result<()> {
     if finished || !apply::confirm("Remind me at my next login?", true) {
         firstlogin::mark_done()?;
         println!("Bindle won't open or remind you again. Run `bindle` any time.");
+        offer_remove();
     } else {
         println!("Bindle will remind you with a notification at your next login.");
     }
     Ok(())
+}
+
+/// Once the last user is done, the system-wide login hooks have no one left
+/// to open for, except users created later: offer to remove them.
+fn offer_remove() {
+    let root = Path::new("/");
+    if !firstlogin::hooks_installed(root) || !firstlogin::all_users_done(root) {
+        return;
+    }
+    println!("\nEvery user here has finished first-login setup. The login hooks stay installed");
+    println!("(and new users still get the wizard) until they are removed.");
+    let exe = if Path::new(firstlogin::BIN).exists() { PathBuf::from(firstlogin::BIN) } else { "bindle".into() };
+    if std::io::stdin().is_terminal() && apply::confirm("Remove them now with sudo?", false) {
+        match std::process::Command::new("sudo").arg(&exe).args(["first-login", "remove"]).status() {
+            Ok(s) if s.success() => return,
+            Ok(_) | Err(_) => eprintln!("Couldn't remove them."),
+        }
+    }
+    println!("Remove them any time with: sudo {} first-login remove", exe.display());
 }

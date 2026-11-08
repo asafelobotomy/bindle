@@ -14,7 +14,11 @@ use anyhow::{Context, Result};
 
 use crate::firstlogin::is_done;
 
-/// Lock age after which a crashed launch no longer blocks the next one.
+/// The lock holds `<token> <owner pid>`; it is stale once the owner is gone.
+/// The launcher hands the lock to the wizard in a new terminal and exits, so a
+/// dead owner still counts for `LOCK_HANDOVER` while the terminal starts.
+const LOCK_HANDOVER: Duration = Duration::from_secs(60);
+/// Age after which an unreadable or ownerless (legacy) lock is taken over.
 const LOCK_STALE: Duration = Duration::from_secs(600);
 
 /// `UID_MIN` from login.defs; 1000 when unset or unreadable.
@@ -82,15 +86,17 @@ fn claim_lock(lock: &Path) -> Option<String> {
     for _ in 0..2 {
         match fs::OpenOptions::new().write(true).create_new(true).mode(0o600).open(lock) {
             Ok(mut f) => {
-                let _ = f.write_all(token.as_bytes());
+                let _ = f.write_all(format!("{token} {token}\n").as_bytes());
                 return Some(token);
             }
             Err(e) if e.kind() == ErrorKind::AlreadyExists => {
-                // A crashed launch mustn't block forever: take over old locks.
-                let stale = fs::symlink_metadata(lock)
+                // A crashed launch mustn't block forever: take over dead locks.
+                let age = fs::symlink_metadata(lock)
                     .and_then(|m| m.modified())
-                    .is_ok_and(|t| SystemTime::now().duration_since(t).unwrap_or_default() >= LOCK_STALE);
-                if !stale {
+                    .map(|t| SystemTime::now().duration_since(t).unwrap_or_default())
+                    .unwrap_or(LOCK_STALE);
+                let held = fs::read_to_string(lock).unwrap_or_default();
+                if !lock_stale(&held, age, pid_alive) {
                     return None;
                 }
                 let _ = fs::remove_file(lock);
@@ -102,6 +108,54 @@ fn claim_lock(lock: &Path) -> Option<String> {
     None
 }
 
+/// `<token> <owner pid>`; a legacy lock holds only the launcher's pid.
+fn parse_lock(held: &str) -> Option<(&str, u32)> {
+    let mut w = held.split_whitespace();
+    let token = w.next()?;
+    let owner = w.next().unwrap_or(token).parse().ok()?;
+    Some((token, owner))
+}
+
+fn lock_stale(held: &str, age: Duration, alive: impl Fn(u32) -> bool) -> bool {
+    match parse_lock(held) {
+        Some((_, owner)) if alive(owner) => false,
+        Some(_) => age >= LOCK_HANDOVER,
+        // Unreadable (or mid-write): only the old age limit applies.
+        None => age >= LOCK_STALE,
+    }
+}
+
+/// `pid` is a running process of this user (pids are reused, but rarely by
+/// another process of the same user within one session).
+fn pid_alive(pid: u32) -> bool {
+    pid != 0 && fs::metadata(format!("/proc/{pid}")).is_ok_and(|m| m.uid() == own_uid())
+}
+
+/// The wizard's process takes over a lock its launcher claimed, so the lock
+/// lives exactly as long as the wizard does.
+pub fn adopt_launch(token: Option<&str>) {
+    if let (Some(lock), Some(token)) = (lock_path(), token) {
+        adopt_lock(&lock, token, std::process::id());
+    }
+}
+
+fn adopt_lock(lock: &Path, token: &str, pid: u32) {
+    let held = fs::read_to_string(lock).unwrap_or_default();
+    if parse_lock(&held).is_none_or(|(t, _)| t != token) {
+        return;
+    }
+    let tmp = lock.with_extension(format!("lock.{pid}"));
+    let written = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .mode(0o600)
+        .open(&tmp)
+        .and_then(|mut f| f.write_all(format!("{token} {pid}\n").as_bytes()));
+    if written.is_err() || fs::rename(&tmp, lock).is_err() {
+        let _ = fs::remove_file(&tmp);
+    }
+}
+
 /// Remove the lock if it is still the one `token` claimed.
 pub fn release_launch(token: Option<&str>) {
     if let (Some(lock), Some(token)) = (lock_path(), token) {
@@ -110,7 +164,7 @@ pub fn release_launch(token: Option<&str>) {
 }
 
 fn release_lock(lock: &Path, token: &str) {
-    if fs::read_to_string(lock).is_ok_and(|held| held.trim() == token) {
+    if fs::read_to_string(lock).is_ok_and(|held| parse_lock(&held).is_some_and(|(t, _)| t == token)) {
         let _ = fs::remove_file(lock);
     }
 }
@@ -220,11 +274,49 @@ mod tests {
         assert!(lock.exists(), "only the owner releases");
         release_lock(&lock, &token);
         assert!(!lock.exists());
-        // A stale lock is taken over.
-        fs::write(&lock, "1").unwrap();
-        let old = SystemTime::now() - LOCK_STALE - Duration::from_secs(5);
-        fs::File::options().write(true).open(&lock).unwrap().set_modified(old).unwrap();
+        let set_age = |age: Duration| {
+            let t = SystemTime::now() - age;
+            fs::File::options().write(true).open(&lock).unwrap().set_modified(t).unwrap();
+        };
+        // A live owner keeps the lock however old it is (the wizard can run for hours).
+        let token = claim_lock(&lock).unwrap();
+        set_age(LOCK_STALE * 10);
+        assert_eq!(claim_lock(&lock), None);
+        // The wizard adopts it; the launcher's token still releases it.
+        adopt_lock(&lock, "someone-else", 7);
+        assert!(fs::read_to_string(&lock).unwrap().ends_with(&format!(" {token}\n")));
+        adopt_lock(&lock, &token, 4_000_000_000);
+        assert_eq!(fs::read_to_string(&lock).unwrap(), format!("{token} 4000000000\n"));
+        // Dead owner: kept during the hand-over to the terminal, then taken over.
+        assert_eq!(claim_lock(&lock), None);
+        set_age(LOCK_HANDOVER + Duration::from_secs(5));
         assert!(claim_lock(&lock).is_some());
+        // A legacy lock (launcher pid only) whose process is gone is taken over too.
+        fs::write(&lock, "4000000001").unwrap();
+        set_age(LOCK_HANDOVER + Duration::from_secs(5));
+        assert!(claim_lock(&lock).is_some());
+        // An unreadable lock falls back to the old age limit.
+        fs::write(&lock, "garbage").unwrap();
+        set_age(LOCK_HANDOVER + Duration::from_secs(5));
+        assert_eq!(claim_lock(&lock), None);
+        set_age(LOCK_STALE + Duration::from_secs(5));
+        assert!(claim_lock(&lock).is_some());
+    }
+
+    #[test]
+    fn lock_staleness() {
+        let alive = |p: u32| p == 42;
+        let fresh = Duration::from_secs(1);
+        let old = LOCK_STALE * 100;
+        assert!(!lock_stale("9 42\n", old, alive));
+        assert!(!lock_stale("42", old, alive), "legacy lock with a live pid");
+        assert!(!lock_stale("9 43", fresh, alive));
+        assert!(lock_stale("9 43", LOCK_HANDOVER, alive));
+        assert!(!lock_stale("", LOCK_HANDOVER, alive));
+        assert!(lock_stale("x y", LOCK_STALE, alive));
+        assert_eq!(parse_lock("12 34"), Some(("12", 34)));
+        assert_eq!(parse_lock("12"), Some(("12", 12)));
+        assert!(pid_alive(std::process::id()) && !pid_alive(0));
     }
 
     #[test]

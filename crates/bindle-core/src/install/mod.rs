@@ -73,7 +73,7 @@ pub struct InstallRecord {
 
 impl InstallRecord {
     pub fn detect(desktops: &[Desktop]) -> Self {
-        let read = |p: &str| fs::read_to_string(p).unwrap_or_default();
+        let read = |p: &str| read_lossy(std::path::Path::new(p));
         let pacman = read(PACMAN_LOG);
         let from_pacman = pacman_log::reconstruct(&pacman, desktops);
         let logged = archinstall_log::parse(&read(ARCHINSTALL_LOG), desktops)
@@ -206,4 +206,31 @@ pub fn unneeded_gfx_packages(gpus: &[String]) -> Vec<&'static str> {
         _ => true,
     };
     GFX_DRIVERS[0].1.iter().copied().filter(|p| !keep(p)).collect()
+}
+
+/// A log as text. Lossy: one stray non-UTF-8 byte (a package description, a
+/// hostname in another encoding) mustn't drop the whole log, and detection
+/// with it. Missing or unreadable files are empty.
+fn read_lossy(path: &std::path::Path) -> String {
+    fs::read(path).map(|b| String::from_utf8_lossy(&b).into_owned()).unwrap_or_default()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn logs_with_invalid_utf8_are_still_read() {
+        let dir = std::env::temp_dir().join(format!("bindle-core-lossy-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let log = dir.join("pacman.log");
+        let mut bytes = b"[t] [PACMAN] Running 'pacman -r /mnt -S base'\n[t] caf\xe9\n".to_vec();
+        bytes.extend(b"[u] [PACMAN] Running 'pacman -r /mnt -S grub'\n");
+        fs::write(&log, bytes).unwrap();
+        let text = read_lossy(&log);
+        assert!(text.contains("caf\u{fffd}") && text.contains("-S grub"));
+        assert_eq!(pacman_log::transactions(&text).0.len(), 2);
+        assert_eq!(read_lossy(&dir.join("missing")), "");
+        let _ = fs::remove_dir_all(&dir);
+    }
 }

@@ -105,13 +105,24 @@ wizard again. A reminder nobody answers is withdrawn after 30 minutes; a
 notification server without action buttons gets the wizard instead.
 `bindle first-login status` shows the state; `bindle first-login remove [--purge]` uninstalls.
 
+Marking one user done never touches the system-wide files: the autostart
+entry, user unit and console hook stay installed, and **users created later
+still get the wizard at their first login**, until `sudo bindle first-login
+remove` is run. When the last regular user (from `/etc/passwd`, login shells
+only) is marked done, Bindle says so and offers to run that for you; a home it
+can't read counts as not done, so on multi-user systems with private homes the
+offer may not appear and removal stays manual.
+
 Only regular accounts get any of this: the user unit has
 `ConditionUser=!@system`, and `run`, `watch` and the console hook also skip
 users below `UID_MIN` (`/etc/login.defs`, default 1000) and logind sessions
 whose class isn't `user`, so nothing opens on a greeter (gdm, sddm, lightdm).
 The launch lock lives in `$XDG_RUNTIME_DIR` (no lock without it), is created
-exclusively, is taken over after 10 minutes, and is only released by the launch
-that holds it. `watch` only asks logind once a display socket exists.
+exclusively, and records its owner's pid: the wizard's process adopts it from
+the launcher, so it holds for as long as the wizard runs (waiting for welcome
+apps, a long apply). It is taken over only once that pid is gone (after a
+one-minute grace for the hand-over to the terminal), or, for a lock that can't
+be read, after 10 minutes. Only the launch that holds it releases it. `watch` only asks logind once a display socket exists.
 
 Three ways to get it onto a fresh install:
 

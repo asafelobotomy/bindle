@@ -9,8 +9,26 @@ use crate::desktops::{DESKTOP_BASE, Desktop, GREETERS};
 
 const KERNELS: &[&str] = &["linux", "linux-lts", "linux-zen", "linux-hardened"];
 const FONTS: &[&str] = &["noto-fonts", "noto-fonts-emoji", "noto-fonts-cjk", "ttf-liberation", "ttf-dejavu"];
-/// pacman options whose value is the next argument.
-const VALUE_OPTS: &[&str] = &["-b", "-r", "--root", "--dbpath", "--config", "--cachedir", "--gpgdir", "--hookdir"];
+/// pacman options whose value is the next argument (unless given as `--opt=value`).
+const VALUE_OPTS: &[&str] = &[
+    "-b",
+    "-r",
+    "--root",
+    "--dbpath",
+    "--config",
+    "--cachedir",
+    "--gpgdir",
+    "--hookdir",
+    "--logfile",
+    "--arch",
+    "--sysroot",
+    "--ignore",
+    "--ignoregroup",
+    "--overwrite",
+    "--assume-installed",
+    "--assumeinstalled",
+    "--print-format",
+];
 
 pub struct Transaction {
     pub timestamp: String,
@@ -22,12 +40,16 @@ pub fn transactions(log: &str) -> (Vec<Transaction>, bool) {
     let mut out = Vec::new();
     let mut archinstall_signature = false;
     for line in log.lines() {
+        let line = line.trim_end();
         let Some(cmd) = line.split("Running '").nth(1).and_then(|c| c.strip_suffix('\'')) else { continue };
         let args: Vec<&str> = cmd.split_whitespace().collect();
         if args.first() != Some(&"pacman") {
             continue;
         }
-        let root = args.windows(2).find(|w| w[0] == "-r" || w[0] == "--root").map(|w| w[1]);
+        let root = args.iter().enumerate().find_map(|(i, a)| match *a {
+            "-r" | "--root" => args.get(i + 1).copied(),
+            a => a.strip_prefix("--root=").or_else(|| a.strip_prefix("-r").filter(|v| !v.is_empty())),
+        });
         if root.is_none_or(|r| r.trim_end_matches('/').is_empty()) {
             continue;
         }
@@ -209,5 +231,34 @@ mod tests {
     #[test]
     fn ignores_regular_transactions() {
         assert!(reconstruct("[x] [PACMAN] Running 'pacman -Syu'\n", &desktops::all().unwrap()).is_none());
+        let rooted = "[x] [PACMAN] Running 'pacman --root=/ -S vim'\n[y] [PACMAN] Running 'pacman -r / -S vim'\n";
+        assert!(transactions(rooted).0.is_empty());
+    }
+
+    fn packages(log: &str) -> Vec<Vec<String>> {
+        transactions(log).0.into_iter().map(|t| t.packages.into_iter().collect()).collect()
+    }
+
+    #[test]
+    fn root_given_with_equals_or_attached() {
+        let log = "[a] [PACMAN] Running 'pacman --root=/mnt -S grub'\n[b] [PACMAN] Running 'pacman -r/mnt -S bluez'\n";
+        assert_eq!(packages(log), [["grub"], ["bluez"]]);
+    }
+
+    #[test]
+    fn option_values_are_not_packages() {
+        let log = "[a] [PACMAN] Running 'pacman -r /mnt -S --ignore linux --overwrite /usr/lib/* \
+                   --assume-installed foo=1 --dbpath /mnt/var/lib/pacman --dbpath=/x --ignore=y \
+                   --logfile /mnt/log --arch x86_64 --cachedir /c --gpgdir /g --hookdir /h ufw'\n";
+        assert_eq!(packages(log), [["ufw"]]);
+    }
+
+    #[test]
+    fn trailing_cr_and_whitespace() {
+        let log = "[a] [PACMAN] Running 'pacman -r /mnt -S grub'\r\n[b] [PACMAN] Running 'pacman -r /mnt -S ufw'  \t\n\
+                   [c] [PACMAN] Running 'pacman -r /mnt -S cups'\r";
+        assert_eq!(packages(log), [["grub"], ["ufw"], ["cups"]]);
+        let r = reconstruct(&gnome_install().replace('\n', "\r\n"), &desktops::all().unwrap()).unwrap();
+        assert_eq!(r.desktops, ["gnome"]);
     }
 }
