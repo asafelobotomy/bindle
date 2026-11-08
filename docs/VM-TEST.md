@@ -125,7 +125,7 @@ After every apply, a second `bindle plan` leaves only the always-run user comman
 - First boot: `bindle archinstall` read archinstall's logged config (exact); PipeWire, fonts and ufw shown as done.
 - Real `bindle apply`: 10/10 steps, including a full upgrade with 106 packages, unit enables and paru-bin built from the pinned AUR commit; snapshot and log written. **OK**
 - Second `plan`: "Nothing to do: this system already matches the selection."
-- GDM autologin → the first-login wizard opens on its own in GNOME Console (80×24), with no GNOME welcome dialog. **OK**
+- GDM autologin → `bindle first-login run` starts the desktop window (`bindle-gui --first-login`) on its own, with no terminal and no GNOME welcome dialog; `install.sh` had verified and installed it, and `bindle iso` added `kirigami` and `qt6-declarative`. **OK** (re-run after the window shipped)
 - Not covered: key presses from the QEMU monitor reach GNOME Shell but not the unfocused Console window, so the screens after the first are checked by the 80×24 render tests and a pty-driven run on the host instead.
 
 ### Welcome apps and reminders (archiso 2026.10.01)

@@ -70,15 +70,27 @@ impl Wizard {
     /// One line under the title: distro, CPU, RAM, GPUs, form factor.
     pub fn header(&self) -> String {
         let f = &self.facts;
-        let gpus = if f.gpus.is_empty() { "no GPU".to_string() } else { f.gpus.join(" + ") };
-        let kind = if f.virt != "none" && !f.virt.is_empty() {
-            "virtual machine"
-        } else if f.laptop {
-            "laptop"
-        } else {
-            "desktop PC"
-        };
-        format!("{} · {} · {:.0} GiB · {gpus} · {kind}", f.pretty_name, f.cpu_vendor, f.ram_mib as f64 / 1024.0)
+        let vm = f.virt != "none" && !f.virt.is_empty();
+        // A VM's "virtual" GPU says nothing "virtual machine" doesn't.
+        let gpus: Vec<&str> = f.gpus.iter().map(String::as_str).filter(|g| !(vm && *g == "virtual")).collect();
+        let mut parts =
+            vec![f.pretty_name.clone(), f.cpu_vendor.clone(), format!("{:.0} GiB", f.ram_mib as f64 / 1024.0)];
+        match (gpus.is_empty(), vm) {
+            (false, _) => parts.push(gpus.join(" + ")),
+            (true, false) => parts.push("no GPU".into()),
+            (true, true) => {}
+        }
+        parts.push(
+            if vm {
+                "virtual machine"
+            } else if f.laptop {
+                "laptop"
+            } else {
+                "desktop PC"
+            }
+            .into(),
+        );
+        parts.join(" · ")
     }
 
     pub fn welcome(&self) -> Value {
@@ -255,6 +267,8 @@ mod tests {
         let profiles = w.profiles();
         assert!(profiles.as_array().unwrap().iter().all(|p| p["count"].as_u64().unwrap() > 0));
         assert!(w.header().contains("laptop"));
+        let vm = wizard(Facts { virt: "kvm".into(), gpus: vec!["virtual".into()], ..arch() });
+        assert!(vm.header().ends_with("GiB · virtual machine"), "{}", vm.header());
         assert!(w.welcome()["rows"].is_array());
     }
 
