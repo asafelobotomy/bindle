@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.3 — 2026-11-08
 
 - The desktop window opens at first login on graphical sessions (falling back
   to the terminal wizard when it can't start), and from the app menu
