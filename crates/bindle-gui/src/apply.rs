@@ -9,6 +9,9 @@ use bindle_run::client::{Launch, NO_AGENT};
 use bindle_run::{present, selection};
 use serde::Serialize;
 
+/// Set once a plan applied; the exit code tells `bindle first-login run`.
+pub static APPLIED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
 /// Lines of command output the screen keeps.
 const LOG_LINES: usize = 300;
 
@@ -136,6 +139,7 @@ pub fn run(
                 }
                 None => {
                     r.state.state = "done".into();
+                    APPLIED.store(true, std::sync::atomic::Ordering::SeqCst);
                     r.state.steps.iter_mut().for_each(|s| s.status = "done".into());
                     // Like `bindle apply`: remember the selection for next time.
                     if sandbox.is_none()

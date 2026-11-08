@@ -4,11 +4,19 @@
 //!
 //! `bindle-gui --screenshots <dir>` renders every screen offscreen into `dir`
 //! (with `BINDLE_UQ_TOKENS=<tokens.json>` to pick a uQ theme) and exits.
+//!
+//! Exit codes, read by `bindle first-login run` (`bindle-cli/src/gui.rs`):
+//! 0 a plan was applied, 3 closed without applying, 4 no window could be
+//! created (the caller falls back to the terminal wizard).
 
 use cxx_qt_lib::{QGuiApplication, QQmlApplicationEngine, QQuickStyle, QString, QUrl};
 
 mod app;
 mod apply;
+
+const EXIT_APPLIED: i32 = 0;
+const EXIT_CLOSED: i32 = 3;
+const EXIT_NO_WINDOW: i32 = 4;
 mod backend;
 mod model;
 mod theme;
@@ -42,7 +50,15 @@ fn main() {
     if let Some(engine) = engine.as_mut() {
         engine.load(&QUrl::from("qrc:/qt/qml/org/bindle/wizard/qml/Main.qml"));
     }
-    if let Some(app) = app.as_mut() {
-        std::process::exit(app.exec());
+    if !app::ffi::bindle_has_window() {
+        eprintln!("bindle-gui: the window couldn't be created (is Kirigami installed?)");
+        std::process::exit(EXIT_NO_WINDOW);
     }
+    if let Some(app) = app.as_mut() {
+        app.exec();
+    }
+    let applied = apply::APPLIED.load(std::sync::atomic::Ordering::SeqCst);
+    // A screenshot run finishing is success, applied or not.
+    let shots = arg("--screenshots").is_some();
+    std::process::exit(if applied || shots { EXIT_APPLIED } else { EXIT_CLOSED });
 }

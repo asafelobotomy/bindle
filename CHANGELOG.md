@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- The desktop window opens at first login on graphical sessions (falling back
+  to the terminal wizard when it can't start), and from the app menu
+  (`bindle open`). Releases ship `bindle-gui-x86_64`, signed with the rest;
+  `install.sh` verifies it when a release lists it; `bindle iso` installs it
+  with `kirigami` and `qt6-declarative` for graphical profiles.
 - Desktop wizard, second part: Apply and Done screens. The window runs the
   reviewed plan with live per-step status and output, asks for the password
   through pkexec (a new polkit action, installed by `first-login install`,

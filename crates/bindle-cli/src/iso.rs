@@ -230,7 +230,12 @@ pub fn run(catalog: &Catalog, facts: &Facts, opts: IsoOpts) -> Result<()> {
         }
     };
 
-    let preset = preset::build(facts, &data, &choice, overlay.as_ref());
+    let mut preset = preset::build(facts, &data, &choice, overlay.as_ref());
+    // The desktop window at first login needs Qt Quick and Kirigami.
+    let window = std::env::current_exe().map(|e| e.with_file_name("bindle-gui").is_file()).unwrap_or(false);
+    if window && choice.profile != "minimal" {
+        add_packages(&mut preset, WINDOW_RUNTIME);
+    }
     let targets = if opts.silent { silent_targets(&preset)? } else { Vec::new() };
     if !opts.dry_run {
         check_block_devices(&targets, is_block_device)?;
@@ -308,9 +313,34 @@ pub fn run(catalog: &Catalog, facts: &Facts, opts: IsoOpts) -> Result<()> {
     Ok(())
 }
 
+/// What `bindle-gui` needs on the installed system.
+const WINDOW_RUNTIME: &[&str] = &["qt6-declarative", "kirigami"];
+
+/// Append to archinstall's extra `packages`, keeping any from `--config`.
+fn add_packages(preset: &mut Value, pkgs: &[&str]) {
+    let list = preset["packages"].as_array().cloned().unwrap_or_default();
+    let mut out: Vec<Value> = list;
+    for p in pkgs {
+        if !out.iter().any(|v| v == p) {
+            out.push(Value::from(*p));
+        }
+    }
+    preset["packages"] = Value::Array(out);
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn window_runtime_joins_the_users_packages() {
+        let mut p = json!({ "packages": ["vim", "kirigami"] });
+        add_packages(&mut p, WINDOW_RUNTIME);
+        assert_eq!(p["packages"], json!(["vim", "kirigami", "qt6-declarative"]));
+        let mut p = json!({});
+        add_packages(&mut p, WINDOW_RUNTIME);
+        assert_eq!(p["packages"], json!(["qt6-declarative", "kirigami"]));
+    }
     use serde_json::json;
 
     const ISO_CMDLINE: &str =

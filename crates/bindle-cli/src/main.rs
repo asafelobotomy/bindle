@@ -1,6 +1,7 @@
 mod apply;
 mod firstlogin;
 mod firstlogin_cmd;
+mod gui;
 mod iso;
 mod notify;
 mod print;
@@ -114,6 +115,10 @@ enum Cmd {
         #[arg(long, hide = true)]
         workdir: Option<PathBuf>,
     },
+    /// The desktop window if it can start, else the wizard in a terminal (the
+    /// app-menu entry).
+    #[command(hide = true)]
+    Open,
     /// Open a terminal running `bindle <args>`, kept open at the end
     /// (the desktop window's fallback when it can't ask for a password).
     #[command(hide = true)]
@@ -256,6 +261,7 @@ fn main() -> Result<()> {
         Cmd::Helper { log, root, fake_commands } => {
             return apply::helper::serve(apply::helper::HelperOpts { root, fake_commands, log });
         }
+        Cmd::Open => return gui::open(),
         Cmd::InTerminal { args } => {
             let exe = std::env::current_exe()?.to_string_lossy().into_owned();
             // Arguments travel as "$@", never through the script text.
@@ -331,7 +337,7 @@ fn main() -> Result<()> {
             apply_selection(&catalog, &facts, &sel, apply::Options { yes, sandbox, launch: Default::default() })
                 .map(drop)
         }
-        Cmd::Helper { .. } | Cmd::InTerminal { .. } | Cmd::Undo { .. } | Cmd::FirstLogin { .. } => {
+        Cmd::Helper { .. } | Cmd::Open | Cmd::InTerminal { .. } | Cmd::Undo { .. } | Cmd::FirstLogin { .. } => {
             unreachable!("handled above")
         }
     }

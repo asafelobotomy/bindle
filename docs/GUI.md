@@ -99,7 +99,9 @@ terminal wizard does: `print::install_lines`, `print::module_details`,
 ## Phases (one commit each)
 
 Done: 1 (engine), 2 (Welcome to Review), 3 (Apply and Done, pkexec with a
-polkit action, terminal fallback when no polkit agent runs). The window applies
+polkit action, terminal fallback when no polkit agent runs), 4 (first login
+and the app-menu entry open the window; releases, `install.sh`, the ISO
+plugin and `first-login install` ship it; `bindle iso` adds the Qt runtime). The window applies
 unattended: the Review screen is the confirmation, so AUR helpers skip their
 own prompts, and output from AUR builds goes to the window's stdout rather
 than its log (the helper's output, pacman's included, is shown).

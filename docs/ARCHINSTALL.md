@@ -85,12 +85,19 @@ Bluetooth hardware is present.
 | File | Purpose |
 |---|---|
 | `/usr/local/bin/bindle` | the binary (a copy of whatever ran the command) |
+| `/usr/local/bin/bindle-gui` | the desktop window, when it ships next to `bindle` (release downloads and `bindle iso` include it) |
+| `/usr/share/polkit-1/actions/io.github.asafelobotomy.bindle.policy` | the reason shown in the window's password dialog |
 | `/etc/xdg/autostart/bindle-first-login.desktop` | desktops: runs `bindle first-login run` at login; Bindle opens the desktop's own terminal |
 | `/etc/systemd/user/bindle-first-login.service` (enabled globally) | window managers without XDG autostart: waits for this user's graphical session (logind + Wayland/X11 socket), then opens a terminal; a short-lived lock in `$XDG_RUNTIME_DIR` prevents a second window where autostart also fires |
 | `/etc/profile.d/bindle-first-login.sh` | console logins (TTY, `startx` users); skipped over SSH or inside a graphical session (`--no-tty-hook` to omit) |
-| `/usr/local/share/applications/bindle.desktop` + icon | a normal launcher for later |
+| `/usr/local/share/applications/bindle.desktop` + icon | a normal launcher for later (`bindle open`: the window, else the wizard in a terminal) |
 
-**First login** opens the wizard. **Later logins**, if setup isn't finished,
+**First login** opens the wizard: in a graphical session, the desktop window
+when `bindle-gui` is installed and Kirigami is present (`bindle iso` adds
+`kirigami` and `qt6-declarative` for graphical profiles), else the wizard in
+the desktop's terminal. Applying from the window marks setup finished; closing
+it without applying gives a reminder at the next login, as below; if the
+window can't start, the terminal wizard opens instead. **Later logins**, if setup isn't finished,
 show a desktop notification instead ("Finish setting up your system" with
 *Set up now* / *Don't remind me*), kept in the notification tray until handled.
 It goes straight to the freedesktop notification service over D-Bus, so

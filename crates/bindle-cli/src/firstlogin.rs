@@ -17,6 +17,8 @@ use anyhow::{Context, Result, bail};
 use crate::apply::sys::{create_dirs, host, is_root, shell_words, write_atomic};
 
 pub const BIN: &str = "/usr/local/bin/bindle";
+/// The desktop window, installed when it ships next to `bindle`.
+pub const GUI_BIN: &str = "/usr/local/bin/bindle-gui";
 pub const AUTOSTART: &str = "/etc/xdg/autostart/bindle-first-login.desktop";
 pub const PROFILE_HOOK: &str = "/etc/profile.d/bindle-first-login.sh";
 pub const LAUNCHER: &str = "/usr/local/share/applications/bindle.desktop";
@@ -59,9 +61,9 @@ const LAUNCHER_ENTRY: &str = "[Desktop Entry]
 Type=Application
 Name=Bindle
 Comment=Set up and optimise this system
-Exec=/usr/local/bin/bindle
+Exec=/usr/local/bin/bindle open
 Icon=bindle
-Terminal=true
+Terminal=false
 Categories=System;Settings;
 ";
 
@@ -99,6 +101,13 @@ pub fn install(root: &Path, tty_hook: bool) -> Result<Vec<String>> {
         write_atomic(&target, &data, 0o755)?;
         done.push(format!("installed {BIN}"));
     }
+    let gui = exe.with_file_name("bindle-gui");
+    let gui_target = host(root, GUI_BIN);
+    if gui.is_file() && fs::canonicalize(&gui).ok() != fs::canonicalize(&gui_target).ok() {
+        let data = fs::read(&gui).context("read bindle-gui")?;
+        write_atomic(&gui_target, &data, 0o755)?;
+        done.push(format!("installed {GUI_BIN}"));
+    }
     let mut files = vec![
         (AUTOSTART, AUTOSTART_ENTRY),
         (LAUNCHER, LAUNCHER_ENTRY),
@@ -126,7 +135,7 @@ pub fn remove(root: &Path, purge: bool) -> Result<Vec<String>> {
     require_root(root)?;
     let mut paths = vec![AUTOSTART, PROFILE_HOOK, USER_UNIT_WANTS, USER_UNIT];
     if purge {
-        paths.extend([LAUNCHER, ICON, POLKIT, BIN]);
+        paths.extend([LAUNCHER, ICON, POLKIT, GUI_BIN, BIN]);
     }
     let mut done = Vec::new();
     for p in paths {
@@ -140,10 +149,11 @@ pub fn remove(root: &Path, purge: bool) -> Result<Vec<String>> {
 }
 
 pub fn status(root: &Path) -> Vec<String> {
-    let mut out: Vec<String> = [BIN, AUTOSTART, USER_UNIT, USER_UNIT_WANTS, PROFILE_HOOK, LAUNCHER, ICON, POLKIT]
-        .iter()
-        .map(|p| format!("{} {p}", if host(root, p).exists() { "✓" } else { "·" }))
-        .collect();
+    let mut out: Vec<String> =
+        [BIN, GUI_BIN, AUTOSTART, USER_UNIT, USER_UNIT_WANTS, PROFILE_HOOK, LAUNCHER, ICON, POLKIT]
+            .iter()
+            .map(|p| format!("{} {p}", if host(root, p).exists() { "✓" } else { "·" }))
+            .collect();
     if marker_path().is_some() {
         let state = if is_done() {
             "done — won't open again"

@@ -90,6 +90,18 @@ main() {
         || die "This release has no signature (SHA256SUMS.sig); use a signed release."
     verify "$dir" || die "Verification failed: this download is not the signed Bindle release. Nothing was run."
     chmod 755 "$dir/bindle"
+    # The desktop window, when this release has one: opened at first login
+    # instead of a terminal. Without it, Bindle opens in a terminal as before.
+    if listed "$dir" bindle-gui-x86_64; then
+        if "${curl[@]}" -sS -o "$dir/bindle-gui" "$base/bindle-gui-x86_64"; then
+            matches "$dir" bindle-gui-x86_64 "$dir/bindle-gui" \
+                || die "Verification failed: bindle-gui doesn't match the signed SHA256SUMS. Nothing was run."
+            chmod 755 "$dir/bindle-gui"
+        else
+            say "Couldn't download the desktop window; Bindle will open in a terminal instead."
+            rm -f "$dir/bindle-gui"
+        fi
+    fi
 
     say "Starting Bindle…"
     trap - EXIT  # the binary runs from $dir
@@ -108,10 +120,24 @@ verify() {
     printf '%s\n' "$SIGNING_KEY" | GNUPGHOME="$dir/gnupg" gpg --batch --quiet --dearmor >"$dir/release.gpg" || return 1
     GNUPGHOME="$dir/gnupg" gpgv --status-fd 1 --keyring "$dir/release.gpg" "$dir/SHA256SUMS.sig" "$dir/SHA256SUMS" 2>/dev/null \
         | grep -q "^\[GNUPG:\] VALIDSIG $SIGNING_FPR " || return 1
+    matches "$dir" bindle-x86_64 "$dir/bindle"
+}
+
+# The checksum SHA256SUMS lists for a release file name (empty if none).
+sum_of() {
+    awk -v f="$2" '$2 == f || $2 == "*" f { print $1 }' "$1/SHA256SUMS"
+}
+
+listed() {
+    [[ -n "$(sum_of "$1" "$2")" ]]
+}
+
+# File $3 is release file $2 as listed in (already verified) $1/SHA256SUMS.
+matches() {
     local sum
-    sum="$(awk '$2 == "bindle-x86_64" || $2 == "*bindle-x86_64" { print $1 }' "$dir/SHA256SUMS")"
+    sum="$(sum_of "$1" "$2")"
     [[ "$sum" =~ ^[0-9a-f]{64}$ ]] || return 1
-    [[ "$(sha256sum <"$dir/bindle" | cut -d' ' -f1)" == "$sum" ]]
+    [[ "$(sha256sum <"$3" | cut -d' ' -f1)" == "$sum" ]]
 }
 
 main "$@"

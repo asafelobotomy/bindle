@@ -8,7 +8,7 @@ use anyhow::{Context, Result, bail};
 use bindle_core::{Catalog, Facts};
 
 use crate::apply::{self, sys::is_root};
-use crate::{FirstLoginCmd, firstlogin, notify, session, terminal, welcome};
+use crate::{FirstLoginCmd, firstlogin, gui, notify, session, terminal, welcome};
 
 /// Every subcommand except `run` (which needs hardware detection).
 pub fn dispatch(action: FirstLoginCmd) -> Result<()> {
@@ -74,6 +74,19 @@ pub fn run(catalog: &Catalog, facts: &Facts, in_terminal: bool, lock: Option<Str
         } else {
             // Open after the desktop's own welcome app, so Bindle ends up on top.
             welcome::wait_for_welcome_apps();
+        }
+        // The desktop window when it can start; this process holds the
+        // launch lock while it's open.
+        if let Some(window) = gui::available() {
+            let ended = gui::run(&window, true);
+            if ended != gui::Ended::Failed {
+                release();
+                firstlogin::mark_seen()?;
+                if ended == gui::Ended::Applied {
+                    firstlogin::mark_done()?;
+                }
+                return Ok(());
+            }
         }
         let exe = std::env::current_exe()?.to_string_lossy().into_owned();
         let mut argv = vec![exe, "first-login".into(), "run".into(), "--in-terminal".into()];

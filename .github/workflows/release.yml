@@ -29,7 +29,8 @@ jobs:
     steps:
       # musl target: the ISO binary must be fully static so it runs on any ISO's glibc.
       - run: |
-          pacman -Syu --noconfirm --needed rustup git curl python file desktop-file-utils
+          pacman -Syu --noconfirm --needed rustup git curl python file desktop-file-utils \
+            qt6-base qt6-declarative kirigami
           rustup toolchain install "$RUST_VERSION" --profile minimal --target x86_64-unknown-linux-musl
           rustup default "$RUST_VERSION"
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
@@ -51,6 +52,10 @@ jobs:
           file dist/bindle-x86_64 | grep -q 'static' || { echo "binary is not static"; exit 1; }
           (cd dist && sha256sum bindle-x86_64 > bindle-x86_64.sha256)
           cp install.sh dist/install.sh
+      - name: Desktop window (links the system's Qt 6 and Kirigami)
+        run: |
+          cargo build --release --locked -p bindle-gui
+          cp target/release/bindle-gui dist/bindle-gui-x86_64
       - name: AppImage
         run: packaging/appimage/build-appimage.sh
       - name: Sign checksums
@@ -62,7 +67,7 @@ jobs:
           export GNUPGHOME="$(mktemp -d)"
           printf '%s\n' "$BINDLE_GPG_KEY" | gpg --batch --quiet --import
           cd dist
-          sha256sum bindle-x86_64 install.sh *.AppImage > SHA256SUMS
+          sha256sum bindle-x86_64 bindle-gui-x86_64 install.sh *.AppImage > SHA256SUMS
           gpg --batch --yes --local-user "$SIGNING_FPR" --output SHA256SUMS.sig --detach-sign SHA256SUMS
           # The secret must match the key users verify against.
           gpg --batch --dearmor < ../packaging/bindle-release.asc > "$GNUPGHOME/release.gpg"

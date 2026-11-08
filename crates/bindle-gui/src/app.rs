@@ -6,6 +6,7 @@ pub mod ffi {
         include!("bindle-gui/cpp/app.h");
 
         fn bindle_describe_application(version: &str);
+        fn bindle_has_window() -> bool;
         fn bindle_grab_window(path: &str) -> bool;
     }
 }

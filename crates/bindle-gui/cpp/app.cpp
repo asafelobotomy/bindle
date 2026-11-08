@@ -20,6 +20,11 @@ void bindle_describe_application(rust::Str version)
     QGuiApplication::setDesktopFileName(QStringLiteral("bindle"));
 }
 
+bool bindle_has_window()
+{
+    return !QGuiApplication::topLevelWindows().isEmpty();
+}
+
 bool bindle_grab_window(rust::Str path)
 {
     const auto file = toQString(path);

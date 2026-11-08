@@ -125,10 +125,12 @@ shot() {
 }
 
 serve_build() {
-    (cd "$ROOT" && cargo build -q -p bindle-cli)
+    (cd "$ROOT" && cargo build -q -p bindle-cli -p bindle-gui)
     mkdir -p "$WORK/serve"
     cp "$ROOT/target/debug/bindle" "$WORK/serve/bindle-x86_64"
-    (cd "$WORK/serve" && sha256sum bindle-x86_64 >bindle-x86_64.sha256)
+    cp "$ROOT/target/debug/bindle-gui" "$WORK/serve/bindle-gui-x86_64"
+    (cd "$WORK/serve" && sha256sum bindle-x86_64 >bindle-x86_64.sha256 \
+        && sha256sum bindle-gui-x86_64 >bindle-gui-x86_64.sha256)
 }
 
 # install.sh only runs a binary whose SHA256SUMS is signed by its embedded
@@ -148,7 +150,7 @@ s = re.sub(r"^SIGNING_FPR=.*$", f"SIGNING_FPR={fpr}", s, count=1, flags=re.M)
 s = re.sub(r"^SIGNING_KEY='[^']*'", lambda _: f"SIGNING_KEY='{key}'", s, count=1, flags=re.M)
 open(dst, "w").write(s)
 PY
-    (cd "$WORK/serve" && sha256sum bindle-x86_64 install.sh >SHA256SUMS \
+    (cd "$WORK/serve" && sha256sum bindle-x86_64 bindle-gui-x86_64 install.sh >SHA256SUMS \
         && GNUPGHOME="$gh" gpg --batch -q --yes --local-user "$fpr" --output SHA256SUMS.sig --detach-sign SHA256SUMS)
 }
 

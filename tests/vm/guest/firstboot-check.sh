@@ -27,6 +27,12 @@ if curl -fsS --max-time 5 -o /tmp/bindle.new http://10.0.2.2:8765/bindle-x86_64 
     install -m755 /tmp/bindle.new /usr/local/bin/bindle
     echo "BINDLE-VM: using the host's latest bindle build"
 fi
+if curl -fsS --max-time 60 -o /tmp/bindle-gui.new http://10.0.2.2:8765/bindle-gui-x86_64 \
+    && curl -fsS --max-time 5 -o /tmp/bindle-gui.sha http://10.0.2.2:8765/bindle-gui-x86_64.sha256 \
+    && [[ "$(sha256sum </tmp/bindle-gui.new | cut -d' ' -f1)" == "$(cut -d' ' -f1 /tmp/bindle-gui.sha)" ]]; then
+    install -m755 /tmp/bindle-gui.new /usr/local/bin/bindle-gui
+    echo "BINDLE-VM: using the host's latest bindle-gui build"
+fi
 # SECOND_LOGIN=1 on the host: pretend the wizard already opened once, so this
 # graphical login should show the reminder notification instead.
 if curl -fs --max-time 5 -o /dev/null http://10.0.2.2:8765/second-login; then
