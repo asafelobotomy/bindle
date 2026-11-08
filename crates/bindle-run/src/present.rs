@@ -120,7 +120,21 @@ pub fn describe(step: &Step) -> String {
 
 /// Summary of what the installer chose, for `bindle archinstall` and the
 /// wizard's first screen.
-pub fn install_lines(f: &Facts) -> Vec<String> {
+/// What the installer set up, for the first screen of every frontend.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct InstallSummary {
+    /// "Installed 2026-11-08 by archinstall", when Bindle could tell.
+    pub installed: Option<String>,
+    /// Where the summary comes from (archinstall's log, pacman.log, the live system).
+    pub source: String,
+    /// Known fields only, in display order.
+    pub rows: Vec<(String, String)>,
+    /// Modules the installer already set up: (module id, why).
+    pub provided: Vec<(String, String)>,
+    pub advice: Vec<String>,
+}
+
+pub fn install_summary(f: &Facts) -> InstallSummary {
     use bindle_core::install::{self, Source};
     let r = &f.install;
     let dash = || "—".to_string();
@@ -131,16 +145,12 @@ pub fn install_lines(f: &Facts) -> Vec<String> {
         Source::PacmanLog => "rebuilt from pacman.log (inferred)",
         Source::Unknown => "no installer record found; showing the live system",
     };
-    // Short lines: first-login opens in terminals as small as 80×24.
-    let mut out = Vec::new();
-    if r.installed_at.is_some() || r.installer.is_some() {
-        out.push(format!("Installed {} by {}", opt(&r.installed_at).get(..10).unwrap_or("—"), opt(&r.installer)));
-    }
-    out.push(match &r.archinstall_version {
-        Some(v) => format!("Source: {source} · archinstall {v}"),
-        None => format!("Source: {source}"),
-    });
-    out.push(String::new());
+    let installed = (r.installed_at.is_some() || r.installer.is_some())
+        .then(|| format!("Installed {} by {}", opt(&r.installed_at).get(..10).unwrap_or("—"), opt(&r.installer)));
+    let source = match &r.archinstall_version {
+        Some(v) => format!("{source} · archinstall {v}"),
+        None => source.to_string(),
+    };
     let data = bindle_core::desktops::all().unwrap_or_default();
     let names: Vec<String> = f
         .desktops
@@ -200,24 +210,34 @@ pub fn install_lines(f: &Facts) -> Vec<String> {
         ),
         ("Extra pkgs", if r.extra_packages.is_empty() { dash() } else { r.extra_packages.join(" ") }),
     ];
-    for (k, v) in rows {
-        // Unknown values say nothing; leave them out.
-        if v.is_empty() || v == "—" {
-            continue;
-        }
-        out.push(format!("  {k:<11} {v}"));
+    // Unknown values say nothing; leave them out.
+    let rows = rows.into_iter().filter(|(_, v)| !v.is_empty() && v != "—").map(|(k, v)| (k.to_string(), v)).collect();
+    InstallSummary {
+        installed,
+        source,
+        rows,
+        provided: r.provided().into_iter().collect(),
+        advice: install::advisories(f),
     }
-    let provided = r.provided();
-    if !provided.is_empty() {
+}
+
+/// The install summary as text: `bindle archinstall` and the terminal
+/// wizard's first screen (short lines: it opens in terminals as small as 80×24).
+pub fn install_lines(f: &Facts) -> Vec<String> {
+    let s = install_summary(f);
+    let mut out: Vec<String> = s.installed.into_iter().collect();
+    out.push(format!("Source: {}", s.source));
+    out.push(String::new());
+    out.extend(s.rows.iter().map(|(k, v)| format!("  {k:<11} {v}")));
+    if !s.provided.is_empty() {
         out.push(String::new());
         out.push("Already set up — Bindle will build on these, not redo them:".into());
-        out.extend(provided.iter().map(|(id, why)| format!("  ✓ {id:<16} {why}")));
+        out.extend(s.provided.iter().map(|(id, why)| format!("  ✓ {id:<16} {why}")));
     }
-    let advice = install::advisories(f);
-    if !advice.is_empty() {
+    if !s.advice.is_empty() {
         out.push(String::new());
         out.push("Suggestions:".into());
-        out.extend(advice.iter().map(|a| format!("  • {a}")));
+        out.extend(s.advice.iter().map(|a| format!("  • {a}")));
     }
     out
 }

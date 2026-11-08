@@ -1,6 +1,9 @@
 [workspace]
 resolver = "3"
-members = ["crates/bindle-core", "crates/bindle-run", "crates/bindle-cli"]
+members = ["crates/bindle-core", "crates/bindle-run", "crates/bindle-cli", "crates/bindle-gui"]
+# bindle-gui needs Qt 6 and Kirigami to build; plain `cargo build` / `cargo test`
+# skip it. Build it with `make gui` or `cargo build -p bindle-gui`.
+default-members = ["crates/bindle-core", "crates/bindle-run", "crates/bindle-cli"]
 
 [workspace.package]
 version = "0.1.2"

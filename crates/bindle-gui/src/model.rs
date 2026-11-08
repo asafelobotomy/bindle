@@ -1,0 +1,262 @@
+//! The wizard's state and the data each screen shows, as JSON for QML.
+//! No Qt here: the rules match the terminal wizard (`bindle-cli/src/tui`).
+
+use std::collections::{BTreeMap, BTreeSet};
+
+use bindle_core::catalog::Risk;
+use bindle_core::{Catalog, Facts, Plan, Selection, Step, plan};
+use bindle_run::present;
+use serde_json::{Value, json};
+
+pub struct Wizard {
+    catalog: Catalog,
+    facts: Facts,
+    profile: String,
+    selected: BTreeSet<String>,
+    provided: BTreeMap<String, String>,
+}
+
+impl Wizard {
+    pub fn new(catalog: Catalog, facts: Facts) -> Self {
+        let profile = if facts.desktops.is_empty() { "minimal" } else { "desktop" }.to_string();
+        let provided = facts.install.provided();
+        let mut w = Wizard { catalog, facts, profile, selected: BTreeSet::new(), provided };
+        w.selected = w.base();
+        w
+    }
+
+    fn base(&self) -> BTreeSet<String> {
+        let sel = Selection { profile: Some(self.profile.clone()), ..Default::default() };
+        sel.initial(&self.catalog).unwrap_or_default()
+    }
+
+    pub fn profile(&self) -> &str {
+        &self.profile
+    }
+
+    /// Start over from a profile's modules.
+    pub fn set_profile(&mut self, id: &str) {
+        if self.catalog.profiles.iter().any(|p| p.id == id) {
+            self.profile = id.to_string();
+            self.selected = self.base();
+        }
+    }
+
+    /// Select or deselect a module. Selecting one of a conflicting pair drops
+    /// the other; the returned line says so.
+    pub fn toggle(&mut self, id: &str) -> Option<String> {
+        let m = self.catalog.module(id)?;
+        if self.provided.contains_key(id) || self.selected.remove(id) {
+            return None;
+        }
+        let dropped: Vec<&str> =
+            m.conflicts.iter().filter(|r| self.selected.remove(r.as_str())).map(String::as_str).collect();
+        self.selected.insert(id.to_string());
+        (!dropped.is_empty())
+            .then(|| format!("{} replaces {} (they can't be combined)", m.name, names(&self.catalog, &dropped)))
+    }
+
+    pub fn selection(&self) -> Selection {
+        let base = self.base();
+        Selection {
+            profile: Some(self.profile.clone()),
+            include: self.selected.difference(&base).cloned().collect(),
+            exclude: base.difference(&self.selected).cloned().collect(),
+            // The review lists replacements before anything happens.
+            replace_conflicts: true,
+        }
+    }
+
+    /// One line under the title: distro, CPU, RAM, GPUs, form factor.
+    pub fn header(&self) -> String {
+        let f = &self.facts;
+        let gpus = if f.gpus.is_empty() { "no GPU".to_string() } else { f.gpus.join(" + ") };
+        let kind = if f.virt != "none" && !f.virt.is_empty() {
+            "virtual machine"
+        } else if f.laptop {
+            "laptop"
+        } else {
+            "desktop PC"
+        };
+        format!("{} · {} · {:.0} GiB · {gpus} · {kind}", f.pretty_name, f.cpu_vendor, f.ram_mib as f64 / 1024.0)
+    }
+
+    pub fn welcome(&self) -> Value {
+        json!(present::install_summary(&self.facts))
+    }
+
+    pub fn profiles(&self) -> Value {
+        let profiles: Vec<Value> = self
+            .catalog
+            .profiles
+            .iter()
+            .map(|p| {
+                let count = Selection { profile: Some(p.id.clone()), ..Default::default() }
+                    .initial(&self.catalog)
+                    .map_or(0, |s| s.len());
+                json!({ "id": p.id, "name": p.name, "description": p.description, "count": count })
+            })
+            .collect();
+        json!(profiles)
+    }
+
+    pub fn categories(&self) -> Value {
+        let cats: Vec<Value> = self
+            .catalog
+            .categories
+            .iter()
+            .map(|c| {
+                let modules: Vec<Value> = self.catalog.modules_in(&c.id).map(|m| self.module(m)).collect();
+                let picked = modules.iter().filter(|m| m["selected"] == true).count();
+                json!({
+                    "id": c.id, "name": c.name, "description": c.description,
+                    "selected": picked, "total": modules.len(), "modules": modules,
+                })
+            })
+            .collect();
+        json!(cats)
+    }
+
+    fn module(&self, m: &bindle_core::catalog::Module) -> Value {
+        let risk = match m.risk {
+            Risk::Safe => "",
+            Risk::Moderate => "moderate",
+            Risk::Advanced => "advanced",
+        };
+        json!({
+            "id": m.id, "name": m.name, "description": m.description, "risk": risk,
+            "selected": self.selected.contains(&m.id),
+            "provided": self.provided.get(&m.id),
+            "unavailable": self.facts.matches(&m.when).err(),
+            "notes": m.notes,
+            "details": present::module_details(m, &self.facts),
+            "requires": names(&self.catalog, &m.requires.iter().map(String::as_str).collect::<Vec<_>>()),
+            "conflicts": names(&self.catalog, &m.conflicts.iter().map(String::as_str).collect::<Vec<_>>()),
+        })
+    }
+
+    pub fn review(&self) -> Value {
+        let read = |p: &str| std::fs::read_to_string(p).ok();
+        match plan::resolve(&self.catalog, &self.facts, &self.selection(), &read) {
+            Ok(p) => review_json(&p, &self.catalog),
+            Err(e) => json!({ "ok": false, "error": format!("{e:#}") }),
+        }
+    }
+}
+
+fn names(catalog: &Catalog, ids: &[&str]) -> String {
+    let names: Vec<&str> = ids.iter().map(|id| catalog.module(id).map_or(*id, |m| m.name.as_str())).collect();
+    names.join(", ")
+}
+
+fn review_json(p: &Plan, catalog: &Catalog) -> Value {
+    let name = |id: &str| catalog.module(id).map_or(id.to_string(), |m| m.name.clone());
+    let mut packages = 0;
+    let (mut files, mut services) = (0, 0);
+    for s in &p.steps {
+        match s {
+            Step::InstallPackages { packages: p } | Step::InstallAur { packages: p } => packages += p.len(),
+            Step::InstallReleases { assets } => packages += assets.len(),
+            Step::BootstrapAurHelper { .. } => packages += 1,
+            Step::WriteFile { .. } => files += 1,
+            Step::EnableUnits { units } => services += units.len(),
+            _ => {}
+        }
+    }
+    let steps: Vec<Value> = p
+        .steps
+        .iter()
+        .map(|s| {
+            let content: Vec<&str> = match s {
+                Step::WriteFile { file, .. } => file.content.lines().filter(|l| *l != "# Managed by Bindle").collect(),
+                _ => Vec::new(),
+            };
+            json!({ "root": s.privileged(), "text": present::describe(s), "content": content })
+        })
+        .collect();
+    let pair = |v: &[(String, String)], f: &dyn Fn(&str, &str) -> String| -> Vec<String> {
+        v.iter().map(|(a, b)| f(a, b)).collect()
+    };
+    json!({
+        "ok": true,
+        "empty": p.is_empty(),
+        "counts": { "modules": p.modules.len(), "packages": packages, "files": files, "services": services },
+        "replaced": pair(&p.replaced, &|id, pkg| format!("{} replaces the installed {pkg}", name(id))),
+        "pulled_in": pair(&p.pulled_in, &|dep, by| format!("{} added: {} needs it", name(dep), name(by))),
+        "provided": pair(&p.provided, &|id, why| format!("{}: {why}", name(id))),
+        "skipped": pair(&p.skipped, &|id, why| format!("{} skipped: {why}", name(id))),
+        "steps": steps,
+        "notes": pair(&p.notes, &|id, n| format!("{}: {n}", name(id))),
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn wizard(f: Facts) -> Wizard {
+        Wizard::new(Catalog::arch().unwrap(), f)
+    }
+
+    fn arch() -> Facts {
+        Facts { distro_id: "arch".into(), desktops: vec!["gnome".into()], laptop: true, ..Default::default() }
+    }
+
+    #[test]
+    fn starts_from_the_desktop_profile_on_a_desktop() {
+        let w = wizard(arch());
+        assert_eq!(w.profile(), "desktop");
+        assert_eq!(wizard(Facts::default()).profile(), "minimal");
+        let sel = w.selection();
+        assert!(sel.include.is_empty() && sel.exclude.is_empty());
+    }
+
+    #[test]
+    fn toggling_a_rival_drops_the_other() {
+        let mut w = wizard(arch());
+        assert!(w.selected.contains("power-profiles"));
+        let notice = w.toggle("tlp").unwrap();
+        assert!(notice.contains("replaces Power profiles"), "{notice}");
+        assert!(w.selected.contains("tlp") && !w.selected.contains("power-profiles"));
+        assert_eq!(w.toggle("tlp"), None);
+        assert!(!w.selected.contains("tlp"));
+        assert_eq!(w.toggle("no-such-module"), None);
+    }
+
+    #[test]
+    fn choosing_a_profile_resets_the_selection() {
+        let mut w = wizard(arch());
+        w.toggle("blender");
+        w.set_profile("gaming");
+        assert!(w.selected.contains("steam") && !w.selected.contains("blender"));
+        w.set_profile("nonsense");
+        assert_eq!(w.profile(), "gaming");
+    }
+
+    #[test]
+    fn screens_get_the_fields_they_show() {
+        let w = wizard(arch());
+        let cats = w.categories();
+        let hw = cats.as_array().unwrap().iter().find(|c| c["id"] == "hardware").unwrap();
+        let tlp = hw["modules"].as_array().unwrap().iter().find(|m| m["id"] == "tlp").unwrap();
+        assert_eq!(tlp["risk"], "moderate");
+        assert_eq!(tlp["conflicts"], "Power profiles (power-profiles-daemon)");
+        assert!(hw["selected"].as_u64().unwrap() > 0);
+        let profiles = w.profiles();
+        assert!(profiles.as_array().unwrap().iter().all(|p| p["count"].as_u64().unwrap() > 0));
+        assert!(w.header().contains("laptop"));
+        assert!(w.welcome()["rows"].is_array());
+    }
+
+    #[test]
+    fn review_counts_what_changes() {
+        let mut w = wizard(arch());
+        w.toggle("blender");
+        let r = w.review();
+        assert_eq!(r["ok"], true, "{r}");
+        assert!(r["counts"]["packages"].as_u64().unwrap() > 0);
+        let steps = r["steps"].as_array().unwrap();
+        assert!(steps.iter().any(|s| s["text"].as_str().unwrap().contains("blender")));
+        assert!(steps.iter().any(|s| s["root"] == true));
+    }
+}

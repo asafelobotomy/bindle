@@ -1,0 +1,24 @@
+[package]
+name = "bindle-gui"
+description = "Bindle's desktop wizard (Kirigami), themed by uQ when it runs there"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "bindle-gui"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+bindle-core = { path = "../bindle-core" }
+bindle-run = { path = "../bindle-run" }
+cxx = "1.0"
+cxx-qt = "0.10"
+cxx-qt-lib = { version = "0.10", features = ["qt_gui", "qt_qml", "qt_quickcontrols"] }
+serde.workspace = true
+serde_json.workspace = true
+
+[build-dependencies]
+cxx-qt-build = "0.10"

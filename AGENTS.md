@@ -8,6 +8,7 @@ Fresh-install setup wizard for Linux (Arch first). Rust workspace; TUI-first; Ap
 |---|---|
 | `crates/bindle-core` | `detect` (facts, no root), `install` (archinstall log / pacman.log reconstruction), `desktops`, `catalog` (TOML, validated), `builtins` (hardware-computed modules), `plan` (pure resolver), `pacman_conf` |
 | `crates/bindle-run` | apply engine shared by frontends: `apply` (orchestrator, `Progress` trait), root `helper`, JSON `protocol`, `client`, `snapshot`, `sys`, `selection`, `present` (text every frontend shows) |
+| `crates/bindle-gui` | `bindle-gui`: desktop wizard, cxx-qt + Kirigami (`qml/`, `src/model.rs` holds the wizard state without Qt, `src/theme.rs` reads uQ's tokens). Not a default workspace member: needs Qt 6 and Kirigami |
 | `crates/bindle-cli` | `bindle` binary: clap CLI, ratatui wizard (`src/tui`), `apply.rs` (terminal frontend over `bindle-run`), `firstlogin.rs`, `terminal.rs` |
 | `catalog/` | Module data + `desktops.toml`, embedded at compile time; add files to `ARCH_FILES`; `make check-packages` |
 | `packaging/appimage` | `AppRun`, desktop file, `build-appimage.sh` |
@@ -22,6 +23,8 @@ Fresh-install setup wizard for Linux (Arch first). Rust workspace; TUI-first; Ap
 ```bash
 make test          # unit tests (catalog validation runs here)
 make lint          # fmt --check + clippy -D warnings
+make gui-test      # bindle-gui clippy + tests (needs qt6-declarative, kirigami)
+make gui-shots     # every screen offscreen, per uQ theme fixture, into dist/shots/
 cargo run -p bindle-cli -- detect
 cargo run -p bindle-cli -- plan --profile gaming
 ```

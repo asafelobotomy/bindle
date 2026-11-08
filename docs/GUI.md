@@ -98,6 +98,10 @@ terminal wizard does: `print::install_lines`, `print::module_details`,
 
 ## Phases (one commit each)
 
+Done: 1 (engine), 2 (screens up to Review; the Apply button says applying
+from the window comes next).
+
+
 1. Extract `bindle-run` and the `Progress` trait; CLI output unchanged.
 2. `bindle-gui`: Welcome, Profile, Choose, Review; uQ token theming;
    offscreen screenshot tests.

@@ -22,12 +22,26 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
       - run: cargo fmt --check
       - run: cargo deny --locked check
-      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
-      - run: cargo test --workspace --locked
+      - run: cargo clippy --all-targets --locked -- -D warnings
+      - run: cargo test --locked
       - name: Static build (the ISO binary)
         run: cargo build --release --locked -p bindle-cli --target x86_64-unknown-linux-musl
       - run: bash -n install.sh && python -m py_compile packaging/archinstall/bindle_plugin.py
       - run: pacman -Fy --noconfirm && python scripts/check-packages.py --aur
+
+  gui:
+    # The desktop wizard (Qt 6 + Kirigami): clippy, tests, and every screen
+    # rendered offscreen in each uQ theme fixture.
+    runs-on: ubuntu-latest
+    container: archlinux:base-devel
+    steps:
+      - run: pacman -Syu --noconfirm --needed rust git qt6-base qt6-declarative kirigami ttf-dejavu
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - run: cargo clippy -p bindle-gui --all-targets --locked -- -D warnings
+      - run: cargo test -p bindle-gui --locked
+      - run: make gui-shots
+      - name: Every screenshot was written
+        run: test "$(find dist/shots -name '*.png' | wc -l)" -eq 25
 
   msrv:
     # rust-version in Cargo.toml is a promise; build with exactly that toolchain.
@@ -39,4 +53,4 @@ jobs:
       - run: |
           msrv=$(sed -n 's/^rust-version = "\(.*\)"/\1/p' Cargo.toml)
           rustup toolchain install "$msrv" --profile minimal
-          cargo +"$msrv" check --workspace --all-targets --locked
+          cargo +"$msrv" check --all-targets --locked

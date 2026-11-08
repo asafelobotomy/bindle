@@ -1,0 +1,29 @@
+use cxx_qt_build::{CxxQtBuilder, QmlFile, QmlModule};
+
+fn main() {
+    let builder = CxxQtBuilder::new_qml_module(QmlModule::new("org.bindle.wizard").qml_files([
+        QmlFile::from("qml/Main.qml"),
+        QmlFile::from("qml/Theme.qml").singleton(true),
+        QmlFile::from("qml/Panel.qml"),
+        QmlFile::from("qml/Pill.qml"),
+        QmlFile::from("qml/ActionButton.qml"),
+        QmlFile::from("qml/StepBar.qml"),
+        QmlFile::from("qml/WelcomePage.qml"),
+        QmlFile::from("qml/ProfilePage.qml"),
+        QmlFile::from("qml/ChoosePage.qml"),
+        QmlFile::from("qml/ModuleDetails.qml"),
+        QmlFile::from("qml/ReviewPage.qml"),
+    ]))
+    .qt_module("Gui")
+    .qt_module("Quick")
+    .qt_module("QuickControls2")
+    .files(["src/backend.rs", "src/app.rs"])
+    .cpp_file("cpp/app.cpp");
+    // SAFETY: only adds a warning flag; GCC 16 warns about Qt's own headers.
+    let builder = unsafe {
+        builder.cc_builder(|cc| {
+            cc.flag_if_supported("-Wno-sfinae-incomplete");
+        })
+    };
+    builder.build();
+}

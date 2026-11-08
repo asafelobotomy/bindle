@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Desktop wizard, first part (`bindle-gui`, Qt 6 + Kirigami): Welcome,
+  Profile, Choose (with search and module details) and Review screens, themed
+  from uQ's tokens and following uQ theme changes live; the desktop's Qt
+  theme elsewhere. Applying from the window comes next. `make gui-shots`
+  renders every screen per uQ theme.
 - Internals: the apply engine (orchestrator, root helper, protocol,
   snapshots, downloads, selection files and shared text) moved into a new
   `bindle-run` crate, which reports progress through a `Progress` trait. The

@@ -1,14 +1,15 @@
-.PHONY: check test lint fmt run appimage appdir check-packages
+.PHONY: check test lint fmt run appimage appdir check-packages gui gui-test gui-shots
 
+# The default workspace members: core, run, cli. No Qt needed.
 check:
-	cargo check --workspace
+	cargo check
 
 test:
-	cargo test --workspace
+	cargo test
 
 lint:
 	cargo fmt --check
-	cargo clippy --workspace --all-targets -- -D warnings
+	cargo clippy --all-targets -- -D warnings
 
 fmt:
 	cargo fmt
@@ -24,3 +25,17 @@ appimage:
 
 check-packages:
 	python3 scripts/check-packages.py
+
+# The desktop wizard: needs qt6-base, qt6-declarative and kirigami.
+gui:
+	cargo run -p bindle-gui
+
+gui-test:
+	cargo clippy -p bindle-gui --all-targets -- -D warnings
+	cargo test -p bindle-gui
+
+# Every screen in each uQ theme fixture, plus the desktop's own theme
+# ("none"), into dist/shots/<theme>/.
+gui-shots:
+	cargo build -p bindle-gui
+	scripts/gui-shots.sh
