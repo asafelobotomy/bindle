@@ -3,10 +3,16 @@
 # Exercises Bindle as the test user, including a real apply.
 echo "BINDLE-VM: CHECK START"
 # Test-only: passwordless sudo for the test user (validated), so apply can run unattended.
-echo 'tester ALL=(ALL:ALL) NOPASSWD: ALL' >/etc/sudoers.d/zz-bindle-vm
-chmod 440 /etc/sudoers.d/zz-bindle-vm
-visudo -cq || echo "BINDLE-VM: sudoers invalid"
+# The include line first, then the rule; a sudoers that doesn't validate stops the test.
 grep -q '^@includedir /etc/sudoers.d' /etc/sudoers || echo '@includedir /etc/sudoers.d' >>/etc/sudoers
+install -m 440 /dev/null /etc/sudoers.d/zz-bindle-vm
+echo 'tester ALL=(ALL:ALL) NOPASSWD: ALL' >/etc/sudoers.d/zz-bindle-vm
+if ! visudo -cq; then
+    echo "BINDLE-VM: sudoers invalid"
+    rm -f /etc/sudoers.d/zz-bindle-vm
+    echo "BINDLE-VM: CHECK FAILED"
+    exit 1
+fi
 echo "BINDLE-VM: sudo rules for tester:"; sudo -l -U tester | tail -n 3
 for _ in $(seq 60); do curl -fsS -o /dev/null --max-time 5 https://archlinux.org && break; sleep 3; done
 as_tester() {

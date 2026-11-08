@@ -5,16 +5,17 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use anyhow::Result;
-use bindle_core::catalog::Risk;
 use bindle_core::{Catalog, Facts, Selection, plan};
 use ratatui::crossterm::event::{self, Event, KeyCode, KeyEventKind};
 use ratatui::layout::{Constraint, Layout};
-use ratatui::style::{Color, Modifier, Style, Stylize};
-use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, List, ListItem, ListState, Paragraph, Wrap};
+use ratatui::style::{Color, Stylize};
+use ratatui::text::Line;
+use ratatui::widgets::{Block, ListState, Paragraph, Wrap};
 use ratatui::{DefaultTerminal, Frame};
 
 use crate::print;
+
+mod pick;
 
 pub mod iso;
 
@@ -41,6 +42,10 @@ struct App<'a> {
     plan_ok: bool,
     seed: Option<Selection>,
     scroll: u16,
+    /// Scroll of the Pick screen's detail pane; reset when the module changes.
+    detail_scroll: u16,
+    /// One-line message on the Pick screen (e.g. a rival module was deselected).
+    notice: Option<String>,
     quit: bool,
     apply: bool,
 }
@@ -64,6 +69,8 @@ fn new_app<'a>(catalog: &'a Catalog, facts: &'a Facts, seed: Option<Selection>) 
         plan_ok: false,
         seed,
         scroll: 0,
+        detail_scroll: 0,
+        notice: None,
         quit: false,
         apply: false,
     }
@@ -153,11 +160,17 @@ impl<'a> App<'a> {
             (Screen::Pick, KeyCode::Tab | KeyCode::Left | KeyCode::Right) => {
                 self.focus_modules = !self.focus_modules;
             }
-            (Screen::Pick, KeyCode::Up) if self.focus_modules => self.module.select_previous(),
+            (Screen::Pick, KeyCode::Up) if self.focus_modules => {
+                self.module.select_previous();
+                (self.detail_scroll, self.notice) = (0, None);
+            }
             (Screen::Pick, KeyCode::Down) if self.focus_modules => {
                 let max = self.current_modules().len().saturating_sub(1);
                 self.module.select(Some((self.module.selected().unwrap_or(0) + 1).min(max)));
+                (self.detail_scroll, self.notice) = (0, None);
             }
+            (Screen::Pick, KeyCode::PageDown) => self.detail_scroll = self.detail_scroll.saturating_add(3),
+            (Screen::Pick, KeyCode::PageUp) => self.detail_scroll = self.detail_scroll.saturating_sub(3),
             (Screen::Pick, KeyCode::Up) => {
                 self.category.select_previous();
                 self.module.select(Some(0));
@@ -170,9 +183,15 @@ impl<'a> App<'a> {
             (Screen::Pick, KeyCode::Char(' ')) if self.focus_modules => {
                 if let Some(m) = self.current_modules().get(self.module.selected().unwrap_or(0)) {
                     let id = m.id.clone();
+                    let rivals = m.conflicts.clone();
                     if self.provided.contains_key(&id) {
                         // Set up by the installer; nothing to toggle.
                     } else if !self.selected.remove(&id) {
+                        // Picking one of a conflicting pair drops the other.
+                        let dropped: Vec<String> = rivals.into_iter().filter(|r| self.selected.remove(r)).collect();
+                        if !dropped.is_empty() {
+                            self.notice = Some(format!("{id} replaces {} (they conflict)", dropped.join(", ")));
+                        }
                         self.selected.insert(id);
                     }
                 }
@@ -253,104 +272,6 @@ impl<'a> App<'a> {
             }
         }
     }
-
-    fn draw_profiles(&mut self, f: &mut Frame, area: ratatui::layout::Rect) {
-        let items: Vec<ListItem> = self
-            .catalog
-            .profiles
-            .iter()
-            .map(|p| ListItem::new(vec![Line::from(p.name.as_str()).bold(), Line::from(p.description.as_str()).dim()]))
-            .collect();
-        let list = List::new(items)
-            .block(Block::bordered().title(" Choose a starting profile "))
-            .highlight_style(Style::new().bg(Color::DarkGray))
-            .highlight_symbol("▸ ");
-        f.render_stateful_widget(list, area, &mut self.profile);
-    }
-
-    fn draw_pick(&mut self, f: &mut Frame, area: ratatui::layout::Rect) {
-        // Narrow terminals (first login opens at 80×24): details go below the lists.
-        let (left, right, info) = if area.width < 100 {
-            let [lists, info] = Layout::vertical([Constraint::Min(8), Constraint::Length(7)]).areas(area);
-            let [left, right] = Layout::horizontal([Constraint::Length(22), Constraint::Min(30)]).areas(lists);
-            (left, right, info)
-        } else {
-            let [left, right, info] =
-                Layout::horizontal([Constraint::Length(24), Constraint::Min(30), Constraint::Percentage(35)])
-                    .areas(area);
-            (left, right, info)
-        };
-        let focused = |on: bool| {
-            if on { Style::new().fg(Color::Yellow) } else { Style::new() }
-        };
-
-        let cats: Vec<ListItem> = self
-            .catalog
-            .categories
-            .iter()
-            .map(|c| {
-                let n = self.catalog.modules_in(&c.id).filter(|m| self.selected.contains(&m.id)).count();
-                ListItem::new(format!("{} ({n})", c.name))
-            })
-            .collect();
-        let cats = List::new(cats)
-            .block(Block::bordered().title(" Categories ").border_style(focused(!self.focus_modules)))
-            .highlight_style(Style::new().bg(Color::DarkGray));
-        f.render_stateful_widget(cats, left, &mut self.category);
-
-        let modules = self.current_modules();
-        let items: Vec<ListItem> = modules
-            .iter()
-            .map(|m| {
-                let done = self.provided.contains_key(&m.id);
-                let mark = if done {
-                    "[✓]"
-                } else if self.selected.contains(&m.id) {
-                    "[x]"
-                } else {
-                    "[ ]"
-                };
-                let mut spans = vec![Span::raw(format!("{mark} {}", m.name))];
-                match m.risk {
-                    Risk::Safe => {}
-                    Risk::Moderate => spans.push(Span::raw(" ●").fg(Color::Yellow)),
-                    Risk::Advanced => spans.push(Span::raw(" ●").fg(Color::Red)),
-                }
-                let mut line = Line::from(spans);
-                if done {
-                    line = line.fg(Color::Green);
-                } else if self.facts.matches(&m.when).is_err() {
-                    line = line.add_modifier(Modifier::DIM);
-                }
-                ListItem::new(line)
-            })
-            .collect();
-        let detail = modules.get(self.module.selected().unwrap_or(0)).map(|m| {
-            let mut lines =
-                vec![Line::from(m.name.as_str()).bold(), Line::from(""), Line::from(m.description.as_str())];
-            if let Some(why) = self.provided.get(&m.id) {
-                lines.push(Line::from(format!("Already set up: {why}")).fg(Color::Green));
-            } else if let Err(r) = self.facts.matches(&m.when) {
-                lines.push(Line::from(format!("Not applicable here: {r}")).fg(Color::Red));
-            }
-            if !m.requires.is_empty() {
-                lines.push(Line::from(format!("Requires: {}", m.requires.join(", "))).dim());
-            }
-            if !m.conflicts.is_empty() {
-                lines.push(Line::from(format!("Conflicts: {}", m.conflicts.join(", "))).dim());
-            }
-            lines.extend(m.notes.iter().map(|n| Line::from(format!("• {n}")).dim()));
-            lines
-        });
-        let list = List::new(items)
-            .block(Block::bordered().title(" Modules ").border_style(focused(self.focus_modules)))
-            .highlight_style(if self.focus_modules { Style::new().bg(Color::DarkGray) } else { Style::new() });
-        f.render_stateful_widget(list, right, &mut self.module);
-        f.render_widget(
-            Paragraph::new(detail.unwrap_or_default()).wrap(Wrap { trim: true }).block(Block::bordered()),
-            info,
-        );
-    }
 }
 
 #[cfg(test)]
@@ -383,5 +304,28 @@ mod tests {
         assert!(screen_text(&mut app, 160, 50).contains("Categories"));
         app.on_key(KeyCode::Enter);
         assert!(screen_text(&mut app, 80, 24).contains("Review"));
+    }
+
+    #[test]
+    fn picking_one_of_a_conflicting_pair_drops_the_other() {
+        let catalog = Catalog::arch().unwrap();
+        let facts = Facts { distro_id: "arch".into(), laptop: true, ..Default::default() };
+        let mut app = new_app(&catalog, &facts, None);
+        let cat = catalog.categories.iter().position(|c| c.id == "hardware").unwrap();
+        let tlp = catalog.modules_in("hardware").position(|m| m.id == "tlp").unwrap();
+        app.selected.insert("power-profiles".into());
+        app.screen = Screen::Pick;
+        app.category.select(Some(cat));
+        app.module.select(Some(tlp));
+        app.focus_modules = true;
+        app.on_key(KeyCode::Char(' '));
+        assert!(app.selected.contains("tlp") && !app.selected.contains("power-profiles"));
+        let text = screen_text(&mut app, 80, 24);
+        assert!(text.contains("tlp replaces power-profiles"), "{text}");
+        // The detail pane scrolls to reach the module's notes.
+        app.on_key(KeyCode::PageDown);
+        assert_eq!(app.detail_scroll, 3);
+        app.on_key(KeyCode::Up);
+        assert_eq!((app.detail_scroll, app.notice.is_none()), (0, true));
     }
 }

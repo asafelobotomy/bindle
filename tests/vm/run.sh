@@ -35,13 +35,19 @@ cleanup() { ((${#PIDS[@]})) && kill "${PIDS[@]}" 2>/dev/null; true; }
 trap cleanup EXIT
 
 # Host-side helpers: guest files (8765) and a caching pacman mirror (8766).
+# A server left over from an earlier run would serve stale files or old proxy
+# code, so both ports must be free.
 start_servers() {
+    local p
+    for p in "$PORT" 8766; do
+        if (exec 3<>"/dev/tcp/127.0.0.1/$p") 2>/dev/null; then
+            die "port $p is already in use (a server from an earlier run?); stop it first"
+        fi
+    done
     python3 -m http.server "$PORT" --bind 127.0.0.1 --directory "$WORK/serve" >"$WORK/http.log" 2>&1 &
     PIDS+=($!)
-    if ! (exec 3<>/dev/tcp/127.0.0.1/8766) 2>/dev/null; then
-        python3 -I "$HERE/pkgproxy.py" "$WORK/pkgcache" 8766 >>"$WORK/pkgproxy.log" 2>&1 &
-        PIDS+=($!)
-    fi
+    python3 -I "$HERE/pkgproxy.py" "$WORK/pkgcache" 8766 >>"$WORK/pkgproxy.log" 2>&1 &
+    PIDS+=($!)
 }
 
 monitor() { socat - "UNIX-CONNECT:$WORK/mon.sock" <<<"$1" >/dev/null 2>&1 || true; }
@@ -135,10 +141,14 @@ boot_phase() {
     "${qemu_base[@]}" -m "$MEM_BOOT" -vga std -display none \
         -serial "file:$WORK/boot-serial.log" &
     local qemu=$!
-    if ! wait_for "$WORK/boot-serial.log" "BINDLE-VM: CHECK DONE" 3600 "$qemu"; then
+    if ! wait_for "$WORK/boot-serial.log" "BINDLE-VM: CHECK \(DONE\|FAILED\)" 3600 "$qemu"; then
         shot timeout
         kill "$qemu" 2>/dev/null || true
         die "first-boot checks did not finish (see boot-serial.log, shots/timeout.png)"
+    fi
+    if grep -q "BINDLE-VM: CHECK FAILED" "$WORK/boot-serial.log"; then
+        kill "$qemu" 2>/dev/null || true
+        die "first-boot checks failed (see boot-serial.log)"
     fi
     say "checks done; waiting for autologin and the first-login wizard"
     shot checks-done
