@@ -1,6 +1,8 @@
 # Changelog
 
-## 0.1.1 — 2026-11-08
+## 0.1.2 — 2026-11-08
+
+(0.1.1 was tagged but never released: its release build failed.)
 
 Fixes from the November 2026 audit.
 
