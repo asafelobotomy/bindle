@@ -18,6 +18,8 @@ pub const PACKAGES: &[&str] = &[
     "lib32-vulkan-nouveau",
     "nvidia-open-dkms",
     "nvidia-utils",
+    "nvidia-settings",
+    "libva-nvidia-driver",
     "lib32-nvidia-utils",
     "nvidia-prime",
     "switcheroo-control",
@@ -65,7 +67,12 @@ pub(super) fn gpu(ctx: &Ctx) -> Expansion {
                     .into(),
             ),
             "nvidia" if proprietary => {
-                add(&mut e, &["nvidia-open-dkms", "nvidia-utils"], &["nvidia-utils"]);
+                // libva-nvidia-driver: VA-API (browser/video) decoding via NVDEC.
+                add(
+                    &mut e,
+                    &["nvidia-open-dkms", "nvidia-utils", "nvidia-settings", "libva-nvidia-driver"],
+                    &["nvidia-utils"],
+                );
                 e.packages.extend(kernel_headers(f));
                 e.notes.push("nvidia-open supports Turing (GTX 16xx / RTX 20xx) and newer GPUs.".into());
             }

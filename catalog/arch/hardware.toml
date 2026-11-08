@@ -12,13 +12,21 @@ default = true
 builtin = "gpu"
 
 [[module]]
+id = "audio-firmware"
+name = "Audio firmware"
+description = "Sound Open Firmware and ALSA firmware/UCM profiles: many Intel and AMD laptops have no sound without them."
+default = true
+when = ["!virt"]
+packages = ["sof-firmware", "alsa-firmware", "alsa-ucm-conf"]
+
+[[module]]
 id = "audio-pipewire"
 name = "PipeWire audio"
 description = "PipeWire with PulseAudio, ALSA and JACK compatibility, managed by WirePlumber."
 profiles = ["desktop", "gaming", "developer"]
-packages = ["pipewire", "pipewire-pulse", "pipewire-alsa", "pipewire-jack", "wireplumber"]
+packages = ["pipewire", "pipewire-pulse", "pipewire-alsa", "pipewire-jack", "wireplumber", "alsa-utils"]
 # pulseaudio-* modules depend on pulseaudio by name: replaced along with it.
-package_conflicts = ["pulseaudio", "pulseaudio-alsa", "pulseaudio-bluetooth", "pulseaudio-jack", "pulseaudio-zeroconf", "pulseaudio-equalizer", "pulseaudio-lirc", "jack", "jack2", "jack2-dbus", "pipewire-jack-client", "pipewire-media-session"]
+package_conflicts = ["pulseaudio", "pulseaudio-alsa", "pulseaudio-bluetooth", "pulseaudio-jack", "pulseaudio-zeroconf", "pulseaudio-equalizer", "pulseaudio-lirc", "jack", "jack2", "jack2-dbus", "pipewire-jack-client"]
 notes = ["PipeWire user services are socket-activated; nothing to enable."]
 
 [[module]]
@@ -34,8 +42,11 @@ enable = ["bluetooth.service"]
 id = "printing"
 name = "Printing (CUPS)"
 description = "CUPS print server, socket-activated."
-packages = ["cups", "cups-pdf"]
-enable = ["cups.socket"]
+# cups-browsed + Avahi find network (IPP Everywhere) printers; ipp-usb drives
+# driverless USB printers.
+packages = ["cups", "cups-pdf", "cups-browsed", "avahi", "ipp-usb"]
+enable = ["cups.socket", "cups-browsed.service", "avahi-daemon.socket"]
+notes = ["HP printers may also want hplip; scanners: sane-airscan."]
 
 [[module]]
 id = "power-profiles"
@@ -70,3 +81,12 @@ when = ["laptop", "nm"]
 requires = ["tlp"]
 packages = ["tlp-rdw"]
 enable = ["NetworkManager-dispatcher.service"]
+
+[[module]]
+id = "thermald"
+name = "thermald (Intel thermal daemon)"
+description = "Keeps Intel laptops out of thermal throttling by managing cooling before the firmware has to."
+when = ["cpu:intel", "laptop", "!virt"]
+packages = ["thermald"]
+enable = ["thermald.service"]
+notes = ["Some laptops' firmware already does this well; turn it off again if fans or performance get worse."]

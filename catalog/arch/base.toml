@@ -35,8 +35,10 @@ content = '''
 # Managed by Bindle
 --save /etc/pacman.d/mirrorlist
 --protocol https
+--age 12
 --latest 20
---sort rate
+--sort score
+--number 10
 '''
 
 [[module]]
@@ -78,3 +80,11 @@ description = "Update device firmware from LVFS."
 profiles = ["desktop", "gaming", "developer"]
 when = ["!virt"]
 packages = ["fwupd"]
+
+[[module]]
+id = "man-pages"
+name = "Manual pages and command lookup"
+description = "man, the Linux man pages, and pkgfile (find which package provides a command)."
+profiles = ["desktop", "gaming", "developer"]
+packages = ["man-db", "man-pages", "pkgfile"]
+enable = ["man-db.timer", "pkgfile-update.timer"]

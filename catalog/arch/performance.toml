@@ -30,6 +30,7 @@ id = "oomd"
 name = "systemd-oomd"
 description = "Kill runaway cgroups before the system locks up under memory pressure."
 profiles = ["desktop", "gaming", "developer"]
+conflicts = ["earlyoom"]
 enable = ["systemd-oomd.service"]
 notes = ["Uses the drop-ins from the Arch Wiki: kill on swap exhaustion system-wide and on sustained memory pressure in user sessions."]
 [[module.files]]
@@ -104,3 +105,28 @@ tag = "v0.4.3"
 asset = "xzram-gui-0.4.3-1-x86_64.pkg.tar.zst"
 sha256 = "2b956a905e1057c6cca6d7f05048e42b2b979f7471e0e52106bb3ced4342908f"
 name = "xzram-gui"
+
+[[module]]
+id = "earlyoom"
+name = "earlyoom"
+description = "Simple userspace OOM killer that acts on free RAM and swap; an alternative to systemd-oomd for low-RAM or zram-only machines."
+conflicts = ["oomd"]
+packages = ["earlyoom"]
+enable = ["earlyoom.service"]
+
+[[module]]
+id = "scx-schedulers"
+name = "sched_ext CPU schedulers"
+description = "scx_bpfland via scx_loader: lower latency for desktops and games under load, on kernels with sched_ext."
+risk = "moderate"
+when = ["distro:arch", "!virt"]
+packages = ["scx-scheds", "scx-tools"]
+enable = ["scx_loader.service"]
+notes = ["Switch schedulers with `scxctl`; stop scx_loader.service to return to the kernel's own scheduler."]
+[[module.files]]
+path = "/etc/scx_loader/config.toml"
+content = '''
+# Managed by Bindle
+default_sched = "scx_bpfland"
+default_mode = "Auto"
+'''

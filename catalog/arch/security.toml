@@ -59,7 +59,7 @@ mkdir -p -m 750 /.snapshots
 mount /.snapshots"""], when = ["snapshots-mount"], unless = [{ path = "/proc/self/mounts", contains = " /.snapshots " }] },
 ]
 enable = ["snapper-timeline.timer", "snapper-cleanup.timer"]
-notes = ["Booting into snapshots needs grub-btrfs or limine-snapper-sync (later phase)."]
+notes = ["To boot into snapshots from GRUB, add grub-btrfs too."]
 
 [[module]]
 id = "oysterav"
@@ -68,3 +68,32 @@ description = "One GUI and CLI over ClamAV, rkhunter, Lynis and friends. By asaf
 requires = ["aur-helper"]
 aur = ["oysterav"]
 notes = ["Set it up with `oyst-cli setup run`, or open oysterAV from your app menu."]
+
+[[module]]
+id = "grub-btrfs"
+name = "Boot into snapshots (grub-btrfs)"
+description = "Adds snapper snapshots to the GRUB menu and keeps them current as snapshots come and go."
+risk = "moderate"
+when = ["fs:btrfs", "boot:grub"]
+requires = ["snapper"]
+packages = ["grub-btrfs", "inotify-tools"]
+enable = ["grub-btrfsd.service"]
+root_commands = [["grub-mkconfig", "-o", "/boot/grub/grub.cfg"]]
+
+[[module]]
+id = "btrfs-maintenance"
+name = "Btrfs scrub"
+description = "Monthly scrub of the root filesystem to find (and, with redundancy, repair) silent corruption."
+when = ["fs:btrfs"]
+packages = ["btrfsmaintenance"]
+enable = ["btrfs-scrub.timer"]
+notes = ["Schedules and mount points are in /etc/default/btrfsmaintenance."]
+
+[[module]]
+id = "secure-boot-tools"
+name = "Secure Boot tools (sbctl)"
+description = "Installs sbctl to create and enroll your own Secure Boot keys. Nothing is enrolled automatically."
+risk = "advanced"
+when = ["!virt"]
+packages = ["sbctl"]
+notes = ["Put the firmware in Setup Mode, then: sbctl create-keys; sbctl enroll-keys -m; sbctl verify; sign what it lists with sbctl sign -s. Read the Arch Wiki Secure Boot page first: a mistake can stop the machine booting."]
