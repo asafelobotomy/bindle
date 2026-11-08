@@ -71,7 +71,7 @@ name = "emobie"
 id = "av-morning-star"
 name = "AV Morning Star (video downloader)"
 description = "Download video and audio from YouTube, Odysee and 1000+ sites (a yt-dlp front end). By asafelobotomy; AppImage from its GitHub release, installed to ~/.local/bin."
-packages = ["fuse2"]
+packages = ["fuse2", "yt-dlp"]
 [[module.release]]
 repo = "asafelobotomy/AV-Morning-Star"
 tag = "v0.4.2"
@@ -84,7 +84,7 @@ id = "qbit-plugin-dl"
 name = "qbit Plugin Manager"
 description = "Pick and install qBittorrent search plugins from allowlisted catalogs. By asafelobotomy; AppImage from its GitHub release, installed to ~/.local/bin."
 packages = ["fuse2"]
-notes = ["For qBittorrent; install qbittorrent too."]
+requires = ["qbittorrent"]
 [[module.release]]
 repo = "asafelobotomy/qbit-plugin-dl"
 tag = "v0.2.1"
@@ -102,3 +102,89 @@ tag = "v0.1.2"
 asset = "hauler-0.1.2-1-x86_64.pkg.tar.zst"
 sha256 = "c464fcf42aceaf2a61c65cedbe58358829f9366df7eddeeb59466d081abe5a1b"
 name = "hauler"
+
+[[module]]
+id = "libreoffice"
+name = "LibreOffice"
+description = "Office suite: documents, spreadsheets, presentations (the 'fresh' branch)."
+packages = ["libreoffice-fresh"]
+
+[[module]]
+id = "media-players"
+name = "Media players"
+description = "VLC and mpv for video and audio."
+profiles = ["desktop", "gaming", "developer"]
+packages = ["vlc", "mpv"]
+
+[[module]]
+id = "keepassxc"
+name = "KeePassXC"
+description = "Offline password manager with browser integration."
+packages = ["keepassxc"]
+
+[[module]]
+id = "bitwarden"
+name = "Bitwarden"
+description = "Desktop client for the Bitwarden password manager."
+packages = ["bitwarden"]
+
+[[module]]
+id = "thunderbird"
+name = "Thunderbird"
+description = "Mail, calendar and contacts."
+packages = ["thunderbird"]
+
+[[module]]
+id = "signal"
+name = "Signal"
+description = "Signal Desktop messenger."
+packages = ["signal-desktop"]
+
+[[module]]
+id = "telegram"
+name = "Telegram"
+description = "Telegram Desktop messenger."
+packages = ["telegram-desktop"]
+
+[[module]]
+id = "element"
+name = "Element"
+description = "Matrix chat client."
+packages = ["element-desktop"]
+
+[[module]]
+id = "backup-gtk"
+name = "Backups (Pika Backup)"
+description = "Deduplicated, encrypted backups of your home folder (BorgBackup)."
+when = ["toolkit:gtk"]
+packages = ["pika-backup"]
+
+[[module]]
+id = "backup-deja-dup"
+name = "Backups (Déjà Dup)"
+description = "Simple scheduled backups to a drive or the cloud."
+packages = ["deja-dup"]
+
+[[module]]
+id = "qbittorrent"
+name = "qBittorrent"
+description = "BitTorrent client."
+packages = ["qbittorrent"]
+
+[[module]]
+id = "flatpak-discover"
+name = "Flatpak in Discover"
+description = "Browse and update Flathub apps in Plasma's Discover."
+profiles = ["desktop", "gaming"]
+when = ["desktop:plasma"]
+requires = ["flatpak"]
+packages = ["discover", "flatpak-kcm"]
+
+[[module]]
+id = "flatpak-gnome-software"
+name = "Flatpak in GNOME Software"
+description = "Browse and update Flathub apps in GNOME Software."
+profiles = ["desktop", "gaming"]
+when = ["desktop:gnome"]
+requires = ["flatpak"]
+packages = ["gnome-software"]

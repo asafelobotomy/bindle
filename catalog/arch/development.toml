@@ -28,7 +28,7 @@ id = "python"
 name = "Python tooling"
 description = "Python with pip, pipx and uv."
 profiles = ["developer"]
-packages = ["python", "python-pip", "python-pipx", "uv"]
+packages = ["python", "python-pip", "python-pipx", "uv", "ruff"]
 
 [[module]]
 id = "docker"
@@ -45,7 +45,7 @@ notes = ["Membership of the docker group is root-equivalent."]
 id = "podman"
 name = "Podman"
 description = "Daemonless, rootless containers."
-packages = ["podman"]
+packages = ["podman", "podman-compose", "buildah"]
 
 [[module]]
 id = "neovim"
@@ -60,4 +60,96 @@ name = "Visual Studio Code"
 description = "Microsoft build from the AUR."
 risk = "moderate"
 requires = ["aur-helper"]
+conflicts = ["code-oss"]
 aur = ["visual-studio-code-bin"]
+
+[[module]]
+id = "git-tools"
+name = "Git tools"
+description = "GitHub CLI, lazygit and delta (better diffs)."
+profiles = ["developer"]
+packages = ["github-cli", "lazygit", "git-delta"]
+
+[[module]]
+id = "c-cpp"
+name = "C/C++ toolchain"
+description = "CMake, Clang and GDB (GCC and make come with base-devel)."
+profiles = ["developer"]
+requires = ["build-tools"]
+packages = ["cmake", "clang", "gdb"]
+
+[[module]]
+id = "go"
+name = "Go"
+description = "The Go toolchain."
+packages = ["go"]
+
+[[module]]
+id = "java"
+name = "Java (JDK 21 LTS)"
+description = "OpenJDK 21, the current long-term-support release."
+packages = ["jdk21-openjdk"]
+notes = ["Newer JDKs: jdk-openjdk. Switch with archlinux-java."]
+
+[[module]]
+id = "dotnet"
+name = ".NET SDK"
+description = "The .NET SDK."
+packages = ["dotnet-sdk"]
+
+[[module]]
+id = "zig"
+name = "Zig"
+description = "The Zig compiler."
+packages = ["zig"]
+
+[[module]]
+id = "mise"
+name = "mise"
+description = "Per-project tool versions (Node, Python, Go, …) from one config file."
+packages = ["mise"]
+notes = ["Activate it in your shell: see `mise activate --help`."]
+
+[[module]]
+id = "js-runtimes"
+name = "pnpm, Bun and Deno"
+description = "Extra JavaScript package managers and runtimes."
+packages = ["pnpm", "bun", "deno"]
+
+[[module]]
+id = "distrobox"
+name = "Distrobox"
+description = "Other distros' userlands in containers, integrated with your desktop."
+requires = ["podman"]
+packages = ["distrobox"]
+
+[[module]]
+id = "code-oss"
+name = "Code - OSS"
+description = "Open-source build of VS Code from the Arch repos (Open VSX extensions)."
+conflicts = ["vscode"]
+packages = ["code"]
+
+[[module]]
+id = "zed"
+name = "Zed"
+description = "Fast, collaborative code editor."
+packages = ["zed"]
+
+[[module]]
+id = "helix"
+name = "Helix"
+description = "Modal terminal editor with built-in LSP support."
+packages = ["helix"]
+
+[[module]]
+id = "ghostty"
+name = "Ghostty"
+description = "GPU-accelerated terminal emulator."
+packages = ["ghostty"]
+
+[[module]]
+id = "jujutsu"
+name = "Jujutsu (jj)"
+description = "Git-compatible version control with a simpler model."
+packages = ["jujutsu"]

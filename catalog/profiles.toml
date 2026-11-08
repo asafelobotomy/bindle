@@ -14,7 +14,7 @@ description = "Everyday desktop: audio, fonts, codecs, flatpak, power management
 [[profile]]
 id = "gaming"
 name = "Gaming"
-description = "Desktop plus multilib, Steam, Wine, GameMode and MangoHud."
+description = "Desktop plus multilib, Steam, Wine, GameMode, MangoHud, gamescope and Protontricks."
 
 [[profile]]
 id = "developer"

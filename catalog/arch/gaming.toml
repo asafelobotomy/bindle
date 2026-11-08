@@ -10,7 +10,8 @@ name = "Steam"
 description = "Valve's Steam client (Proton included)."
 profiles = ["gaming"]
 requires = ["multilib", "gpu-driver"]
-packages = ["steam"]
+# steam-devices: udev rules for controllers and VR headsets.
+packages = ["steam", "steam-devices"]
 
 [[module]]
 id = "gamemode"
@@ -35,14 +36,14 @@ name = "Wine"
 description = "Wine staging with winetricks."
 profiles = ["gaming"]
 requires = ["multilib"]
-packages = ["wine-staging", "winetricks"]
+packages = ["wine-staging", "winetricks", "wine-mono", "wine-gecko"]
 
 [[module]]
 id = "lutris"
 name = "Lutris"
 description = "Launcher for GOG, Epic, emulators and Wine games."
 requires = ["wine"]
-packages = ["lutris"]
+packages = ["lutris", "umu-launcher"]
 
 [[module]]
 id = "heroic"
@@ -75,3 +76,89 @@ tag = "v1.4.1"
 asset = "reshadelinux-1.4.1-x86_64.AppImage"
 sha256 = "974b66a99d9c3447161a111a61deca49381d587330494dedc627107e64ec0bae"
 name = "reshadelinux"
+
+[[module]]
+id = "gamescope"
+name = "gamescope"
+description = "Micro-compositor for games: upscaling, frame limits, HDR."
+profiles = ["gaming"]
+packages = ["gamescope"]
+
+[[module]]
+id = "protontricks"
+name = "Protontricks"
+description = "winetricks for Proton games in Steam."
+profiles = ["gaming"]
+requires = ["steam"]
+packages = ["protontricks"]
+
+[[module]]
+id = "protonup-qt"
+name = "ProtonUp-Qt"
+description = "Install and update GE-Proton and other compatibility tools."
+requires = ["aur-helper", "steam"]
+aur = ["protonup-qt"]
+
+[[module]]
+id = "goverlay"
+name = "GOverlay"
+description = "GUI to configure MangoHud."
+requires = ["mangohud"]
+packages = ["goverlay"]
+
+[[module]]
+id = "lact"
+name = "LACT (GPU control)"
+description = "Monitor, overclock and set fan curves on AMD, NVIDIA and Intel GPUs."
+when = ["!virt"]
+packages = ["lact"]
+enable = ["lactd.service"]
+
+[[module]]
+id = "discord"
+name = "Discord"
+description = "Discord client."
+conflicts = ["vesktop"]
+packages = ["discord"]
+
+[[module]]
+id = "vesktop"
+name = "Vesktop"
+description = "Discord client with better Wayland screen sharing."
+requires = ["aur-helper"]
+conflicts = ["discord"]
+aur = ["vesktop-bin"]
+
+[[module]]
+id = "bottles"
+name = "Bottles"
+description = "Run Windows software in managed Wine prefixes."
+requires = ["aur-helper"]
+aur = ["bottles"]
+notes = ["Upstream recommends the Flathub build; this is the AUR package."]
+
+[[module]]
+id = "emulators"
+name = "Emulators"
+description = "RetroArch, Dolphin (GameCube/Wii) and PPSSPP (PSP)."
+packages = ["retroarch", "dolphin-emu", "ppsspp"]
+
+[[module]]
+id = "pcsx2"
+name = "PCSX2"
+description = "PlayStation 2 emulator."
+requires = ["aur-helper"]
+aur = ["pcsx2"]
+
+[[module]]
+id = "azahar"
+name = "Azahar"
+description = "Nintendo 3DS emulator (successor to Citra)."
+requires = ["aur-helper"]
+aur = ["azahar"]
+
+[[module]]
+id = "moonlight"
+name = "Moonlight"
+description = "Stream games from a Sunshine or GeForce host."
+packages = ["moonlight-qt"]
