@@ -4,7 +4,7 @@ on:
     branches: [main]
   pull_request:
   schedule:
-    - cron: '17 6 * * 1' # weekly: catch packages renamed or dropped upstream
+    - cron: '17 6 * * 1' # weekly: catch packages renamed or dropped upstream, and new advisories
 
 permissions:
   contents: read
@@ -18,12 +18,25 @@ jobs:
       - run: |
           grep -q '^\[multilib\]' /etc/pacman.conf ||
             printf '\n[multilib]\nInclude = /etc/pacman.d/mirrorlist\n' >> /etc/pacman.conf
-          pacman -Syu --noconfirm --needed rust rust-musl git python
-      - uses: actions/checkout@v5
+          pacman -Syu --noconfirm --needed rust rust-musl git python cargo-deny
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
       - run: cargo fmt --check
+      - run: cargo deny --locked check
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - run: cargo test --workspace --locked
       - name: Static build (the ISO binary)
         run: cargo build --release --locked -p bindle-cli --target x86_64-unknown-linux-musl
       - run: bash -n install.sh && python -m py_compile packaging/archinstall/bindle_plugin.py
       - run: python scripts/check-packages.py
+
+  msrv:
+    # rust-version in Cargo.toml is a promise; build with exactly that toolchain.
+    runs-on: ubuntu-latest
+    container: archlinux:base-devel
+    steps:
+      - run: pacman -Syu --noconfirm --needed rustup git
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - run: |
+          msrv=$(sed -n 's/^rust-version = "\(.*\)"/\1/p' Cargo.toml)
+          rustup toolchain install "$msrv" --profile minimal
+          cargo +"$msrv" check --workspace --all-targets --locked

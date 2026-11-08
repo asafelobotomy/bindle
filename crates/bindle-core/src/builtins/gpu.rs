@@ -53,8 +53,8 @@ pub(super) fn gpu(ctx: &Ctx) -> Expansion {
             // Adding nvidia-open-dkms (or nouveau's Vulkan driver) next to an
             // installed NVIDIA kernel module conflicts, and under --noconfirm
             // that aborts the whole package transaction.
-            "nvidia" if let Some(pkg) = existing => {
-                e.notes.push(format!("Keeping the installed NVIDIA driver ({pkg})."));
+            "nvidia" if existing.is_some() => {
+                e.notes.push(format!("Keeping the installed NVIDIA driver ({}).", existing.unwrap_or_default()));
             }
             "nvidia" if proprietary => {
                 add(&mut e, &["nvidia-open-dkms", "nvidia-utils"], &["nvidia-utils"]);

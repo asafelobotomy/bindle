@@ -2,10 +2,20 @@ name: release
 on:
   push:
     tags: ['v*']
+  # Manual run: rebuilds an existing tag as a workflow artifact (never publishes).
   workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to build (e.g. v0.1.0)
+        required: true
 
 permissions:
   contents: read
+
+env:
+  # Pinned so a release doesn't change with whatever Arch shipped that day.
+  RUST_VERSION: '1.99.1'
+  TAG: ${{ inputs.tag || github.ref_name }}
 
 jobs:
   release:
@@ -14,14 +24,21 @@ jobs:
     permissions:
       contents: write
     steps:
-      # rust-musl: the ISO binary must be fully static so it runs on any ISO's glibc.
-      - run: pacman -Syu --noconfirm --needed rust rust-musl git curl python file
-      - uses: actions/checkout@v5
+      # musl target: the ISO binary must be fully static so it runs on any ISO's glibc.
+      - run: |
+          pacman -Syu --noconfirm --needed rustup git curl python file
+          rustup toolchain install "$RUST_VERSION" --profile minimal --target x86_64-unknown-linux-musl
+          rustup default "$RUST_VERSION"
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ inputs.tag || github.ref }}
       - name: Versions agree (tag, VERSION, Cargo)
+        shell: bash
         run: |
           v=$(cat VERSION)
           cargo metadata --no-deps --format-version 1 | python -c "import json,sys; v=sys.argv[1]; assert all(p['version']==v for p in json.load(sys.stdin)['packages']), 'Cargo version != VERSION'" "$v"
-          case "$GITHUB_REF" in refs/tags/*) [ "${GITHUB_REF_NAME#v}" = "$v" ] || { echo "tag $GITHUB_REF_NAME != VERSION $v"; exit 1; } ;; esac
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]] || { echo "not a release tag: $TAG"; exit 1; }
+          [ "${TAG#v}" = "$v" ] || { echo "tag $TAG != VERSION $v"; exit 1; }
       - run: cargo test --workspace --locked
       - name: Static binary for the live ISO
         run: |
