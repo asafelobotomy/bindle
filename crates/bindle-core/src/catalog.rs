@@ -13,6 +13,7 @@ const ARCH_FILES: &[(&str, &str)] = &[
     ("hardware", include_str!("../../../catalog/arch/hardware.toml")),
     ("performance", include_str!("../../../catalog/arch/performance.toml")),
     ("desktop", include_str!("../../../catalog/arch/desktop.toml")),
+    ("creative", include_str!("../../../catalog/arch/creative.toml")),
     ("development", include_str!("../../../catalog/arch/development.toml")),
     ("gaming", include_str!("../../../catalog/arch/gaming.toml")),
     ("security", include_str!("../../../catalog/arch/security.toml")),

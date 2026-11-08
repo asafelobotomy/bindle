@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+- Catalog review (November 2026):
+  - New default `audio-firmware` (sof-firmware etc.).
+  - Network printer discovery.
+  - NVIDIA VA-API decoding.
+  - Better reflector settings.
+- New opt-in modules:
+  - System: man pages and pkgfile, thermald, earlyoom, sched_ext schedulers,
+    grub-btrfs, Btrfs scrub, sbctl.
+  - Desktop: LibreOffice, media players, password managers, mail and chat,
+    backups, qBittorrent, Flathub in Discover / GNOME Software.
+  - Development: Go, Java 21, .NET, Zig, mise, Bun/Deno/pnpm, Distrobox,
+    Code - OSS, Zed, Helix, Ghostty, Jujutsu, git and C/C++ tools.
+  - Gaming: gamescope, Protontricks, ProtonUp-Qt, GOverlay, LACT, Discord or
+    Vesktop, Bottles, emulators, Moonlight. Steam adds `steam-devices`.
+- New **Creative** category:
+  - GIMP, Krita, Inkscape, darktable, RawTherapee, digiKam, Kdenlive, OBS
+    Studio, Audacity, HandBrake, Blender.
+  - The ArtCraft suite (PhotoCraft, LightCraft, FilmCraft, VectorCraft,
+    EffectCraft, DesignCraft, PdfCraft, WordCraft, DeckCraft, GridCraft),
+    marked alpha and installed from pinned GitHub releases.
+
 - asafelobotomy's apps as opt-in modules: XZram (Performance, alternative to
   the zram module), oysterAV (Security, AUR), romforge and ReShadeLinux
   (Gaming), emobie, AV Morning Star, hauler and qbit Plugin Manager (Desktop).

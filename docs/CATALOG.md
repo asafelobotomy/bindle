@@ -112,14 +112,15 @@ packages the `desktop` builtin adds. Check package names with `make check-packag
 `crates/bindle-core/src/builtins/`, which unit tests keep in sync with builtin output).
 Run `bindle detect` to see the facts for the current machine.
 
-## Arch modules (v0.1)
+## Arch modules
 
 | Category | Modules |
 |---|---|
-| System basics | pacman-qol, multilib, mirrors, build-tools, aur-helper, microcode, fstrim, firmware-updates |
-| Hardware | gpu-driver, audio-pipewire, bluetooth, printing, power-profiles, tlp, tlp-rdw |
-| Performance | zram, io-schedulers, oomd, makepkg-parallel, makepkg-native, kernel-zen |
-| Desktop | fonts, codecs, flatpak, archives, user-dirs, firefox, desktop-essentials |
-| Development | rustup, nodejs, python, docker, podman, neovim, vscode |
-| Gaming | steam, gamemode, mangohud, wine, lutris, heroic |
-| Security | ufw, firewalld, snapper |
+| System basics | pacman-qol, multilib, mirrors, build-tools, aur-helper, microcode, fstrim, firmware-updates, man-pages |
+| Hardware & drivers | gpu-driver, audio-firmware, audio-pipewire, bluetooth, printing, power-profiles, tlp, tlp-rdw, thermald |
+| Performance | zram, io-schedulers, oomd, makepkg-parallel, makepkg-native, kernel-zen, xzram, earlyoom, scx-schedulers |
+| Desktop & apps | fonts, codecs, flatpak, archives, user-dirs, firefox, desktop-essentials, emobie, av-morning-star, qbit-plugin-dl, hauler, libreoffice, media-players, keepassxc, bitwarden, thunderbird, signal, telegram, element, backup-gtk, backup-deja-dup, qbittorrent, flatpak-discover, flatpak-gnome-software |
+| Creative | gimp, krita, inkscape, darktable, rawtherapee, digikam, kdenlive, obs-studio, audacity, handbrake, blender, photocraft, lightcraft, filmcraft, vectorcraft, effectcraft, designcraft, pdfcraft, wordcraft, deckcraft, gridcraft |
+| Development | rustup, nodejs, python, docker, podman, neovim, vscode, git-tools, c-cpp, go, java, dotnet, zig, mise, js-runtimes, distrobox, code-oss, zed, helix, ghostty, jujutsu |
+| Gaming | steam, gamemode, mangohud, wine, lutris, heroic, romforge, reshadelinux, gamescope, protontricks, protonup-qt, goverlay, lact, discord, vesktop, bottles, emulators, pcsx2, azahar, moonlight |
+| Security & backups | ufw, firewalld, snapper, oysterav, grub-btrfs, btrfs-maintenance, secure-boot-tools |

@@ -1,0 +1,216 @@
+[category]
+id = "creative"
+name = "Creative"
+description = "Image, photo, video, audio and 3D apps, plus the ArtCraft suite."
+order = 45
+
+[[module]]
+id = "gimp"
+name = "GIMP"
+description = "Raster image editor."
+packages = ["gimp"]
+
+[[module]]
+id = "krita"
+name = "Krita"
+description = "Digital painting and illustration."
+packages = ["krita"]
+
+[[module]]
+id = "inkscape"
+name = "Inkscape"
+description = "Vector graphics editor."
+packages = ["inkscape"]
+
+[[module]]
+id = "darktable"
+name = "darktable"
+description = "RAW photo developer and photo library."
+packages = ["darktable"]
+
+[[module]]
+id = "rawtherapee"
+name = "RawTherapee"
+description = "RAW photo processing."
+packages = ["rawtherapee"]
+
+[[module]]
+id = "digikam"
+name = "digiKam"
+description = "Photo management."
+packages = ["digikam"]
+
+[[module]]
+id = "kdenlive"
+name = "Kdenlive"
+description = "Video editor."
+packages = ["kdenlive"]
+
+[[module]]
+id = "obs-studio"
+name = "OBS Studio"
+description = "Screen recording and live streaming."
+packages = ["obs-studio"]
+
+[[module]]
+id = "audacity"
+name = "Audacity"
+description = "Audio editor and recorder."
+packages = ["audacity"]
+
+[[module]]
+id = "handbrake"
+name = "HandBrake"
+description = "Video transcoder."
+packages = ["handbrake"]
+
+[[module]]
+id = "blender"
+name = "Blender"
+description = "3D modelling, animation and rendering."
+packages = ["blender"]
+
+# ArtCraft (github.com/storytold): Rust rebuilds of Adobe/Office apps. All are
+# alpha and release almost daily: bump tag/asset/sha256 from each release's
+# SHA256SUMS.txt. Packages are named ai.storyteller.<app> and conflict with
+# the AUR's <app>, <app>-bin and <app>-git builds.
+
+[[module]]
+id = "photocraft"
+name = "PhotoCraft (alpha)"
+description = "ArtCraft's open-source take on Photoshop. Early alpha: expect missing features and bugs, especially on Wayland."
+risk = "moderate"
+package_conflicts = ["photocraft", "photocraft-bin", "photocraft-git"]
+notes = ["Installed from its GitHub release (not in the Arch repos or Flathub); Bindle pins the version, so updates come with Bindle updates."]
+[[module.release]]
+repo = "storytold/photocraft"
+tag = "v0.21.0"
+asset = "photocraft-0.21.0-linux-x86_64.pkg.tar.zst"
+sha256 = "5f2e6bc56496eba4548f3945fc8dbd54cfbb121557dca574143f64e0b2c2b00b"
+name = "ai.storyteller.photocraft"
+
+[[module]]
+id = "lightcraft"
+name = "LightCraft (alpha)"
+description = "ArtCraft's open-source take on Lightroom. Early alpha: expect missing features and bugs, especially on Wayland."
+risk = "moderate"
+package_conflicts = ["lightcraft", "lightcraft-bin", "lightcraft-git"]
+notes = ["Installed from its GitHub release (not in the Arch repos or Flathub); Bindle pins the version, so updates come with Bindle updates."]
+[[module.release]]
+repo = "storytold/lightcraft"
+tag = "v0.19.0"
+asset = "lightcraft-0.19.0-linux-x86_64.pkg.tar.zst"
+sha256 = "9649ac41a7aa8a1d04296dce6398844905ae8975cbb57bed10cf5cb18e213274"
+name = "ai.storyteller.lightcraft"
+
+[[module]]
+id = "filmcraft"
+name = "FilmCraft (alpha)"
+description = "ArtCraft's open-source take on Premiere Pro. Early alpha: expect missing features and bugs, especially on Wayland."
+risk = "moderate"
+package_conflicts = ["filmcraft", "filmcraft-bin", "filmcraft-git"]
+notes = ["Installed from its GitHub release (not in the Arch repos or Flathub); Bindle pins the version, so updates come with Bindle updates."]
+[[module.release]]
+repo = "storytold/filmcraft"
+tag = "v0.18.0"
+asset = "filmcraft-0.18.0-linux-x86_64.pkg.tar.zst"
+sha256 = "33c83286710f24b2f4f40987cc0febb6b96d409417b8d59b2cf35aa70ff0debd"
+name = "ai.storyteller.filmcraft"
+
+[[module]]
+id = "vectorcraft"
+name = "VectorCraft (alpha)"
+description = "ArtCraft's open-source take on Illustrator. Early alpha: expect missing features and bugs, especially on Wayland."
+risk = "moderate"
+package_conflicts = ["vectorcraft", "vectorcraft-bin", "vectorcraft-git"]
+notes = ["Installed from its GitHub release (not in the Arch repos or Flathub); Bindle pins the version, so updates come with Bindle updates."]
+[[module.release]]
+repo = "storytold/vectorcraft"
+tag = "v0.22.0"
+asset = "vectorcraft-0.22.0-linux-x86_64.pkg.tar.zst"
+sha256 = "b3eb5e36fe0d724bc2db755041bdfbee8a9cbf44c7ccce63d5e83f5a5e91adb3"
+name = "ai.storyteller.vectorcraft"
+
+[[module]]
+id = "effectcraft"
+name = "EffectCraft (alpha)"
+description = "ArtCraft's open-source take on After Effects. Early alpha: expect missing features and bugs, especially on Wayland."
+risk = "moderate"
+package_conflicts = ["effectcraft", "effectcraft-bin", "effectcraft-git"]
+notes = ["Installed from its GitHub release (not in the Arch repos or Flathub); Bindle pins the version, so updates come with Bindle updates."]
+[[module.release]]
+repo = "storytold/effectcraft"
+tag = "v0.22.0"
+asset = "effectcraft-0.22.0-linux-x86_64.pkg.tar.zst"
+sha256 = "e260841f704b623c5d7d887eebb83f9dcb0ff952064da2b6b1749f21851e5330"
+name = "ai.storyteller.effectcraft"
+
+[[module]]
+id = "designcraft"
+name = "DesignCraft (alpha)"
+description = "ArtCraft's open-source take on InDesign. Early alpha: expect missing features and bugs, especially on Wayland."
+risk = "moderate"
+package_conflicts = ["designcraft", "designcraft-bin", "designcraft-git"]
+notes = ["Installed from its GitHub release (not in the Arch repos or Flathub); Bindle pins the version, so updates come with Bindle updates."]
+[[module.release]]
+repo = "storytold/designcraft"
+tag = "v0.18.0"
+asset = "designcraft-0.18.0-linux-x86_64.pkg.tar.zst"
+sha256 = "2a26898c08baa7c779dd13e8a1184c47ab3cb509bee79b0595f4c7df3e2ee15e"
+name = "ai.storyteller.designcraft"
+
+[[module]]
+id = "pdfcraft"
+name = "PdfCraft (alpha)"
+description = "ArtCraft's open-source take on Acrobat. Early alpha: expect missing features and bugs, especially on Wayland."
+risk = "moderate"
+package_conflicts = ["pdfcraft", "pdfcraft-bin", "pdfcraft-git"]
+notes = ["Installed from its GitHub release (not in the Arch repos or Flathub); Bindle pins the version, so updates come with Bindle updates."]
+[[module.release]]
+repo = "storytold/pdfcraft"
+tag = "v0.19.0"
+asset = "pdfcraft-0.19.0-linux-x86_64.pkg.tar.zst"
+sha256 = "67d3450d28ec6bdfa18db0517b8f98be12a3eb2e88e1ecdb60ed9978362dd3fa"
+name = "ai.storyteller.pdfcraft"
+
+[[module]]
+id = "wordcraft"
+name = "WordCraft (alpha)"
+description = "ArtCraft's open-source take on Word. Early alpha: expect missing features and bugs, especially on Wayland."
+risk = "moderate"
+package_conflicts = ["wordcraft", "wordcraft-bin", "wordcraft-git"]
+notes = ["Installed from its GitHub release (not in the Arch repos or Flathub); Bindle pins the version, so updates come with Bindle updates."]
+[[module.release]]
+repo = "storytold/wordcraft"
+tag = "v0.16.0"
+asset = "wordcraft-0.16.0-linux-x86_64.pkg.tar.zst"
+sha256 = "c2db5045ba4111f3215a0d97f58ad79960b7cf1041e4561b4d960c054fe807ae"
+name = "ai.storyteller.wordcraft"
+
+[[module]]
+id = "deckcraft"
+name = "DeckCraft (alpha)"
+description = "ArtCraft's open-source take on PowerPoint. Early alpha: expect missing features and bugs, especially on Wayland."
+risk = "moderate"
+package_conflicts = ["deckcraft", "deckcraft-bin", "deckcraft-git"]
+notes = ["Installed from its GitHub release (not in the Arch repos or Flathub); Bindle pins the version, so updates come with Bindle updates."]
+[[module.release]]
+repo = "storytold/deckcraft"
+tag = "v0.16.0"
+asset = "deckcraft-0.16.0-linux-x86_64.pkg.tar.zst"
+sha256 = "c713c16029d49d7964d057cde9316b604f10644ecbb456a1aca3625f50d61fc0"
+name = "ai.storyteller.deckcraft"
+
+[[module]]
+id = "gridcraft"
+name = "GridCraft (alpha)"
+description = "ArtCraft's open-source take on Excel. Early alpha: expect missing features and bugs, especially on Wayland."
+risk = "moderate"
+package_conflicts = ["gridcraft", "gridcraft-bin", "gridcraft-git"]
+notes = ["Installed from its GitHub release (not in the Arch repos or Flathub); Bindle pins the version, so updates come with Bindle updates."]
+[[module.release]]
+repo = "storytold/gridcraft"
+tag = "v0.17.0"
+asset = "gridcraft-0.17.0-linux-x86_64.pkg.tar.zst"
+sha256 = "e76967eea8f5fd8de0d0d4808cbade6fa236126f338cb870c448bcc14f9600a3"
+name = "ai.storyteller.gridcraft"
