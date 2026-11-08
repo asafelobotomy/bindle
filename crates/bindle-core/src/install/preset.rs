@@ -85,13 +85,38 @@ pub fn archinstall_preset(facts: &Facts, desktops: &[Desktop], choice: &IsoChoic
     cfg
 }
 
+/// Bindle's preset for `choice` with the user's `--config` overlay merged in.
+pub fn build(facts: &Facts, desktops: &[Desktop], choice: &IsoChoice, overlay: Option<&Value>) -> Value {
+    let mut cfg = archinstall_preset(facts, desktops, choice);
+    if let Some(o) = overlay {
+        merge(&mut cfg, o.clone());
+    }
+    cfg
+}
+
+const OPTIONAL_REPOS: &str = "/mirror_config/optional_repositories";
+
 /// Deep-merge `overlay` into `base`; overlay values win, objects merge.
+/// `mirror_config.optional_repositories` is the union of both lists, so a
+/// user config that adds a repo doesn't drop the one a profile needs.
 pub fn merge(base: &mut Value, overlay: Value) {
+    let ours = base.pointer(OPTIONAL_REPOS).and_then(Value::as_array).cloned();
+    deep_merge(base, overlay);
+    if let (Some(ours), Some(Value::Array(merged))) = (ours, base.pointer_mut(OPTIONAL_REPOS)) {
+        for repo in ours {
+            if !merged.contains(&repo) {
+                merged.push(repo);
+            }
+        }
+    }
+}
+
+fn deep_merge(base: &mut Value, overlay: Value) {
     match (base, overlay) {
         (Value::Object(b), Value::Object(o)) => {
             for (k, v) in o {
                 match b.get_mut(&k) {
-                    Some(slot) => merge(slot, v),
+                    Some(slot) => deep_merge(slot, v),
                     None => {
                         b.insert(k, v);
                     }
@@ -112,12 +137,12 @@ pub fn summary(preset: &Value) -> Vec<String> {
     } else {
         out.push("Desktop      choose in archinstall (or none)".into());
     }
-    out.push("Audio        PipeWire".into());
+    out.push(format!("Audio        {}", s("/app_config/audio_config/audio").unwrap_or("choose in archinstall".into())));
     out.push("Network      NetworkManager".into());
     out.push("Swap         zram (zstd)".into());
     out.push("pacman       colour, 10 parallel downloads".into());
     if preset.pointer("/app_config/firewall_config").is_some() {
-        out.push("Firewall     ufw".into());
+        out.push(format!("Firewall     {}", s("/app_config/firewall_config/firewall").unwrap_or("ufw".into())));
         out.push("Fonts        Noto (+emoji, CJK), Liberation, DejaVu".into());
     }
     if preset.pointer("/app_config/bluetooth_config").is_some() {
@@ -126,8 +151,19 @@ pub fn summary(preset: &Value) -> Vec<String> {
     if preset.pointer("/app_config/power_management_config").is_some() {
         out.push("Power        power-profiles-daemon".into());
     }
-    if preset.pointer("/mirror_config").is_some() {
-        out.push("Repos        [multilib]".into());
+    let repos: Vec<String> = preset
+        .pointer(OPTIONAL_REPOS)
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+        .map(|r| format!("[{r}]"))
+        .collect();
+    if !repos.is_empty() {
+        out.push(format!("Repos        {}", repos.join(" ")));
+    }
+    if preset.pointer("/disk_config").is_some() {
+        out.push("Disks        from --config".into());
     }
     out
 }
@@ -175,6 +211,36 @@ mod tests {
         assert_eq!(base["app_config"]["firewall_config"]["firewall"], "firewalld");
         assert_eq!(base["ntp"], false);
         assert_eq!(base["hostname"], "x");
+    }
+
+    #[test]
+    fn optional_repositories_are_combined_not_replaced() {
+        let d = desktops::all().unwrap();
+        let choice = IsoChoice { desktop: None, profile: "gaming".into() };
+        let overlay = json!({"mirror_config": {"optional_repositories": ["testing", "multilib"]}});
+        let cfg = build(&Facts::default(), &d, &choice, Some(&overlay));
+        assert_eq!(cfg.pointer(OPTIONAL_REPOS).unwrap(), &json!(["testing", "multilib"]));
+        let overlay = json!({"mirror_config": {"optional_repositories": ["testing"]}});
+        let cfg = build(&Facts::default(), &d, &choice, Some(&overlay));
+        assert_eq!(cfg.pointer(OPTIONAL_REPOS).unwrap(), &json!(["testing", "multilib"]));
+        assert!(summary(&cfg).contains(&"Repos        [testing] [multilib]".to_string()));
+    }
+
+    #[test]
+    fn summary_reflects_the_merged_config() {
+        let d = desktops::all().unwrap();
+        let choice = IsoChoice { desktop: None, profile: "desktop".into() };
+        let plain = summary(&build(&Facts::default(), &d, &choice, None));
+        assert!(!plain.iter().any(|l| l.starts_with("Repos") || l.starts_with("Disks")));
+        let overlay = json!({
+            "mirror_config": {"optional_repositories": ["multilib"]},
+            "app_config": {"firewall_config": {"firewall": "firewalld"}},
+            "disk_config": {"device_modifications": []},
+        });
+        let merged = summary(&build(&Facts::default(), &d, &choice, Some(&overlay)));
+        assert!(merged.contains(&"Repos        [multilib]".to_string()));
+        assert!(merged.contains(&"Firewall     firewalld".to_string()));
+        assert!(merged.contains(&"Disks        from --config".to_string()));
     }
 
     #[test]

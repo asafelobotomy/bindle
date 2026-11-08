@@ -9,7 +9,7 @@
 use std::fs;
 use std::io::IsTerminal;
 use std::net::{TcpStream, ToSocketAddrs};
-use std::os::unix::fs::DirBuilderExt;
+use std::os::unix::fs::{DirBuilderExt, FileTypeExt};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::Duration;
@@ -17,6 +17,7 @@ use std::time::Duration;
 use anyhow::{Context, Result, bail};
 use bindle_core::install::preset::{self, IsoChoice, TESTED_ARCHINSTALL};
 use bindle_core::{Catalog, Facts, Selection, desktops};
+use serde_json::Value;
 
 use crate::apply::sys::{is_root, write_atomic};
 use crate::firstlogin;
@@ -55,13 +56,89 @@ fn major_minor(v: &str) -> (u32, u32) {
     (it.next().unwrap_or(0), it.next().unwrap_or(0))
 }
 
+/// Why this isn't the Arch live ISO, or None if it is: `/run/archiso`
+/// exists, the kernel was booted with `archisobasedir=`, and `/` is the
+/// archiso overlay (`airootfs`). Pure, so it can be tested with fixtures.
+fn not_live_iso(run_archiso: bool, cmdline: &str, mounts: &str) -> Option<&'static str> {
+    if !run_archiso {
+        return Some("/run/archiso is missing");
+    }
+    if !cmdline.split_whitespace().any(|w| w.starts_with("archisobasedir=")) {
+        return Some("the kernel command line has no archisobasedir=");
+    }
+    // The last mount on / is the visible one.
+    let root = mounts.lines().rev().find_map(|l| {
+        let mut f = l.split_whitespace();
+        let (dev, at, fstype) = (f.next()?, f.next()?, f.next()?);
+        (at == "/").then_some((dev, fstype))
+    });
+    match root {
+        Some((dev, fstype)) if fstype == "overlay" || dev == "airootfs" => None,
+        _ => Some("the root filesystem isn't the archiso overlay (airootfs)"),
+    }
+}
+
+fn is_live_iso() -> Result<()> {
+    let read = |p: &str| fs::read_to_string(p).unwrap_or_default();
+    match not_live_iso(Path::new("/run/archiso").is_dir(), &read("/proc/cmdline"), &read("/proc/self/mounts")) {
+        None => Ok(()),
+        Some(why) => {
+            bail!("`bindle iso` installs Arch and wipes disks; it only runs from the Arch Linux live ISO ({why})")
+        }
+    }
+}
+
+/// The devices an unattended install will modify, from the merged config's
+/// `disk_config.device_modifications`. Silent mode never starts without them.
+fn silent_targets(cfg: &Value) -> Result<Vec<String>> {
+    let mods = cfg.pointer("/disk_config/device_modifications").and_then(Value::as_array);
+    let Some(mods) = mods.filter(|m| !m.is_empty()) else {
+        bail!("--silent needs a --config with a non-empty disk_config.device_modifications (the disks to install to)");
+    };
+    mods.iter()
+        .map(|m| match m.get("device").and_then(Value::as_str) {
+            Some(d) if !d.is_empty() => Ok(d.to_string()),
+            _ => bail!("disk_config.device_modifications has an entry without a \"device\""),
+        })
+        .collect()
+}
+
+fn check_block_devices(devices: &[String], is_block: impl Fn(&Path) -> bool) -> Result<()> {
+    for d in devices {
+        if !is_block(Path::new(d)) {
+            bail!("{d} (from disk_config.device_modifications) is not a block device on this machine");
+        }
+    }
+    Ok(())
+}
+
+fn is_block_device(p: &Path) -> bool {
+    fs::metadata(p).is_ok_and(|m| m.file_type().is_block_device())
+}
+
+/// A note when archinstall's major.minor differs from the tested release.
+fn version_note(found: &str, tested: &str) -> Option<String> {
+    let (f, t) = (major_minor(found), major_minor(tested));
+    if f == t {
+        return None;
+    }
+    let (how, why) = if f > t {
+        (
+            "newer",
+            "archinstall may log that the Bindle plugin \"does not support\" it, but the plugin only uses \
+             the long-stable on_install hook",
+        )
+    } else {
+        ("older", "its config schema may not accept every preset value, so check the menu before installing")
+    };
+    Some(format!("Note: archinstall {found} is {how} than {tested}, which Bindle was tested with; {why}."))
+}
+
 fn preflight(dry_run: bool) -> Result<Option<String>> {
     if dry_run {
         return Ok(archinstall_version());
     }
-    if !Path::new("/run/archiso").exists() {
-        bail!("`bindle iso` installs Arch and wipes disks; it only runs from the Arch Linux live ISO");
-    }
+    is_live_iso()?;
     if !is_root() {
         bail!("run as root (the live ISO shell already is)");
     }
@@ -117,25 +194,33 @@ pub fn run(catalog: &Catalog, facts: &Facts, opts: IsoOpts) -> Result<()> {
         bail!("--silent needs --config (with disk layout), --creds, --profile and --yes");
     }
     let version = preflight(opts.dry_run)?;
-    if let Some(v) = &version
-        && major_minor(v) > major_minor(TESTED_ARCHINSTALL)
-    {
-        println!(
-            "Note: archinstall {v} is newer than {TESTED_ARCHINSTALL}, which Bindle was tested with. \
-             archinstall may log that the Bindle plugin \"does not support\" it; the plugin only uses \
-             the long-stable on_install hook."
-        );
+    if let Some(note) = version.as_deref().and_then(|v| version_note(v, TESTED_ARCHINSTALL)) {
+        println!("{note}");
     }
 
     let data = desktops::all()?;
     validate(catalog, &data, &opts)?;
+    let overlay: Option<Value> = match &opts.config {
+        Some(path) => {
+            let text = fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
+            Some(serde_json::from_str(&text).with_context(|| format!("parse {}", path.display()))?)
+        }
+        None => None,
+    };
     let choice = match (&opts.profile, opts.yes) {
         (Some(profile), true) => IsoChoice { desktop: opts.desktop.clone(), profile: profile.clone() },
         _ => {
             if !std::io::stdout().is_terminal() {
                 bail!("needs a terminal, or pass --profile … --yes");
             }
-            match tui::iso::run(facts, &data, &catalog.profiles, opts.desktop.clone(), opts.profile.clone())? {
+            match tui::iso::run(
+                facts,
+                &data,
+                &catalog.profiles,
+                opts.desktop.clone(),
+                opts.profile.clone(),
+                overlay.as_ref(),
+            )? {
                 Some(c) => c,
                 None => {
                     println!("Cancelled. Nothing was changed.");
@@ -145,6 +230,12 @@ pub fn run(catalog: &Catalog, facts: &Facts, opts: IsoOpts) -> Result<()> {
         }
     };
 
+    let preset = preset::build(facts, &data, &choice, overlay.as_ref());
+    let targets = if opts.silent { silent_targets(&preset)? } else { Vec::new() };
+    if !opts.dry_run {
+        check_block_devices(&targets, is_block_device)?;
+    }
+
     let work = match &opts.workdir {
         Some(w) => {
             crate::apply::sys::create_dirs(w)?;
@@ -152,12 +243,6 @@ pub fn run(catalog: &Catalog, facts: &Facts, opts: IsoOpts) -> Result<()> {
         }
         None => private_workdir()?,
     };
-    let mut preset = preset::archinstall_preset(facts, &data, &choice);
-    if let Some(path) = &opts.config {
-        let text = fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
-        let overlay = serde_json::from_str(&text).with_context(|| format!("parse {}", path.display()))?;
-        preset::merge(&mut preset, overlay);
-    }
     let config = work.join("bindle-archinstall.json");
     let plugin = work.join("bindle_plugin.py");
     let sel = work.join("selection.toml");
@@ -178,6 +263,9 @@ pub fn run(catalog: &Catalog, facts: &Facts, opts: IsoOpts) -> Result<()> {
     if opts.silent {
         cmd.arg("--silent");
     }
+    if !targets.is_empty() {
+        println!("Unattended install to: {} (everything on these disks may be erased)", targets.join(", "));
+    }
     if opts.dry_run {
         println!("Wrote {}, {} and {}.", config.display(), plugin.display(), sel.display());
         println!(
@@ -196,7 +284,16 @@ pub fn run(catalog: &Catalog, facts: &Facts, opts: IsoOpts) -> Result<()> {
         println!("\nStarting archinstall with Bindle's presets. Set disks, users, hostname and locale there;");
         println!("everything else is pre-filled and can still be changed.\n");
     }
-    let status = cmd.status().context("start archinstall")?;
+    let status = cmd.status();
+    // The merged config can hold the disk layout and more; the plugin has
+    // read the selection by now. Remove both whatever archinstall did.
+    for f in [&config, &sel] {
+        let _ = fs::remove_file(f);
+    }
+    if opts.workdir.is_none() {
+        let _ = fs::remove_dir_all(&work);
+    }
+    let status = status.context("start archinstall")?;
     if !status.success() {
         bail!("archinstall exited with {status}. Log: /var/log/archinstall/install.log");
     }
@@ -209,4 +306,65 @@ pub fn run(catalog: &Catalog, facts: &Facts, opts: IsoOpts) -> Result<()> {
         println!("If it's still mounted at /mnt: {} first-login install --root /mnt", exe.display());
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    const ISO_CMDLINE: &str =
+        "BOOT_IMAGE=/arch/boot/x86_64/vmlinuz-linux archisobasedir=arch archisosearchuuid=2026-11-01 cow_spacesize=4G";
+    const ISO_MOUNTS: &str = "proc /proc proc rw 0 0\nairootfs / overlay rw,relatime,lowerdir=/run/archiso/sfs/airootfs,upperdir=/run/archiso/cowspace/persistent_/x86_64/upperdir 0 0\n/dev/sr0 /run/archiso/bootmnt iso9660 ro 0 0\n";
+    const HOST_MOUNTS: &str = "/dev/nvme0n1p2 / btrfs rw,subvol=/@ 0 0\n/dev/nvme0n1p1 /boot vfat rw 0 0\n";
+
+    #[test]
+    fn live_iso_needs_all_three_signals() {
+        assert_eq!(not_live_iso(true, ISO_CMDLINE, ISO_MOUNTS), None);
+        assert!(not_live_iso(false, ISO_CMDLINE, ISO_MOUNTS).unwrap().contains("/run/archiso"));
+        let host_cmdline = "BOOT_IMAGE=/vmlinuz-linux root=UUID=abc rw quiet";
+        assert!(not_live_iso(true, host_cmdline, ISO_MOUNTS).unwrap().contains("archisobasedir"));
+        assert!(not_live_iso(true, ISO_CMDLINE, HOST_MOUNTS).unwrap().contains("root filesystem"));
+        assert!(not_live_iso(true, ISO_CMDLINE, "").is_some());
+        // A prefix isn't enough; the parameter must be its own word.
+        assert!(not_live_iso(true, "foo.archisobasedir=arch", ISO_MOUNTS).is_some());
+    }
+
+    #[test]
+    fn last_root_mount_wins() {
+        let stacked = format!("{ISO_MOUNTS}/dev/sda2 / ext4 rw 0 0\n");
+        assert!(not_live_iso(true, ISO_CMDLINE, &stacked).is_some());
+        assert_eq!(not_live_iso(true, ISO_CMDLINE, "airootfs / tmpfs rw 0 0\n"), None);
+    }
+
+    #[test]
+    fn silent_needs_target_devices() {
+        assert!(silent_targets(&json!({})).is_err());
+        assert!(silent_targets(&json!({"disk_config": {"config_type": "default_layout"}})).is_err());
+        assert!(silent_targets(&json!({"disk_config": {"device_modifications": []}})).is_err());
+        assert!(silent_targets(&json!({"disk_config": {"device_modifications": [{"wipe": true}]}})).is_err());
+        let cfg = json!({"disk_config": {"device_modifications": [
+            {"device": "/dev/vda", "wipe": true}, {"device": "/dev/vdb", "wipe": false}
+        ]}});
+        assert_eq!(silent_targets(&cfg).unwrap(), ["/dev/vda", "/dev/vdb"]);
+    }
+
+    #[test]
+    fn target_devices_must_be_block_devices() {
+        let devs = vec!["/dev/vda".to_string(), "/dev/vdb".to_string()];
+        assert!(check_block_devices(&devs, |_| true).is_ok());
+        let err = check_block_devices(&devs, |p| p == Path::new("/dev/vda")).unwrap_err();
+        assert!(err.to_string().contains("/dev/vdb"));
+        assert!(!is_block_device(Path::new("/proc/cmdline")));
+    }
+
+    #[test]
+    fn version_note_on_any_major_minor_mismatch() {
+        assert_eq!(version_note("4.5", "4.5"), None);
+        assert_eq!(version_note("4.5.2", "4.5"), None);
+        assert!(version_note("4.6", "4.5").unwrap().contains("newer than 4.5"));
+        assert!(version_note("5.0", "4.5").unwrap().contains("newer"));
+        assert!(version_note("4.4.1", "4.5").unwrap().contains("older than 4.5"));
+        assert!(version_note("3.0", "4.5").unwrap().contains("older"));
+    }
 }

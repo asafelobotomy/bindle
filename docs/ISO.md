@@ -58,6 +58,11 @@ install.sh ──► bindle iso ──► pre-install screen ──► archinsta
 | Bluetooth / power | enabled / power-profiles-daemon | only when the hardware is present / on laptops |
 | multilib | enabled | gaming profile |
 
+A `--config` file is deep-merged over the preset (its values win), except
+`mirror_config.optional_repositories`, which is combined with the preset's list,
+so adding `testing` keeps the gaming profile's `multilib`. The pre-install screen
+summarises the merged result.
+
 Values follow archinstall 4.5's config schema (`TESTED_ARCHINSTALL`); a unit
 test round-trips the preset through Bindle's archinstall-config parser.
 
@@ -73,7 +78,8 @@ cheaper than maintaining a fork.
 
 The plugin declares `__archinstall__version__ = 4.5`. Newer archinstall
 releases log a "does not support" error for lower values but still load the
-plugin; `bindle iso` warns about this up front. Bump it after testing a new release.
+plugin. `bindle iso` prints a note whenever archinstall's major.minor differs from
+`TESTED_ARCHINSTALL`, older as well as newer. Bump both after testing a new release.
 
 ## Options
 
@@ -82,13 +88,33 @@ bindle iso --desktop plasma --profile gaming      # pre-select on the screen
 bindle iso --desktop gnome --profile desktop --yes # skip the screen
 bindle iso --dry-run                               # write preset/plugin, print the command
 bindle iso --keep-welcome                          # keep GNOME/KDE/Hyprland welcome apps
+bindle iso --config my.json                        # merge your archinstall config over the preset
+bindle iso --workdir /root/bindle                  # write preset, plugin and selection here
+bindle iso --silent --config my.json --creds creds.json --profile desktop --yes  # unattended
 ```
 
 Unknown `--desktop` or `--profile` ids are rejected before anything runs
 (profiles come from the catalog: `bindle list`). The preset, plugin and
 selection are written to a fresh private directory (`/run/bindle-iso-…` as
 root, mode 0700, files 0600), since a merged `--config` can hold your disk
-layout and more; `--workdir` picks the directory instead.
+layout and more. `--workdir <dir>` writes them to that directory instead (created if
+missing; use it to inspect or keep the files, e.g. with `--dry-run`).
+When archinstall returns, successfully or not, Bindle deletes the merged config and
+`selection.toml` from the work directory (and removes the private directory
+altogether); the plugin is left in a `--workdir`. `--dry-run` deletes nothing.
+
+### Live-ISO check
+
+`bindle iso` (without `--dry-run`) only runs when all three hold: `/run/archiso`
+exists, the kernel command line has `archisobasedir=`, and `/` is the archiso
+overlay (`airootfs`, per `/proc/self/mounts`). The error says which one failed.
+
+### Unattended (`--silent`)
+
+`--silent` needs `--config`, `--creds`, `--profile` and `--yes`, and the merged config
+must have a non-empty `disk_config.device_modifications`. Every `device` listed there
+must exist as a block device, and Bindle prints the target disks before starting
+archinstall, since they can be erased.
 
 `install.sh` passes its arguments through, and honours `BINDLE_VERSION`,
 `BINDLE_REPO` and `BINDLE_BASE_URL` (mirrors and testing).

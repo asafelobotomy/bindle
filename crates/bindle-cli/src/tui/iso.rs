@@ -18,6 +18,7 @@ pub fn run(
     profiles: &[Profile],
     desktop: Option<String>,
     profile: Option<String>,
+    overlay: Option<&serde_json::Value>,
 ) -> Result<Option<IsoChoice>> {
     if profiles.is_empty() {
         anyhow::bail!("the catalog has no profiles");
@@ -33,7 +34,7 @@ pub fn run(
             desktop: d_state.selected().filter(|&i| i > 0).map(|i| desktops[i - 1].id.clone()),
             profile: profiles[p_state.selected().unwrap_or(0).min(profiles.len() - 1)].id.clone(),
         };
-        let summary = preset::summary(&preset::archinstall_preset(facts, desktops, &choice));
+        let summary = preset::summary(&preset::build(facts, desktops, &choice, overlay));
         let drawn = terminal.draw(|f| {
             let [head, body, foot] =
                 Layout::vertical([Constraint::Length(2), Constraint::Min(0), Constraint::Length(1)]).areas(f.area());
