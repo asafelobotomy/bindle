@@ -27,7 +27,7 @@ jobs:
       - name: Static build (the ISO binary)
         run: cargo build --release --locked -p bindle-cli --target x86_64-unknown-linux-musl
       - run: bash -n install.sh && python -m py_compile packaging/archinstall/bindle_plugin.py
-      - run: python scripts/check-packages.py
+      - run: pacman -Fy --noconfirm && python scripts/check-packages.py --aur
 
   msrv:
     # rust-version in Cargo.toml is a promise; build with exactly that toolchain.

@@ -156,13 +156,14 @@ fn done_commands_and_groups_are_dropped() {
     f.snapshots_mount = true;
     let p = plan(sel.clone(), &f).unwrap();
     let snapper = root_argvs(&p, "snapper");
-    assert_eq!(snapper.first().unwrap(), &["umount", "/.snapshots"]);
-    assert_eq!(snapper.len(), 6);
+    assert_eq!(snapper.len(), 2, "free the mount + create config, then remount");
+    assert!(snapper[0][2].contains("create-config") && snapper[1][2].contains("mount /.snapshots"));
 
     f.user_groups.insert("docker".into());
     f.installed.insert("kdeconnect".into());
     let done = |p: &str| match p {
         "/etc/conf.d/snapper" => Some("SNAPPER_CONFIGS=\"root\"\n".to_string()),
+        "/proc/self/mounts" => Some("/dev/sda2 /.snapshots btrfs rw 0 0\n".to_string()),
         "/etc/ufw/ufw.conf" => Some("ENABLED=yes\n".to_string()),
         _ => None,
     };
@@ -196,4 +197,18 @@ fn arch_only_modules_are_skipped_on_derivatives() {
         assert!(p.skipped.iter().any(|(m, why)| m == id && why.contains("distro:arch")), "{id}: {:?}", p.skipped);
     }
     assert!(!serde_json::to_string(&p.steps).unwrap().contains("reflector"));
+}
+
+#[test]
+fn snapper_resumes_after_a_partial_failure() {
+    // Config written, but the remount never happened: only the remount runs.
+    let mut f = facts();
+    f.root_fs = "btrfs".into();
+    f.snapshots_mount = true;
+    let sel = Selection { include: vec!["snapper".into()], ..Default::default() };
+    let current = |p: &str| (p == "/etc/conf.d/snapper").then(|| "SNAPPER_CONFIGS=\"root\"\n".to_string());
+    let p = resolve(&Catalog::arch().unwrap(), &f, &sel, &current).unwrap();
+    let snapper = root_argvs(&p, "snapper");
+    assert_eq!(snapper.len(), 1);
+    assert!(snapper[0][2].contains("mount /.snapshots"));
 }

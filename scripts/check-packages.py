@@ -5,9 +5,13 @@ Covers catalog modules, desktops.toml (essentials/nm/bt/greeter/archinstall)
 and the `PACKAGES` const lists in crates/bindle-core/src/builtins/.
 
 Run `sudo pacman -Sy` (or wait for a timer) first; a stale DB reports
-recently added packages as missing. AUR packages (`aur = [...]`) are skipped.
+recently added packages as missing.
+
+Also checked: systemd units the catalog enables, against pacman's files DB
+(`sudo pacman -Fy`; skipped when it is missing), and with `--aur` the AUR
+packages, via the AUR RPC (online).
 """
-import pathlib, re, subprocess, sys, tomllib
+import json, pathlib, re, subprocess, sys, tomllib, urllib.parse, urllib.request
 
 repo = pathlib.Path(__file__).resolve().parent.parent
 root = repo / "catalog"
@@ -15,9 +19,13 @@ names = set()
 # archinstall's own package lists are passed to pacman verbatim, so a name
 # only needs to resolve (it may be a provide, e.g. ttf-freefont).
 provided = set()
+units = set()
+aur = set()
 for f in (root / "arch").glob("*.toml"):
     for m in tomllib.loads(f.read_text()).get("module", []):
         names.update(m.get("packages", []))
+        units.update(m.get("enable", []))
+        aur.update(m.get("aur", []))
 for d in tomllib.loads((root / "desktops.toml").read_text())["desktop"]:
     for key in ("essentials", "nm", "bt"):
         names.update(d.get(key, []))
@@ -46,8 +54,27 @@ def resolves(name: str) -> bool:
     return exists(name) or ok(["-Sp", "--print-format", "%n", name])
 
 
+def unit_shipped(unit: str) -> bool:
+    return ok(["-F", f"usr/lib/systemd/system/{unit}"]) or ok(["-F", f"usr/lib/systemd/user/{unit}"])
+
+
+def aur_missing(pkgs: set[str]) -> list[str]:
+    query = urllib.parse.urlencode([("v", "5"), ("type", "info")] + [("arg[]", p) for p in sorted(pkgs)])
+    with urllib.request.urlopen(f"https://aur.archlinux.org/rpc/?{query}", timeout=30) as r:
+        found = {res["Name"] for res in json.load(r)["results"]}
+    return sorted(pkgs - found)
+
+
 missing = sorted(n for n in names if not exists(n)) + sorted(n for n in provided if not resolves(n))
 print(f"checked {len(names) + len(provided)} packages")
+if ok(["-F", "usr/bin/pacman"]):
+    missing += [f"unit:{u}" for u in sorted(units) if not unit_shipped(u)]
+    print(f"checked {len(units)} units")
+else:
+    print("no pacman files DB (sudo pacman -Fy); units not checked")
+if "--aur" in sys.argv[1:]:
+    missing += [f"aur:{p}" for p in aur_missing(aur)]
+    print(f"checked {len(aur)} AUR packages")
 if missing:
     print("missing from sync DBs:", " ".join(missing))
     sys.exit(1)

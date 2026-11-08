@@ -26,9 +26,11 @@ pub fn enable_repo(text: &str, repo: &str) -> String {
             continue;
         }
         if inside {
-            match trimmed.strip_prefix('#').map(str::trim) {
-                Some(d) if d.contains('=') && !d.starts_with('[') => {
-                    out.push(d.to_string());
+            // Only real repo directives (`#Include = …`), never prose that
+            // happens to contain `=`.
+            match commented_key(line) {
+                Some(k) if REPO_DIRECTIVES.contains(&k) => {
+                    out.push(trimmed.trim_start_matches('#').trim().to_string());
                     continue;
                 }
                 _ => inside = false,
@@ -44,10 +46,22 @@ pub fn enable_repo(text: &str, repo: &str) -> String {
     finish(out, text)
 }
 
+const REPO_DIRECTIVES: &[&str] = &["Include", "Server", "SigLevel", "Usage", "CacheServer"];
+
+/// Key of an active directive line (`Key`, `Key = value`).
 fn option_key(line: &str) -> Option<&str> {
-    let body = line.trim().trim_start_matches('#').trim();
-    let key = body.split(['=', ' ', '\t']).next()?;
+    let key = line.trim().split(['=', ' ', '\t']).next()?;
     (!key.is_empty() && key.chars().all(|c| c.is_ascii_alphanumeric())).then_some(key)
+}
+
+/// Key of a commented-out directive: `#Key`, `#Key = value`, `#Key=value`.
+/// `# Color output is nice` is prose (space after `#`, words after the key).
+fn commented_key(line: &str) -> Option<&str> {
+    let body = line.trim().strip_prefix('#')?;
+    let end = body.find(|c: char| !c.is_ascii_alphanumeric()).unwrap_or(body.len());
+    let (key, rest) = body.split_at(end);
+    let rest = rest.trim_start();
+    (!key.is_empty() && (rest.is_empty() || rest.starts_with('='))).then_some(key)
 }
 
 /// Value of an active `Key = Value` / `Key=Value` / bare `Key` line.
@@ -90,7 +104,7 @@ pub fn set_option(text: &str, key: &str, value: &str) -> String {
         if is_comment(line) {
             let body = line.trim_start().trim_start_matches('#').trim();
             in_commented_repo |= section_of(body).is_some();
-            if !in_commented_repo && commented.is_none() && option_key(line) == Some(key) {
+            if !in_commented_repo && commented.is_none() && commented_key(line) == Some(key) {
                 commented = Some(i);
             }
         } else if let Some(k) = option_key(line) {
@@ -117,10 +131,13 @@ pub fn set_option(text: &str, key: &str, value: &str) -> String {
     finish(lines, text)
 }
 
+/// Join edited lines back, keeping the original's line endings (`lines()`
+/// strips `\r\n` as well as `\n`).
 fn finish(lines: Vec<String>, original: &str) -> String {
-    let mut s = lines.join("\n");
+    let eol = if original.contains("\r\n") { "\r\n" } else { "\n" };
+    let mut s = lines.join(eol);
     if original.ends_with('\n') {
-        s.push('\n');
+        s.push_str(eol);
     }
     s
 }
@@ -233,5 +250,31 @@ Include = /etc/pacman.d/mirrorlist
         assert!(!repo_enabled(&s, "multilib-testing"));
         assert!(s.contains("[multilib]\nInclude = /etc/pacman.d/mirrorlist"));
         assert_eq!(enable_repo(&s, "multilib"), s);
+    }
+
+    #[test]
+    fn prose_comments_are_not_directives() {
+        let conf = "[options]\n# Color output is nice\n#Color\n";
+        assert_eq!(set_option(conf, "Color", ""), "[options]\n# Color output is nice\nColor\n");
+        let conf = "[options]\n# Color output is nice\nHoldPkg = pacman\n";
+        assert_eq!(set_option(conf, "Color", ""), "[options]\n# Color output is nice\nHoldPkg = pacman\nColor\n");
+        assert_eq!(commented_key("#ParallelDownloads = 5"), Some("ParallelDownloads"));
+        assert_eq!(commented_key("#IgnorePkg=foo"), Some("IgnorePkg"));
+        assert_eq!(commented_key("# Note = x"), None);
+    }
+
+    #[test]
+    fn enabling_a_repo_leaves_notes_commented() {
+        let conf = "[options]\n\n#[multilib]\n#Include = /etc/pacman.d/mirrorlist\n#Note = keep me\n";
+        assert_eq!(
+            enable_repo(conf, "multilib"),
+            "[options]\n\n[multilib]\nInclude = /etc/pacman.d/mirrorlist\n#Note = keep me\n"
+        );
+    }
+
+    #[test]
+    fn crlf_files_keep_crlf() {
+        let conf = "[options]\r\n#Color\r\n";
+        assert_eq!(set_option(conf, "Color", ""), "[options]\r\nColor\r\n");
     }
 }

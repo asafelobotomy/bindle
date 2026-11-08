@@ -1,12 +1,12 @@
 //! Declarative module catalog. Categories live in `catalog/<distro>/*.toml`
 //! and are embedded at build time so the AppImage is self-contained.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 
-use crate::{builtins, desktops, detect};
+mod validate;
 
 const ARCH_FILES: &[(&str, &str)] = &[
     ("base", include_str!("../../../catalog/arch/base.toml")),
@@ -215,7 +215,7 @@ impl Catalog {
         categories.sort_by_key(|c| c.order);
         let profiles: ProfileFile = toml::from_str(profiles).context("profiles.toml")?;
         let catalog = Self { distro: distro.into(), categories, profiles: profiles.profiles, modules };
-        catalog.validate()?;
+        validate::validate(&catalog)?;
         Ok(catalog)
     }
 
@@ -236,62 +236,6 @@ impl Catalog {
         let idx = self.modules.iter().position(|m| m.id == id).unwrap_or(usize::MAX);
         let cat = self.module(id).map_or(u32::MAX, |m| self.category_order(&m.category));
         (cat, idx)
-    }
-
-    fn validate(&self) -> Result<()> {
-        let mut ids = BTreeSet::new();
-        let profile_ids: BTreeSet<_> = self.profiles.iter().map(|p| p.id.as_str()).collect();
-        let desktop_ids: BTreeSet<String> = desktops::all()?.into_iter().map(|d| d.id).collect();
-        for m in &self.modules {
-            if !ids.insert(m.id.as_str()) {
-                bail!("duplicate module id `{}`", m.id);
-            }
-        }
-        for m in &self.modules {
-            for dep in m.requires.iter().chain(&m.conflicts) {
-                if !ids.contains(dep.as_str()) {
-                    bail!("module `{}` references unknown module `{dep}`", m.id);
-                }
-            }
-            if let Some(p) = m.profiles.iter().find(|p| !profile_ids.contains(p.as_str())) {
-                bail!("module `{}` references unknown profile `{p}`", m.id);
-            }
-            if let Some(b) = &m.builtin
-                && !builtins::KNOWN.contains(&b.as_str())
-            {
-                bail!("module `{}` uses unknown builtin `{b}`", m.id);
-            }
-            if let Some(f) = m.files.iter().find(|f| !f.path.starts_with('/')) {
-                bail!("module `{}` writes non-absolute path `{}`", m.id, f.path);
-            }
-            if let Some(p) = m.package_conflicts.iter().find(|p| p.is_empty() || m.packages.contains(p)) {
-                bail!("module `{}` lists `{p}` in package_conflicts", m.id);
-            }
-            if m.root_commands.iter().chain(&m.user_commands).any(|c| c.argv.is_empty()) {
-                bail!("module `{}` has an empty command", m.id);
-            }
-            for c in &m.conflicts {
-                if !self.module(c).is_some_and(|o| o.conflicts.contains(&m.id)) {
-                    bail!("module `{}` conflicts with `{c}`, but not the other way round", m.id);
-                }
-            }
-            let commands = m.root_commands.iter().chain(&m.user_commands);
-            for tag in m.when.iter().chain(commands.clone().flat_map(|c| &c.when)) {
-                let bare = tag.strip_prefix('!').unwrap_or(tag);
-                let desktop_ok = bare.strip_prefix("desktop:").is_none_or(|id| desktop_ids.contains(id));
-                if !detect::known_tag(bare) || !desktop_ok {
-                    bail!("module `{}` uses unknown `when` tag `{tag}`", m.id);
-                }
-            }
-            let root_paths = m.root_commands.iter().flat_map(|c| &c.unless).map(|u| (u, false));
-            let user_paths = m.user_commands.iter().flat_map(|c| &c.unless).map(|u| (u, true));
-            for (u, user) in root_paths.chain(user_paths) {
-                if !(u.path.starts_with('/') || user && u.path.starts_with("~/")) {
-                    bail!("module `{}` checks non-absolute path `{}`", m.id, u.path);
-                }
-            }
-        }
-        Ok(())
     }
 }
 

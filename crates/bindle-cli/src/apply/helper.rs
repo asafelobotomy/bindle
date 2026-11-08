@@ -96,6 +96,22 @@ fn check_pacman_edit(options: &BTreeMap<String, String>, repos: &[String]) -> Re
     }
 }
 
+/// Let pacman itself parse the edited file before it replaces the real one.
+fn check_pacman_conf(text: &str) -> Result<()> {
+    let tmp = Path::new("/etc/.pacman.conf.bindle-check");
+    write_atomic(tmp, text.as_bytes(), 0o600)?;
+    let out = std::process::Command::new("pacman-conf").arg("--config").arg(tmp).arg("--repo-list").output();
+    let _ = fs::remove_file(tmp);
+    match out {
+        Ok(o) if o.status.success() => Ok(()),
+        Ok(o) => {
+            bail!("edited pacman.conf does not parse; left unchanged: {}", String::from_utf8_lossy(&o.stderr).trim())
+        }
+        // No pacman-conf (shouldn't happen on Arch): nothing to check with.
+        Err(_) => Ok(()),
+    }
+}
+
 fn check_names(names: &[String]) -> Result<()> {
     match names.iter().find(|n| !valid_name(n)) {
         Some(bad) => bail!("refusing invalid name `{bad}`"),
@@ -228,6 +244,9 @@ impl Helper {
                 }
                 for r in &enable_repos {
                     text = pacman_conf::enable_repo(&text, r);
+                }
+                if !self.opts.fake_commands {
+                    check_pacman_conf(&text)?;
                 }
                 let mode = fs::metadata(&path).map_or(0o644, |m| m.permissions().mode() & 0o7777);
                 write_atomic(&path, text.as_bytes(), mode)?;

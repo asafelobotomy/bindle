@@ -94,13 +94,17 @@ pub(super) fn has_ssd() -> bool {
     entries.flatten().any(|e| {
         let name = e.file_name().to_string_lossy().into_owned();
         let real = ["nvme", "sd", "vd", "mmcblk"].iter().any(|p| name.starts_with(p));
-        real && read(&format!("/sys/block/{name}/queue/rotational")).trim() == "0"
+        // A USB stick or SD card isn't the system's disk.
+        let removable = read(&format!("/sys/block/{name}/removable")).trim() == "1";
+        real && !removable && read(&format!("/sys/block/{name}/queue/rotational")).trim() == "0"
     })
 }
 
 /// SMBIOS chassis types for portables: Portable, Laptop, Notebook,
 /// Sub Notebook, Tablet, Convertible.
-const PORTABLE_CHASSIS: &[&str] = &["8", "9", "10", "14", "31", "32"];
+/// SMBIOS chassis types: portable, laptop, notebook, sub-notebook, tablet,
+/// convertible, detachable.
+const PORTABLE_CHASSIS: &[&str] = &["8", "9", "10", "14", "30", "31", "32"];
 
 /// Laptop-like: a portable chassis, or a system battery. `supplies` holds
 /// (type, scope) per power_supply; `scope=Device` batteries belong to mice,

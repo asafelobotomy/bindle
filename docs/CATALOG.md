@@ -62,7 +62,9 @@ Root-only files (mode 0600/0640) never hold; pick a world-readable witness
 User-command paths may start with `~/` (the user's home from the passwd database).
 `when` on a command takes the same tags as a module's `when`.
 
-`cargo test` validates the catalog: references, symmetric `conflicts`, `when`
+`cargo test` validates the catalog (`crates/bindle-core/src/catalog/validate.rs`): unique ids,
+references, symmetric and non-default `conflicts`, valid names (no leading `-`), file paths
+(absolute, no `..`, one module per path, mode ≤ 0o777), `aur` requiring `aur-helper`, `when`
 tags (below; `desktop:<id>` must name a desktop in `desktops.toml`), absolute
 file and check paths.
 

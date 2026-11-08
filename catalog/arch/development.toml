@@ -19,6 +19,7 @@ id = "nodejs"
 name = "Node.js"
 description = "Node.js LTS runtime with npm."
 profiles = ["developer"]
+# Newest LTS in the repos (Node 24). Review each October when a new LTS lands.
 packages = ["nodejs-lts-krypton", "npm"]
 package_conflicts = ["nodejs", "nodejs-lts-jod", "nodejs-lts-iron", "nodejs-lts-hydrogen"]
 

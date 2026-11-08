@@ -40,17 +40,23 @@ when = ["fs:btrfs"]
 packages = ["snapper", "snap-pac"]
 # snapper creates /.snapshots itself; when the installer already mounts an
 # `@.snapshots` subvolume there, free the mount point first, let snapper
-# write its config, then swap its nested subvolume back for the mount.
-# `rmdir` only removes an empty directory, so no snapshot is ever deleted.
-# Done-check: /etc/conf.d/snapper lists the config (configs/root is 0640).
+# write its config, then swap its (new, empty) nested subvolume back for the
+# mount. Each script checks its own state, so a re-run after a failure
+# resumes where it stopped. Snapshots are never deleted: rmdir only removes
+# an empty directory, and the nested subvolume is deleted only while empty.
+# Done-checks: /etc/conf.d/snapper lists the config (configs/root is 0640);
+# /proc/self/mounts shows /.snapshots mounted.
 root_commands = [
   { argv = ["snapper", "-c", "root", "create-config", "/"], when = ["!snapshots-mount"], unless = [{ path = "/etc/conf.d/snapper", contains = 'SNAPPER_CONFIGS="root' }] },
-  { argv = ["umount", "/.snapshots"], when = ["snapshots-mount"], unless = [{ path = "/etc/conf.d/snapper", contains = 'SNAPPER_CONFIGS="root' }] },
-  { argv = ["rmdir", "/.snapshots"], when = ["snapshots-mount"], unless = [{ path = "/etc/conf.d/snapper", contains = 'SNAPPER_CONFIGS="root' }] },
-  { argv = ["snapper", "-c", "root", "create-config", "/"], when = ["snapshots-mount"], unless = [{ path = "/etc/conf.d/snapper", contains = 'SNAPPER_CONFIGS="root' }] },
-  { argv = ["btrfs", "subvolume", "delete", "/.snapshots"], when = ["snapshots-mount"], unless = [{ path = "/etc/conf.d/snapper", contains = 'SNAPPER_CONFIGS="root' }] },
-  { argv = ["mkdir", "-m", "750", "/.snapshots"], when = ["snapshots-mount"], unless = [{ path = "/etc/conf.d/snapper", contains = 'SNAPPER_CONFIGS="root' }] },
-  { argv = ["mount", "/.snapshots"], when = ["snapshots-mount"], unless = [{ path = "/etc/conf.d/snapper", contains = 'SNAPPER_CONFIGS="root' }] },
+  { argv = ["sh", "-ec", """
+if mountpoint -q /.snapshots; then umount /.snapshots; fi
+if [ -d /.snapshots ] && ! btrfs subvolume show /.snapshots >/dev/null 2>&1; then rmdir /.snapshots; fi
+snapper -c root create-config /"""], when = ["snapshots-mount"], unless = [{ path = "/etc/conf.d/snapper", contains = 'SNAPPER_CONFIGS="root' }] },
+  { argv = ["sh", "-ec", """
+if mountpoint -q /.snapshots; then exit 0; fi
+if btrfs subvolume show /.snapshots >/dev/null 2>&1 && [ -z "$(ls -A /.snapshots)" ]; then btrfs subvolume delete /.snapshots; fi
+mkdir -p -m 750 /.snapshots
+mount /.snapshots"""], when = ["snapshots-mount"], unless = [{ path = "/proc/self/mounts", contains = " /.snapshots " }] },
 ]
 enable = ["snapper-timeline.timer", "snapper-cleanup.timer"]
 notes = ["Booting into snapshots needs grub-btrfs or limine-snapper-sync (later phase)."]

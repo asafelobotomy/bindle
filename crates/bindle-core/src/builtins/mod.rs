@@ -55,7 +55,7 @@ fn aur_helper(f: &Facts) -> Expansion {
 
 /// Round out each detected desktop: apps, portals, polkit agent, applets.
 fn desktop(f: &Facts) -> Expansion {
-    let data = desktops::all().unwrap_or_default();
+    let data = desktops::all().expect("desktops.toml is embedded and validated with the catalog");
     let mut e = Expansion::default();
     for d in f.desktops.iter().filter_map(|id| desktops::by_id(&data, id)) {
         e.packages.extend(d.essentials.iter().cloned());
@@ -67,10 +67,17 @@ fn desktop(f: &Facts) -> Expansion {
         }
         e.notes.extend(d.notes.iter().map(|n| format!("{}: {n}", d.name)));
     }
+    // One polkit agent: archinstall's Hyprland already brings polkit-kde-agent.
+    if POLKIT_AGENTS.iter().any(|a| f.installed.contains(*a)) {
+        e.packages.retain(|p| !POLKIT_AGENTS.contains(&p.as_str()));
+    }
     let mut seen = BTreeSet::new();
     e.packages.retain(|p| seen.insert(p.clone()));
     e
 }
+
+const POLKIT_AGENTS: &[&str] =
+    &["polkit-kde-agent", "hyprpolkitagent", "polkit-gnome", "lxqt-policykit", "mate-polkit", "xfce-polkit"];
 
 fn microcode(f: &Facts) -> Expansion {
     let pkg = match f.cpu_vendor.as_str() {
@@ -174,6 +181,14 @@ mod tests {
         f.networkmanager = true;
         let e = expand("desktop", &Ctx { facts: &f, multilib: false });
         assert!(e.packages.contains(&"network-manager-applet".to_string()));
+    }
+
+    #[test]
+    fn only_one_polkit_agent() {
+        let mut f = Facts { desktops: vec!["hyprland".into()], ..Default::default() };
+        assert!(desktop(&f).packages.contains(&"hyprpolkitagent".to_string()));
+        f.installed.insert("polkit-kde-agent".into());
+        assert!(!desktop(&f).packages.contains(&"hyprpolkitagent".to_string()));
     }
 
     #[test]
