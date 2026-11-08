@@ -117,10 +117,12 @@ Run `bindle detect` to see the facts for the current machine.
 | Category | Modules |
 |---|---|
 | System basics | pacman-qol, multilib, mirrors, build-tools, aur-helper, microcode, fstrim, firmware-updates, man-pages |
-| Hardware & drivers | gpu-driver, audio-firmware, audio-pipewire, bluetooth, printing, power-profiles, tlp, tlp-rdw, thermald |
+| Hardware & drivers | gpu-driver, audio-firmware, audio-pipewire, bluetooth, printing, power-profiles, tlp, tlp-rdw, thermald, scanning-qt, scanning-gtk, fingerprint, solaar, piper, openrgb, android-tools |
 | Performance | zram, io-schedulers, oomd, makepkg-parallel, makepkg-native, kernel-zen, xzram, earlyoom, scx-schedulers |
-| Desktop & apps | fonts, codecs, flatpak, archives, user-dirs, firefox, desktop-essentials, emobie, av-morning-star, qbit-plugin-dl, hauler, libreoffice, media-players, keepassxc, bitwarden, thunderbird, signal, telegram, element, backup-gtk, backup-deja-dup, qbittorrent, flatpak-discover, flatpak-gnome-software |
+| Desktop & apps | fonts, codecs, flatpak, archives, user-dirs, desktop-essentials, emobie, libreoffice, media-players, keepassxc, bitwarden, backup-gtk, backup-deja-dup, flatpak-discover, flatpak-gnome-software, nerd-fonts, yakuake, obsidian, spotify |
+| Internet & communication | firefox, chromium, brave, brave-origin, vivaldi, zen-browser, google-chrome, thunderbird, proton-mail, proton-mail-bridge, proton-vpn, proton-pass, proton-authenticator, proton-drive-cli, signal, telegram, element, syncthing, nextcloud-client, tailscale, qbittorrent, qbittorrent-enhanced, qbit-plugin-dl, av-morning-star, hauler |
 | Creative | gimp, krita, inkscape, darktable, rawtherapee, digikam, kdenlive, obs-studio, audacity, handbrake, blender, photocraft, lightcraft, filmcraft, vectorcraft, effectcraft, designcraft, pdfcraft, wordcraft, deckcraft, gridcraft |
-| Development | rustup, nodejs, python, docker, podman, neovim, vscode, git-tools, c-cpp, go, java, dotnet, zig, mise, js-runtimes, distrobox, code-oss, zed, helix, ghostty, jujutsu |
-| Gaming | steam, gamemode, mangohud, wine, lutris, heroic, romforge, reshadelinux, gamescope, protontricks, protonup-qt, goverlay, lact, discord, vesktop, bottles, emulators, pcsx2, azahar, moonlight |
-| Security & backups | ufw, firewalld, snapper, oysterav, grub-btrfs, btrfs-maintenance, secure-boot-tools |
+| Development | rustup, nodejs, python, docker, podman, neovim, vscode, git-tools, c-cpp, go, java, dotnet, zig, mise, js-runtimes, distrobox, code-oss, zed, helix, ghostty, jujutsu, cli-tools, fish, zsh, kitty, alacritty, vscodium, virt-manager |
+| AI tools | claude-code, claude-desktop, codex, gemini-cli, grok-build, copilot-cli, opencode, cursor, ollama, ollama-cuda, ollama-rocm, lmstudio |
+| Gaming | steam, gamemode, mangohud, wine, lutris, heroic, romforge, reshadelinux, gamescope, protontricks, protonup-qt, goverlay, lact, discord, vesktop, bottles, emulators, pcsx2, azahar, moonlight, prismlauncher |
+| Security & backups | ufw, firewalld, snapper, oysterav, grub-btrfs, btrfs-maintenance, secure-boot-tools, timeshift, opensnitch |

@@ -37,6 +37,7 @@ name = "Btrfs snapshots (snapper + snap-pac)"
 description = "Snapshot / before and after every pacman transaction."
 risk = "moderate"
 when = ["fs:btrfs"]
+conflicts = ["timeshift"]
 packages = ["snapper", "snap-pac"]
 # snapper creates /.snapshots itself; when the installer already mounts an
 # `@.snapshots` subvolume there, free the mount point first, let snapper
@@ -97,3 +98,20 @@ risk = "advanced"
 when = ["!virt"]
 packages = ["sbctl"]
 notes = ["Put the firmware in Setup Mode, then: sbctl create-keys; sbctl enroll-keys -m; sbctl verify; sign what it lists with sbctl sign -s. Read the Arch Wiki Secure Boot page first: a mistake can stop the machine booting."]
+
+[[module]]
+id = "timeshift"
+name = "System snapshots (Timeshift)"
+description = "Scheduled system snapshots with a GUI; works on ext4 (rsync) and btrfs."
+conflicts = ["snapper"]
+packages = ["timeshift"]
+notes = ["Open Timeshift once to pick the snapshot location and schedule."]
+
+[[module]]
+id = "opensnitch"
+name = "Application firewall (OpenSnitch)"
+description = "Asks before each app makes a new outgoing connection."
+risk = "moderate"
+packages = ["opensnitch"]
+enable = ["opensnitchd.service"]
+notes = ["Start the OpenSnitch UI (opensnitch-ui) so it can show the prompts."]

@@ -1,0 +1,94 @@
+[category]
+id = "ai"
+name = "AI tools"
+description = "Coding agents, AI desktop apps and local models."
+order = 55
+
+[[module]]
+id = "claude-code"
+name = "Claude Code"
+description = "Anthropic's coding agent for the terminal (official binary, repackaged in the AUR)."
+requires = ["aur-helper"]
+aur = ["claude-code"]
+notes = ["Sign in with `claude` after installing."]
+
+[[module]]
+id = "claude-desktop"
+name = "Claude Desktop"
+description = "Anthropic's desktop app: chat, Cowork and Claude Code (official build, repackaged in the AUR)."
+risk = "moderate"
+requires = ["aur-helper"]
+aur = ["claude-desktop"]
+notes = ["Pulls in QEMU and OVMF, which Cowork uses for its sandbox VM."]
+
+[[module]]
+id = "codex"
+name = "Codex CLI"
+description = "OpenAI's coding agent for the terminal."
+packages = ["openai-codex"]
+
+[[module]]
+id = "gemini-cli"
+name = "Gemini CLI"
+description = "Google's Gemini agent for the terminal."
+packages = ["gemini-cli"]
+
+[[module]]
+id = "grok-build"
+name = "Grok Build"
+description = "xAI's coding agent for the terminal (official binary, repackaged in the AUR)."
+requires = ["aur-helper"]
+aur = ["grok-build-bin"]
+
+[[module]]
+id = "copilot-cli"
+name = "GitHub Copilot CLI"
+description = "GitHub's Copilot agent for the terminal (from the AUR)."
+requires = ["aur-helper"]
+aur = ["github-copilot-cli"]
+
+[[module]]
+id = "opencode"
+name = "opencode"
+description = "Open-source coding agent for the terminal that works with many model providers."
+packages = ["opencode"]
+
+[[module]]
+id = "cursor"
+name = "Cursor"
+description = "AI code editor (official build, repackaged in the AUR)."
+risk = "moderate"
+requires = ["aur-helper"]
+aur = ["cursor-bin"]
+
+[[module]]
+id = "ollama"
+name = "Ollama"
+description = "Run open models locally. Runs on the CPU; add the GPU module for your card."
+packages = ["ollama"]
+enable = ["ollama.service"]
+
+[[module]]
+id = "ollama-cuda"
+name = "Ollama on NVIDIA (CUDA)"
+description = "CUDA backend for Ollama."
+when = ["gpu:nvidia"]
+requires = ["ollama"]
+packages = ["ollama-cuda"]
+notes = ["Needs the proprietary NVIDIA driver; CUDA is a large download."]
+
+[[module]]
+id = "ollama-rocm"
+name = "Ollama on AMD (ROCm)"
+description = "ROCm backend for Ollama."
+when = ["gpu:amd"]
+requires = ["ollama"]
+packages = ["ollama-rocm"]
+notes = ["ROCm supports recent Radeon cards; others can use the Vulkan backend (ollama-vulkan)."]
+
+[[module]]
+id = "lmstudio"
+name = "LM Studio"
+description = "Desktop app to download and chat with local models (official build, repackaged in the AUR)."
+requires = ["aur-helper"]
+aur = ["lmstudio-bin"]

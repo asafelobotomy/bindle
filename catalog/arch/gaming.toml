@@ -162,3 +162,9 @@ id = "moonlight"
 name = "Moonlight"
 description = "Stream games from a Sunshine or GeForce host."
 packages = ["moonlight-qt"]
+
+[[module]]
+id = "prismlauncher"
+name = "Prism Launcher"
+description = "Minecraft launcher with multiple instances and mod pack support."
+packages = ["prismlauncher"]

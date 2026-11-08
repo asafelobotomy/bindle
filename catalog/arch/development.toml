@@ -1,7 +1,7 @@
 [category]
 id = "development"
 name = "Development"
-description = "Toolchains, containers and editors."
+description = "Toolchains, containers, VMs, shells and editors."
 order = 50
 
 [[module]]
@@ -153,3 +153,51 @@ id = "jujutsu"
 name = "Jujutsu (jj)"
 description = "Git-compatible version control with a simpler model."
 packages = ["jujutsu"]
+
+[[module]]
+id = "cli-tools"
+name = "Modern CLI tools"
+description = "fzf, ripgrep, fd, bat, eza, zoxide, btop and fastfetch."
+profiles = ["developer"]
+packages = ["fzf", "ripgrep", "fd", "bat", "eza", "zoxide", "btop", "fastfetch"]
+
+[[module]]
+id = "fish"
+name = "fish shell"
+description = "Friendly interactive shell. Installs it only; switch with `chsh -s /usr/bin/fish`."
+packages = ["fish"]
+
+[[module]]
+id = "zsh"
+name = "Zsh"
+description = "Z shell with extra completions. Installs it only; switch with `chsh -s /usr/bin/zsh`."
+packages = ["zsh", "zsh-completions"]
+
+[[module]]
+id = "kitty"
+name = "kitty"
+description = "GPU-accelerated terminal."
+packages = ["kitty"]
+
+[[module]]
+id = "alacritty"
+name = "Alacritty"
+description = "Minimal GPU-accelerated terminal."
+packages = ["alacritty"]
+
+[[module]]
+id = "vscodium"
+name = "VSCodium"
+description = "VS Code without Microsoft telemetry, using the Open VSX extension store (upstream build, from the AUR)."
+requires = ["aur-helper"]
+aur = ["vscodium-bin"]
+
+[[module]]
+id = "virt-manager"
+name = "Virtual machines (virt-manager)"
+description = "QEMU/KVM with libvirt and the virt-manager GUI, including UEFI and TPM for Windows 11 guests."
+risk = "moderate"
+packages = ["virt-manager", "qemu-desktop", "libvirt", "dnsmasq", "swtpm", "edk2-ovmf"]
+enable = ["libvirtd.socket"]
+groups = ["libvirt"]
+notes = ["If the default network isn't running, start it with `sudo virsh net-autostart default && sudo virsh net-start default`."]

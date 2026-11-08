@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+- New **Internet & communication** category. Firefox, Thunderbird, Signal,
+  Telegram, Element, qBittorrent and the download apps move here (module ids
+  are unchanged). New:
+  - Browsers: Chromium, Brave, Brave Origin, Vivaldi, Zen, Google Chrome.
+  - Proton: Mail, Mail Bridge, VPN, Pass, Authenticator, Drive CLI.
+  - Syncthing (as a user service), Nextcloud client, Tailscale,
+    qBittorrent Enhanced Edition (alternative to qBittorrent).
+- New **AI tools** category: Claude Code, Claude Desktop, Codex CLI, Gemini
+  CLI, Grok Build, GitHub Copilot CLI, opencode, Cursor, LM Studio, and Ollama
+  with CUDA or ROCm backends.
+- More opt-in modules:
+  - Desktop: Nerd Fonts (Developer profile), Yakuake (Plasma), Obsidian, Spotify.
+  - Development: modern CLI tools (Developer profile), fish, Zsh, kitty,
+    Alacritty, VSCodium, virt-manager with QEMU/libvirt.
+  - Hardware: scanning (SANE + airscan with Skanpage or Document Scanner),
+    fingerprint login, Solaar, Piper, OpenRGB, Android tools.
+  - Gaming: Prism Launcher.
+  - Security: Timeshift (alternative to snapper), OpenSnitch.
 - Catalog review (November 2026):
   - New default `audio-firmware` (sof-firmware etc.).
   - Network printer discovery.
@@ -25,7 +43,8 @@
 
 - asafelobotomy's apps as opt-in modules: XZram (Performance, alternative to
   the zram module), oysterAV (Security, AUR), romforge and ReShadeLinux
-  (Gaming), emobie, AV Morning Star, hauler and qbit Plugin Manager (Desktop).
+  (Gaming), emobie (Desktop), AV Morning Star, hauler and qbit Plugin Manager
+  (Internet).
 - Modules can install pinned, checksummed GitHub release assets
   (`[[module.release]]`): Arch packages via `pacman -U`, AppImages to
   `~/.local/bin` with a desktop entry.

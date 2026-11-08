@@ -90,3 +90,52 @@ when = ["cpu:intel", "laptop", "!virt"]
 packages = ["thermald"]
 enable = ["thermald.service"]
 notes = ["Some laptops' firmware already does this well; turn it off again if fans or performance get worse."]
+
+[[module]]
+id = "scanning-qt"
+name = "Scanning (Skanpage)"
+description = "SANE with driverless network scanning (eSCL/WSD) and KDE's Skanpage."
+when = ["toolkit:qt"]
+packages = ["sane", "sane-airscan", "skanpage"]
+
+[[module]]
+id = "scanning-gtk"
+name = "Scanning (Document Scanner)"
+description = "SANE with driverless network scanning (eSCL/WSD) and GNOME's Document Scanner."
+when = ["!toolkit:qt"]
+packages = ["sane", "sane-airscan", "simple-scan"]
+
+[[module]]
+id = "fingerprint"
+name = "Fingerprint login (fprintd)"
+description = "Fingerprint reader support. Enrol with `fprintd-enroll`; GNOME and Plasma offer it in their settings."
+when = ["laptop", "!virt"]
+packages = ["fprintd"]
+
+[[module]]
+id = "solaar"
+name = "Solaar (Logitech devices)"
+description = "Pair and configure Logitech Unifying and Bolt receivers and devices."
+when = ["!virt"]
+packages = ["solaar"]
+
+[[module]]
+id = "piper"
+name = "Piper (gaming mice)"
+description = "Configure buttons, DPI and LEDs on gaming mice through libratbag."
+when = ["!virt"]
+packages = ["piper"]
+
+[[module]]
+id = "openrgb"
+name = "OpenRGB"
+description = "Control RGB lighting on motherboards, RAM, GPUs and peripherals from one app."
+when = ["!virt"]
+packages = ["openrgb"]
+notes = ["Some motherboard and RAM lighting needs the i2c-dev module: `echo i2c-dev | sudo tee /etc/modules-load.d/i2c.conf`."]
+
+[[module]]
+id = "android-tools"
+name = "Android tools"
+description = "adb and fastboot for phones and tablets."
+packages = ["android-tools"]
