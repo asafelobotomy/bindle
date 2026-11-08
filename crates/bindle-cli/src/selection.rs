@@ -28,7 +28,7 @@ pub fn default_path() -> Option<PathBuf> {
 pub fn load(path: &Path) -> Result<Selection> {
     let text = fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
     let f: SelectionFile = toml::from_str(&text).with_context(|| format!("parse {}", path.display()))?;
-    Ok(Selection { profile: f.profile, include: f.with, exclude: f.without })
+    Ok(Selection { profile: f.profile, include: f.with, exclude: f.without, ..Default::default() })
 }
 
 /// The selection as a commented TOML file.
@@ -62,8 +62,12 @@ mod tests {
     fn round_trips_and_merges() {
         let dir = std::env::temp_dir().join(format!("bindle-sel-{}", std::process::id()));
         let path = dir.join("s.toml");
-        let sel =
-            Selection { profile: Some("gaming".into()), include: vec!["vscode".into()], exclude: vec!["ufw".into()] };
+        let sel = Selection {
+            profile: Some("gaming".into()),
+            include: vec!["vscode".into()],
+            exclude: vec!["ufw".into()],
+            ..Default::default()
+        };
         save(&sel, &path).unwrap();
         let back = load(&path).unwrap();
         assert_eq!(back.profile.as_deref(), Some("gaming"));

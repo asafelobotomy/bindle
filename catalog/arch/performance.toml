@@ -79,5 +79,7 @@ id = "kernel-zen"
 name = "linux-zen kernel"
 description = "Desktop-tuned kernel installed alongside the stock one."
 risk = "advanced"
+# Derivatives ship their own kernel packages (Manjaro: linuxNNN, CachyOS: linux-cachyos).
+when = ["distro:arch"]
 packages = ["linux-zen", "linux-zen-headers"]
 notes = ["Your bootloader needs an entry for linux-zen. GRUB picks it up after grub-mkconfig; systemd-boot needs a loader entry (automated in a later phase)."]

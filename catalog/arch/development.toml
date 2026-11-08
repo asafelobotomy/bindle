@@ -12,7 +12,7 @@ profiles = ["developer"]
 packages = ["rustup"]
 package_conflicts = ["rust", "cargo", "rustfmt"]
 user_commands = [{ argv = ["rustup", "default", "stable"], unless = [{ path = "~/.rustup/settings.toml", contains = 'default_toolchain = "stable' }] }]
-notes = ["Replaces the distro 'rust' package: while that is installed this module is skipped; remove it (pacman -R rust) to switch."]
+notes = ["Replaces the distro 'rust' package if it is installed (rustup provides rust and cargo)."]
 
 [[module]]
 id = "nodejs"

@@ -66,6 +66,23 @@ fn installed_conflicting_packages_skip_the_module() {
 }
 
 #[test]
+fn replacing_conflicts_removes_them_right_before_installing() {
+    let mut f = facts();
+    f.installed.extend(["rust", "pulseaudio", "pulseaudio-bluetooth", "jack2"].map(String::from));
+    let sel = Selection { profile: Some("developer".into()), replace_conflicts: true, ..Default::default() };
+    let p = plan(sel, &f).unwrap();
+    assert!(p.modules.contains(&"rustup".into()) && p.modules.contains(&"audio-pipewire".into()));
+    assert!(p.replaced.contains(&("rustup".into(), "rust".into())));
+    let removed = p.steps.iter().position(|s| matches!(s, Step::RemovePackages { .. })).expect("remove step");
+    let Step::RemovePackages { packages } = &p.steps[removed] else { unreachable!() };
+    assert_eq!(packages, &["pulseaudio", "pulseaudio-bluetooth", "jack2", "rust"].map(String::from));
+    assert!(matches!(p.steps[removed + 1], Step::InstallPackages { .. }), "install must follow removal");
+    // Nothing installed that conflicts: no removal step.
+    let sel = Selection { profile: Some("developer".into()), replace_conflicts: true, ..Default::default() };
+    assert!(!plan(sel, &facts()).unwrap().steps.iter().any(|s| matches!(s, Step::RemovePackages { .. })));
+}
+
+#[test]
 fn excluding_a_requirement_fails() {
     let sel = Selection { profile: Some("gaming".into()), exclude: vec!["multilib".into()], ..Default::default() };
     assert!(plan(sel, &facts()).is_err());
@@ -166,4 +183,17 @@ fn builtin_units_are_enabled() {
         _ => None,
     });
     assert!(units.unwrap().contains(&"switcheroo-control.service".to_string()));
+}
+
+#[test]
+fn arch_only_modules_are_skipped_on_derivatives() {
+    let mut f = facts();
+    f.distro_id = "manjaro".into();
+    f.distro_like = vec!["arch".into()];
+    let sel = Selection { include: vec!["kernel-zen".into()], ..Default::default() };
+    let p = plan(sel, &f).unwrap();
+    for id in ["mirrors", "kernel-zen"] {
+        assert!(p.skipped.iter().any(|(m, why)| m == id && why.contains("distro:arch")), "{id}: {:?}", p.skipped);
+    }
+    assert!(!serde_json::to_string(&p.steps).unwrap().contains("reflector"));
 }

@@ -23,7 +23,8 @@ when = ["ssd", "!virt"]         # all must hold; see tags below
 requires = ["multilib"]         # pulled in automatically
 conflicts = ["tlp"]             # cannot be selected together
 packages = ["pkg"]              # repo packages (one pacman transaction)
-package_conflicts = ["pkg-old"]  # installed packages `packages` conflict with: module is skipped
+package_conflicts = ["pkg-old"]  # installed packages `packages` replace: removed after confirmation
+                                # (pacman -Rdd), or the module is skipped with --yes
 aur = ["pkg-bin"]               # installed as the user via the AUR helper
 enable = ["foo.timer"]          # systemctl enable
 groups = ["docker"]             # usermod -aG for the invoking user

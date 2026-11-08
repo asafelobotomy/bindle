@@ -234,6 +234,14 @@ impl Helper {
                 self.output("updated /etc/pacman.conf");
                 Ok(())
             }
+            Step::RemovePackages { packages } => {
+                check_names(&packages)?;
+                // -dd: dependents are satisfied again by the install step
+                // right after, which brings the replacements' `provides`.
+                let mut argv: Vec<String> = ["pacman", "-Rdd", "--noconfirm", "--"].map(String::from).into();
+                argv.extend(packages);
+                self.cmd_owned(&argv)
+            }
             Step::InstallPackages { packages } => {
                 check_names(&packages)?;
                 let mut argv: Vec<String> =

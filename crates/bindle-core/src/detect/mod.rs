@@ -190,6 +190,11 @@ impl Facts {
             || self.groups.get(name).is_some_and(|m| !m.is_empty() && m.iter().all(|p| self.installed.contains(p)))
     }
 
+    /// Arch Linux itself (or unknown, as in tests): not a derivative.
+    pub fn is_arch(&self) -> bool {
+        matches!(self.distro_id.as_str(), "arch" | "" | "unknown")
+    }
+
     pub fn is_arch_family(&self) -> bool {
         self.distro_id == "arch" || self.distro_like.iter().any(|l| l == "arch")
     }

@@ -17,7 +17,8 @@ name = "PipeWire audio"
 description = "PipeWire with PulseAudio, ALSA and JACK compatibility, managed by WirePlumber."
 profiles = ["desktop", "gaming", "developer"]
 packages = ["pipewire", "pipewire-pulse", "pipewire-alsa", "pipewire-jack", "wireplumber"]
-package_conflicts = ["pulseaudio", "jack", "jack2", "pipewire-jack-client", "pipewire-media-session"]
+# pulseaudio-* modules depend on pulseaudio by name: replaced along with it.
+package_conflicts = ["pulseaudio", "pulseaudio-alsa", "pulseaudio-bluetooth", "pulseaudio-jack", "pulseaudio-zeroconf", "pulseaudio-equalizer", "pulseaudio-lirc", "jack", "jack2", "jack2-dbus", "pipewire-jack-client", "pipewire-media-session"]
 notes = ["PipeWire user services are socket-activated; nothing to enable."]
 
 [[module]]

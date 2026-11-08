@@ -25,6 +25,8 @@ id = "mirrors"
 name = "Fast mirrors (reflector)"
 description = "Rank recent HTTPS mirrors weekly with reflector."
 default = true
+# Derivatives have their own mirror lists and tools (pacman-mirrors, rate-mirrors…).
+when = ["distro:arch"]
 packages = ["reflector"]
 enable = ["reflector.timer"]
 [[module.files]]

@@ -62,6 +62,9 @@ fn snapshot_plan(plan: &Plan, facts: &Facts) -> SnapshotPlan {
             Step::WriteFile { file, .. } => s.files.push(file.path.clone()),
             Step::EnableUnits { units } => s.units.extend(units.iter().cloned()),
             Step::InstallPackages { packages } => s.packages.extend(packages.iter().cloned()),
+            Step::RemovePackages { packages } => {
+                s.manual.push(format!("removed {} (to restore: pacman -S {0})", packages.join(" ")))
+            }
             Step::InstallAur { packages } => s.aur.extend(packages.iter().cloned()),
             Step::BootstrapAurHelper { package } => s.aur.push(package.clone()),
             Step::AddToGroups { user, groups } => {

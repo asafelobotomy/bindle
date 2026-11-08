@@ -55,6 +55,9 @@ pub fn plan_lines(p: &Plan) -> Vec<String> {
     for (dep, by) in &p.pulled_in {
         out.push(format!("  + {dep} (required by {by})"));
     }
+    for (id, pkg) in &p.replaced {
+        out.push(format!("  ~ {id} replaces installed `{pkg}`"));
+    }
     for (id, why) in &p.skipped {
         out.push(format!("  - {id} skipped: {why}"));
     }
@@ -84,6 +87,9 @@ pub fn describe(step: &Step) -> String {
                 options.iter().map(|(k, v)| if v.is_empty() { k.clone() } else { format!("{k}={v}") }).collect();
             parts.extend(enable_repos.iter().map(|r| format!("enable [{r}]")));
             format!("edit /etc/pacman.conf: {}", parts.join(", "))
+        }
+        Step::RemovePackages { packages } => {
+            format!("remove conflicting packages to replace them: {}", packages.join(" "))
         }
         Step::InstallPackages { packages } => {
             format!("full system upgrade, then install ({}): {}", packages.len(), packages.join(" "))

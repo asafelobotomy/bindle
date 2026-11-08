@@ -14,6 +14,9 @@ pub struct Selection {
     pub profile: Option<String>,
     pub include: Vec<String>,
     pub exclude: Vec<String>,
+    /// Remove installed packages that a module's packages conflict with
+    /// (`package_conflicts`) instead of skipping the module.
+    pub replace_conflicts: bool,
 }
 
 impl Selection {
@@ -44,16 +47,44 @@ impl Selection {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
 pub enum Step {
-    EditPacmanConf { options: BTreeMap<String, String>, enable_repos: Vec<String> },
-    InstallPackages { packages: Vec<String> },
-    WriteFile { module: String, file: FileSpec },
-    EnableUnits { units: Vec<String> },
-    AddToGroups { user: String, groups: Vec<String> },
-    RunAsRoot { module: String, argv: Vec<String> },
+    EditPacmanConf {
+        options: BTreeMap<String, String>,
+        enable_repos: Vec<String>,
+    },
+    /// Conflicting packages being replaced (`pacman -Rdd`): the next step
+    /// installs packages that provide what they did.
+    RemovePackages {
+        packages: Vec<String>,
+    },
+    InstallPackages {
+        packages: Vec<String>,
+    },
+    WriteFile {
+        module: String,
+        file: FileSpec,
+    },
+    EnableUnits {
+        units: Vec<String>,
+    },
+    AddToGroups {
+        user: String,
+        groups: Vec<String>,
+    },
+    RunAsRoot {
+        module: String,
+        argv: Vec<String>,
+    },
     RebuildInitramfs,
-    BootstrapAurHelper { package: String },
-    InstallAur { packages: Vec<String> },
-    RunAsUser { module: String, argv: Vec<String> },
+    BootstrapAurHelper {
+        package: String,
+    },
+    InstallAur {
+        packages: Vec<String>,
+    },
+    RunAsUser {
+        module: String,
+        argv: Vec<String>,
+    },
 }
 
 impl Step {
@@ -71,6 +102,8 @@ pub struct Plan {
     pub pulled_in: Vec<(String, String)>,
     /// (module, reason) pairs the installer already set up.
     pub provided: Vec<(String, String)>,
+    /// (module, installed package) pairs removed to make way for the module.
+    pub replaced: Vec<(String, String)>,
     pub notes: Vec<(String, String)>,
     pub steps: Vec<Step>,
 }
@@ -122,7 +155,9 @@ pub fn resolve(
         if let Some(c) = m.conflicts.iter().find(|c| provided.contains_key(*c)) {
             plan.skipped.push((id.clone(), format!("`{c}` is already set up")));
             dropped.insert(id.clone());
-        } else if let Some(p) = m.package_conflicts.iter().find(|p| facts.installed.contains(*p)) {
+        } else if let Some(p) = m.package_conflicts.iter().find(|p| facts.installed.contains(*p))
+            && !selection.replace_conflicts
+        {
             plan.skipped.push((id.clone(), format!("conflicts with installed `{p}`; remove it first to use this")));
             dropped.insert(id.clone());
         } else if let Err(reason) = facts.matches(&m.when) {
@@ -174,6 +209,10 @@ pub fn resolve(
 
     for id in &ordered {
         let m = catalog.module(id).expect("validated");
+        if selection.replace_conflicts {
+            let installed = m.package_conflicts.iter().filter(|p| facts.installed.contains(*p));
+            plan.replaced.extend(installed.map(|p| (id.clone(), p.clone())));
+        }
         options.extend(m.pacman.clone());
         repos.extend(m.repos.iter().filter(|r| !(r.as_str() == "multilib" && facts.multilib_enabled)).cloned());
         packages.extend(m.packages.iter().cloned());
@@ -204,6 +243,10 @@ pub fn resolve(
     let repos = dedup(repos);
     if !options.is_empty() || !repos.is_empty() {
         plan.steps.push(Step::EditPacmanConf { options, enable_repos: repos });
+    }
+    let removed = dedup(plan.replaced.iter().map(|(_, p)| p.clone()));
+    if !removed.is_empty() {
+        plan.steps.push(Step::RemovePackages { packages: removed });
     }
     let packages = dedup(packages.into_iter().filter(|p| !facts.has_package(p)));
     if !packages.is_empty() {

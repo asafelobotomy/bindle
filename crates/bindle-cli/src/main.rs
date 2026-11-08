@@ -194,15 +194,23 @@ struct SelArgs {
     /// Start from a saved selection file (see ~/.config/bindle/selection.toml).
     #[arg(long, value_name = "FILE")]
     from: Option<PathBuf>,
+    /// Remove installed packages a chosen module conflicts with (e.g. rust for
+    /// rustup). Interactive runs do this after you confirm; with --yes,
+    /// conflicting modules are skipped unless this is given.
+    #[arg(long)]
+    replace_conflicts: bool,
 }
 
 impl SelArgs {
     fn resolve(self) -> Result<Selection> {
-        let cli = Selection { profile: self.profile, include: self.include, exclude: self.exclude };
-        match self.from {
-            Some(path) => Ok(selection::merge(selection::load(&path)?, cli)),
-            None => Ok(cli),
-        }
+        let cli =
+            Selection { profile: self.profile, include: self.include, exclude: self.exclude, ..Default::default() };
+        let mut sel = match self.from {
+            Some(path) => selection::merge(selection::load(&path)?, cli),
+            None => cli,
+        };
+        sel.replace_conflicts = self.replace_conflicts;
+        Ok(sel)
     }
 }
 
@@ -287,7 +295,9 @@ fn main() -> Result<()> {
         }
         Cmd::Plan { sel, json } => {
             warn_distro(&facts);
-            let p = plan::resolve(&catalog, &facts, &sel.resolve()?, &read_current)?;
+            // Preview what an interactive apply would do.
+            let sel = Selection { replace_conflicts: true, ..sel.resolve()? };
+            let p = plan::resolve(&catalog, &facts, &sel, &read_current)?;
             if json {
                 println!("{}", serde_json::to_string_pretty(&p)?);
             } else {
@@ -297,7 +307,9 @@ fn main() -> Result<()> {
         }
         Cmd::Apply { sel, yes, sandbox } => {
             warn_distro(&facts);
-            let sel = sel.resolve()?;
+            let mut sel = sel.resolve()?;
+            // Interactive: the confirmation shows what gets replaced.
+            sel.replace_conflicts |= !yes;
             apply_selection(&catalog, &facts, &sel, apply::Options { yes, sandbox }).map(drop)
         }
         Cmd::Helper { .. } | Cmd::Undo { .. } | Cmd::FirstLogin { .. } => unreachable!("handled above"),

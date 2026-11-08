@@ -113,6 +113,8 @@ impl<'a> App<'a> {
             profile: Some(self.profile_id()),
             include: self.selected.difference(&base).cloned().collect(),
             exclude: base.difference(&self.selected).cloned().collect(),
+            // The Review screen lists replacements before anything happens.
+            replace_conflicts: true,
         }
     }
 

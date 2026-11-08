@@ -45,7 +45,8 @@ pub(super) fn gpu(ctx: &Ctx) -> Expansion {
         }
     };
     let existing = installed_nvidia_driver(f);
-    let proprietary = existing.is_some() || nvidia_open_supported(f);
+    // On derivatives without a driver yet, don't add PRIME tools for one.
+    let proprietary = existing.is_some() || (f.is_arch() && nvidia_open_supported(f));
     for gpu in &f.gpus {
         match gpu.as_str() {
             "amd" => add(&mut e, &["mesa", "vulkan-radeon"], &["mesa", "vulkan-radeon"]),
@@ -56,6 +57,13 @@ pub(super) fn gpu(ctx: &Ctx) -> Expansion {
             "nvidia" if existing.is_some() => {
                 e.notes.push(format!("Keeping the installed NVIDIA driver ({}).", existing.unwrap_or_default()));
             }
+            // Derivatives package NVIDIA drivers per kernel and ship their own
+            // driver managers; nvidia-open-dkms may be missing or conflict.
+            "nvidia" if !f.is_arch() => e.notes.push(
+                "NVIDIA GPU on an Arch derivative: install the driver with your distro's tool \
+                 (Manjaro: mhwd, CachyOS: chwd, EndeavourOS: nvidia-inst)."
+                    .into(),
+            ),
             "nvidia" if proprietary => {
                 add(&mut e, &["nvidia-open-dkms", "nvidia-utils"], &["nvidia-utils"]);
                 e.packages.extend(kernel_headers(f));
@@ -203,6 +211,19 @@ mod tests {
         let e = run(&f, false);
         assert!(e.packages.contains(&"nvidia-prime".to_string()));
         assert!(e.notes.iter().any(|n| n.contains("prime-run")));
+    }
+
+    #[test]
+    fn derivatives_use_their_own_nvidia_tooling() {
+        let mut f = nvidia(&[0x2684]);
+        f.distro_id = "manjaro".into();
+        f.gpus = vec!["intel".into(), "nvidia".into()];
+        let e = run(&f, true);
+        assert!(!e.packages.iter().any(|p| p.contains("nvidia") || p.contains("nouveau")), "{:?}", e.packages);
+        assert!(e.notes.iter().any(|n| n.contains("mhwd")));
+        assert!(e.packages.contains(&"vulkan-intel".to_string()));
+        f.installed.insert("linux612-nvidia".into());
+        assert!(run(&f, false).notes.iter().any(|n| n.contains("Keeping the installed")));
     }
 
     #[test]
