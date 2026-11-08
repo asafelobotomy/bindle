@@ -39,7 +39,7 @@ pub fn render(sel: &Selection) -> Result<String> {
 }
 
 pub fn save(sel: &Selection, path: &Path) -> Result<()> {
-    crate::apply::sys::write_atomic(path, render(sel)?.as_bytes(), 0o644)
+    crate::sys::write_atomic(path, render(sel)?.as_bytes(), 0o644)
 }
 
 /// Layer CLI arguments over a file selection.

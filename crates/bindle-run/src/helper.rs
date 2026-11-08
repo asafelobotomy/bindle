@@ -12,9 +12,9 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result, bail};
 use bindle_core::{Step, pacman_conf};
 
-use super::protocol::{Event, Request, VERSION};
-use super::snapshot;
-use super::sys::{
+use crate::protocol::{Event, Request, VERSION};
+use crate::snapshot;
+use crate::sys::{
     check_system_path, create_dirs, host, ignore_interrupts, is_root, lock_exclusive, run_streaming, shell_words,
     valid_name, write_atomic,
 };

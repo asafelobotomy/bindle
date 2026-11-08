@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/bindle-core", "crates/bindle-cli"]
+members = ["crates/bindle-core", "crates/bindle-run", "crates/bindle-cli"]
 
 [workspace.package]
 version = "0.1.2"

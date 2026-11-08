@@ -12,23 +12,23 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result, bail};
 use bindle_core::catalog::{AssetKind, ReleaseAsset};
 
-use super::user::{file_sha256, run};
+use crate::user::{file_sha256, run};
 
 /// Download and check every asset; install the AppImages. Returns the
 /// package files the root helper should install.
-pub fn install(assets: &[ReleaseAsset], fake: bool) -> Result<Vec<String>> {
+pub fn install(assets: &[ReleaseAsset], fake: bool, note: &mut dyn FnMut(&str)) -> Result<Vec<String>> {
     let home = PathBuf::from(env::var_os("HOME").context("HOME is not set")?);
     let cache = env::var_os("XDG_CACHE_HOME").map(PathBuf::from).unwrap_or_else(|| home.join(".cache"));
     let mut packages = Vec::new();
     for a in assets {
         if fake {
-            println!("    would download {} and check sha256 {}", a.url(), a.sha256);
+            note(&format!("would download {} and check sha256 {}", a.url(), a.sha256));
             continue;
         }
         let file = fetch(a, &cache.join("bindle/releases").join(&a.tag))?;
         match a.kind() {
             Some(AssetKind::Package) => packages.push(file.to_string_lossy().into_owned()),
-            Some(AssetKind::AppImage) => install_appimage(a, &file, &home)?,
+            Some(AssetKind::AppImage) => note(&install_appimage(a, &file, &home)?),
             None => bail!("don't know how to install {}", a.asset),
         }
     }
@@ -47,7 +47,7 @@ fn fetch(a: &ReleaseAsset, dir: &Path) -> Result<PathBuf> {
     let argv = ["curl", "-fL", "--retry", "3", "--proto", "=https", "--tlsv1.2", "-o"];
     let mut argv: Vec<String> = argv.iter().map(|s| s.to_string()).collect();
     argv.extend([part.to_string_lossy().into_owned(), a.url()]);
-    run(&argv, false).with_context(|| format!("download {}", a.url()))?;
+    run(&argv, false, &mut |_| {}).with_context(|| format!("download {}", a.url()))?;
     let got = file_sha256(&part)?;
     if got != a.sha256 {
         let _ = fs::remove_file(&part);
@@ -57,7 +57,8 @@ fn fetch(a: &ReleaseAsset, dir: &Path) -> Result<PathBuf> {
     Ok(file)
 }
 
-fn install_appimage(a: &ReleaseAsset, file: &Path, home: &Path) -> Result<()> {
+/// Returns the line to report.
+fn install_appimage(a: &ReleaseAsset, file: &Path, home: &Path) -> Result<String> {
     let bin = home.join(".local/bin");
     fs::create_dir_all(&bin)?;
     let target = bin.join(&a.name);
@@ -68,8 +69,7 @@ fn install_appimage(a: &ReleaseAsset, file: &Path, home: &Path) -> Result<()> {
     let entry = home.join(a.desktop_entry().trim_start_matches("~/"));
     fs::create_dir_all(entry.parent().expect("has a parent"))?;
     fs::write(&entry, desktop_entry(a, &target))?;
-    println!("    installed {} ({})", target.display(), a.tag);
-    Ok(())
+    Ok(format!("installed {} ({})", target.display(), a.tag))
 }
 
 fn desktop_entry(a: &ReleaseAsset, target: &Path) -> String {
@@ -106,7 +106,7 @@ mod tests {
 
     #[test]
     fn appimages_install_with_a_desktop_entry() {
-        let home = super::super::sys::test_dir("release-home");
+        let home = crate::sys::test_dir("release-home");
         let file = home.join("download.AppImage");
         fs::write(&file, "#!/bin/sh\n").unwrap();
         install_appimage(&asset(), &file, &home).unwrap();

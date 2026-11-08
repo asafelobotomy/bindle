@@ -9,12 +9,12 @@ use anyhow::{Context, Result, bail};
 
 use bindle_core::builtins::{AUR_HELPER, AUR_HELPER_COMMIT, AUR_HELPER_PKGBUILD_SHA256};
 
-use super::sys::{shell_words, valid_name};
+use crate::sys::{shell_words, valid_name};
 
-pub(super) fn run(argv: &[String], fake: bool) -> Result<()> {
+pub(crate) fn run(argv: &[String], fake: bool, note: &mut dyn FnMut(&str)) -> Result<()> {
     let shown = shell_words(argv);
     if fake {
-        println!("    would run: {shown}");
+        note(&format!("would run: {shown}"));
         return Ok(());
     }
     let (prog, args) = argv.split_first().context("empty command")?;
@@ -27,7 +27,7 @@ pub(super) fn run(argv: &[String], fake: bool) -> Result<()> {
 
 /// Build the AUR helper as the user, from the pinned AUR commit; returns the
 /// package files for the root helper to install.
-pub fn build_aur(package: &str, fake: bool) -> Result<Vec<String>> {
+pub fn build_aur(package: &str, fake: bool, note: &mut dyn FnMut(&str)) -> Result<Vec<String>> {
     if package != AUR_HELPER {
         bail!("only {AUR_HELPER} is bootstrapped from the AUR, not `{package}`");
     }
@@ -39,13 +39,13 @@ pub fn build_aur(package: &str, fake: bool) -> Result<Vec<String>> {
     let dir = cache.join(package);
     let url = format!("https://aur.archlinux.org/{package}.git");
     if fake {
-        println!("    would build {package} from {url}");
+        note(&format!("would build {package} from {url}"));
         return Ok(Vec::new());
     }
     let _ = fs::remove_dir_all(&dir);
     fs::create_dir_all(&cache)?;
     let d = dir.to_string_lossy().to_string();
-    run(&["git".into(), "clone".into(), "--quiet".into(), url, d.clone()], false)?;
+    run(&["git".into(), "clone".into(), "--quiet".into(), url, d.clone()], false, &mut |_| {})?;
     run(
         &[
             "git".into(),
@@ -57,6 +57,7 @@ pub fn build_aur(package: &str, fake: bool) -> Result<Vec<String>> {
             AUR_HELPER_COMMIT.into(),
         ],
         false,
+        &mut |_| {},
     )
     .context("the pinned AUR commit is gone; Bindle needs an update")?;
     let sum = file_sha256(&dir.join("PKGBUILD"))?;
@@ -94,14 +95,20 @@ pub(super) fn file_sha256(path: &Path) -> Result<String> {
 /// Install AUR packages with the user's AUR helper (it asks sudo itself).
 /// Interactive runs let the helper show PKGBUILDs for review; `--yes` runs
 /// can't answer prompts, so they skip the review.
-pub fn install_aur(helper: &str, packages: &[String], unattended: bool, fake: bool) -> Result<()> {
+pub fn install_aur(
+    helper: &str,
+    packages: &[String],
+    unattended: bool,
+    fake: bool,
+    note: &mut dyn FnMut(&str),
+) -> Result<()> {
     if let Some(p) = packages.iter().find(|p| !valid_name(p)) {
         bail!("invalid package name `{p}`");
     }
     let mut argv = aur_argv(helper, unattended);
     argv.push("--".into());
     argv.extend(packages.iter().cloned());
-    run(&argv, fake)
+    run(&argv, fake, note)
 }
 
 fn aur_argv(helper: &str, unattended: bool) -> Vec<String> {
@@ -120,7 +127,7 @@ mod tests {
 
     #[test]
     fn debug_packages_are_not_installed() {
-        let dir = super::super::sys::test_dir("aur-list");
+        let dir = crate::sys::test_dir("aur-list");
         let main = dir.join("paru-bin-2.2.0-1-x86_64.pkg.tar.zst");
         let debug = dir.join("paru-bin-debug-2.2.0-1-x86_64.pkg.tar.zst");
         fs::write(&main, "").unwrap();
@@ -138,8 +145,8 @@ mod tests {
 
     #[test]
     fn only_the_pinned_helper_is_bootstrapped() {
-        assert!(build_aur("evil-bin", true).is_err());
-        assert!(build_aur(AUR_HELPER, true).is_ok());
+        assert!(build_aur("evil-bin", true, &mut |_| {}).is_err());
+        assert!(build_aur(AUR_HELPER, true, &mut |_| {}).is_ok());
         assert_eq!(AUR_HELPER_COMMIT.len(), 40);
         assert_eq!(AUR_HELPER_PKGBUILD_SHA256.len(), 64);
     }

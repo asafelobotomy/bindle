@@ -4,7 +4,7 @@ mod firstlogin_cmd;
 mod iso;
 mod notify;
 mod print;
-mod selection;
+
 mod session;
 mod terminal;
 mod tui;
@@ -15,6 +15,7 @@ use std::path::PathBuf;
 
 use anyhow::{Result, bail};
 use bindle_core::{Catalog, Facts, Selection, plan};
+use bindle_run::selection;
 use clap::{Args, Parser, Subcommand};
 
 #[derive(Parser)]

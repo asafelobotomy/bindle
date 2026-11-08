@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Internals: the apply engine (orchestrator, root helper, protocol,
+  snapshots, downloads, selection files and shared text) moved into a new
+  `bindle-run` crate, which reports progress through a `Progress` trait. The
+  terminal output is unchanged. This prepares the desktop wizard planned in
+  docs/GUI.md (cxx-qt + Kirigami, themed by uQ).
 - Clearer wizard and output:
   - Shorter category names, modules grouped logically within each category,
     and consistent "What it does (tool)" names for system modules.

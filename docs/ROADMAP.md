@@ -42,7 +42,8 @@
 - AppImage update info (zsync) and a short `curl … | sh`-free install doc for TTY users
 
 ## Phase 3: GUI
-- Tauri 2 + React wizard over `bindle-core` (same plan/apply engine)
+- Desktop wizard: Rust + cxx-qt + Kirigami over `bindle-run`, themed by uQ; see [GUI.md](GUI.md)
+- ~~Shared apply engine (`bindle-run`, `Progress` trait)~~ ✅
 
 ## Phase 4: catalog depth
 - Desktop environment installs (KDE Plasma, GNOME, Hyprland) for minimal installs

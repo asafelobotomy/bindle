@@ -39,7 +39,7 @@ These shaped every decision below:
 │  bindle-core:  detect ─► Facts ─┐                                                  │
 │                catalog (TOML) ──┼─► plan::resolve ─► Plan { steps[] }  (pure, JSON) │
 │                builtins ────────┘                                                  │
-│  executor (Phase 1):  user-side runner  ◄──►  root helper session (sudo / pkexec)   │
+│  bindle-run:   apply (Progress) ─► user-side steps ◄──► root helper (sudo / pkexec)│
 └────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -60,7 +60,7 @@ Where the right answer depends on hardware, a module names a **builtin**
 steps, with no side effects. That gives:
 
 - a full **dry-run review** before anything runs (wizard Review screen, `bindle plan`);
-- `--json` output any frontend (Tauri GUI, scripts) can consume;
+- `--json` output any frontend (the GUI, scripts) can consume;
 - **idempotence**: installed packages, enabled units, groups the user is already
   in, byte-identical files and commands whose `unless` file checks already hold
   are dropped from the plan, so re-applying the same selection plans nothing;
@@ -125,9 +125,10 @@ root-only, so installed grub/limine/refind packages are a fallback hint),
 
 1. **TUI (now)**: works in a bare TTY, over SSH, and in any terminal; `AppRun`
    opens a terminal emulator when the AppImage is double-clicked.
-2. **GUI (Phase 3)**: Tauri 2 + React, matching emobie/SonicSound, driving
-   `bindle-core` directly. The webkit2gtk runtime makes it heavy and it needs a
-   desktop session, so it complements the TUI and doesn't replace it.
+2. **GUI (Phase 3)**: `bindle-gui`, Rust + cxx-qt + Kirigami, following uQ's
+   app conventions and theme tokens; it drives `bindle-run` like the TUI does.
+   It needs a desktop session, so it complements the TUI and doesn't replace
+   it. See [GUI.md](GUI.md).
 
 ## Growing past Arch
 

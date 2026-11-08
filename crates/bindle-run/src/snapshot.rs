@@ -10,8 +10,8 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
 
-use super::protocol::SnapshotPlan;
-use super::sys::{check_system_path, create_dirs, host, now_id, now_rfc3339, write_atomic, write_atomic_owned};
+use crate::protocol::SnapshotPlan;
+use crate::sys::{check_system_path, create_dirs, host, now_id, now_rfc3339, write_atomic, write_atomic_owned};
 
 pub const DIR: &str = "/var/lib/bindle/snapshots";
 
@@ -263,7 +263,7 @@ mod tests {
 
     #[test]
     fn snapshot_and_restore_round_trip() {
-        let root = super::super::sys::test_dir("snapshot");
+        let root = crate::sys::test_dir("snapshot");
         fs::create_dir_all(root.join("etc")).unwrap();
         fs::write(root.join("etc/pacman.conf"), "original\n").unwrap();
         let plan = SnapshotPlan {
@@ -294,7 +294,7 @@ mod tests {
 
     #[test]
     fn restore_continues_past_errors_and_removes_created_dirs() {
-        let root = super::super::sys::test_dir("snapshot-errors");
+        let root = crate::sys::test_dir("snapshot-errors");
         fs::create_dir_all(root.join("etc")).unwrap();
         fs::write(root.join("etc/a.conf"), "a\n").unwrap();
         fs::write(root.join("etc/b.conf"), "b\n").unwrap();
@@ -319,7 +319,7 @@ mod tests {
 
     #[test]
     fn ids_sort_and_sessions_chain_incomplete_snapshots() {
-        let root = super::super::sys::test_dir("snapshot-session");
+        let root = crate::sys::test_dir("snapshot-session");
         let plan = SnapshotPlan::default();
         let ids: Vec<String> = (0..12).map(|_| create(&root, &plan).unwrap().id).collect();
         let listed: Vec<String> = list(&root).into_iter().rev().map(|m| m.id).collect();

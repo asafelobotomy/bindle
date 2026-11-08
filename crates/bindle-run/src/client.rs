@@ -9,7 +9,7 @@ use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 
 use anyhow::{Context, Result, bail};
 
-use super::protocol::{Event, Request, VERSION};
+use crate::protocol::{Event, Request, VERSION};
 
 pub struct HelperClient {
     child: Child,

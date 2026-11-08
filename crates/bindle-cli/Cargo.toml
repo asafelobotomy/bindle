@@ -13,6 +13,7 @@ path = "src/main.rs"
 [dependencies]
 anyhow.workspace = true
 bindle-core = { path = "../bindle-core" }
+bindle-run = { path = "../bindle-run" }
 clap.workspace = true
 ratatui.workspace = true
 serde.workspace = true

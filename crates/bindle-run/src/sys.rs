@@ -212,7 +212,8 @@ pub fn run_streaming(argv: &[String], on_line: &mut dyn FnMut(&str)) -> Result<(
     Ok(())
 }
 
-#[cfg(test)]
+/// A fresh scratch directory for tests (here and in bindle-cli).
+#[doc(hidden)]
 pub fn test_dir(name: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!("bindle-test-{name}-{}", std::process::id()));
     let _ = fs::remove_dir_all(&dir);
