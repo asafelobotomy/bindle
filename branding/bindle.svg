@@ -36,14 +36,15 @@
     <!-- the stick: far end on his shoulder, near end coming at the camera -->
     <path d="M160.2 123.2L114.5 28.3L93.5 39.7L148.6 129.6z" fill="url(#stick)"/>
     <!-- the bag, hanging from the stick in the centre -->
-    <g transform="translate(-68 -34)">
+    <g transform="translate(-70.2 -12.0)">
       <path d="M196 104c-42 6-66 42-60 80 5 32 32 50 60 50s56-18 62-50c6-38-18-74-62-80z" fill="url(#bag)"/>
       <circle cx="174" cy="146" r="9" fill="url(#dot)"/><circle cx="214" cy="138" r="9" fill="url(#dot)"/>
       <circle cx="186" cy="188" r="9" fill="url(#dot)"/><circle cx="228" cy="184" r="8" fill="url(#dot)" opacity="0.85"/>
       <circle cx="160" cy="210" r="8" fill="url(#dot)" opacity="0.85"/>
     </g>
     <!-- the bag's neck, gathered up and tied round the stick -->
-    <path d="M109.8 90.0c4-4 8-10 9-16h14c1 6 5 12 9 16z" fill="url(#knot)"/>
+    <path d="M105.8 98.0c8-6 12-14 13-24h14c1 10 5 18 13 24c-6 4-34 4-40 0z" fill="url(#knot)"/>
+    <path d="M122.8 78.0c-1 8-4 14-8 18M129.8 78.0c1 8 4 14 8 18" stroke="#9a3232" stroke-width="1.5" fill="none" opacity="0.7"/>
     <path d="M121.8 72.0c-12-2-22-10-24-20 10-1 20 6 26 16z" fill="url(#knot)"/>
     <path d="M130.8 71.0c6-10 16-16 28-14-4 10-16 16-28 14z" fill="url(#knot)"/>
     <g transform="rotate(-29 125.8 74.0)">

@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Logo: the bag is tied round the stick, and the stick's far end is hidden
+- Logo: the bag hangs from a tie round the stick, and the stick's far end is hidden
   behind it.
 
 ## 0.1.5 — 2026-11-09
