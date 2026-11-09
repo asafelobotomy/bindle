@@ -263,6 +263,9 @@ fn uq_module_builds_from_the_aur_then_runs_setup_as_the_user() {
         .position(|s| matches!(s, Step::InstallAur { packages } if packages == &["uq", "uq-hyprland-pin"]));
     let setup = p.steps.iter().position(|s| matches!(s, Step::RunAsUser { argv, .. } if argv == &["uqctl", "setup"]));
     assert!(aur.unwrap() < setup.unwrap(), "{:?}", p.steps);
+    // Exit 3 (the user's own hyprland.lua was kept) is a manual step, not a failure.
+    let Step::RunAsUser { manual, .. } = &p.steps[setup.unwrap()] else { unreachable!() };
+    assert!(manual.get("3").is_some_and(|m| m.contains("hyprland.lua")) && manual.len() == 1);
     // desktop-essentials rounds out uQ, not the Hyprland it rides on.
     let pkgs = p.steps.iter().find_map(|s| match s {
         Step::InstallPackages { packages } => Some(packages.clone()),

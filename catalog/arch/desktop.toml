@@ -18,11 +18,15 @@ name = "uQ desktop"
 description = "uQ, a themeable Hyprland desktop: shell, theming daemon and base config. By asafelobotomy."
 notes = [
   "Built from the AUR (uq, uq-hyprland-pin), then `uqctl setup` writes ~/.config/hypr/hyprland.lua for you.",
-  "An existing hyprland.lua is left alone; uqctl prints the lines to add to it.",
+  "An existing hyprland.lua is kept: add the lines uqctl prints to it to start uQ.",
 ]
 requires = ["aur-helper"]
 aur = ["uq", "uq-hyprland-pin"]
-user_commands = [{ argv = ["uqctl", "setup"], unless = [{ path = "~/.config/hypr/hyprland.lua", contains = "require(\"./uq/generated.lua\")" }] }]
+# uqctl setup: 0 = uQ's hyprland.lua is in place, 1 = error, 2 = ran as root, 3 = the user's own file was kept.
+[[module.user_commands]]
+argv = ["uqctl", "setup"]
+unless = [{ path = "~/.config/hypr/hyprland.lua", contains = "require(\"./uq/generated.lua\")" }]
+manual = { 3 = "your own ~/.config/hypr/hyprland.lua was kept. Add the lines `uqctl setup` printed above to the top of it, then log out and back in to start uQ." }
 
 [[module]]
 id = "fonts"

@@ -89,6 +89,9 @@ pub enum Step {
     RunAsUser {
         module: String,
         argv: Vec<String>,
+        /// Exit code → what the user still has to do (see `Command::manual`).
+        #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+        manual: BTreeMap<String, String>,
     },
 }
 
@@ -238,7 +241,7 @@ pub fn resolve(
         groups.extend(m.groups.iter().cloned());
         let pending = |c: &&Command| facts.matches(&c.when).is_ok() && !already_done(c, facts, current_file);
         root_cmds.extend(m.root_commands.iter().filter(pending).map(|c| (id.clone(), c.argv.clone())));
-        user_cmds.extend(m.user_commands.iter().filter(pending).map(|c| (id.clone(), c.argv.clone())));
+        user_cmds.extend(m.user_commands.iter().filter(pending).map(|c| (id.clone(), c.clone())));
         aur.extend(m.aur.iter().cloned());
         releases.extend(m.releases.iter().map(|r| ReleaseAsset { title: m.name.clone(), ..r.clone() }));
         plan.notes.extend(m.notes.iter().map(|n| (id.clone(), n.clone())));
@@ -298,7 +301,11 @@ pub fn resolve(
     if !releases.is_empty() {
         plan.steps.push(Step::InstallReleases { assets: releases });
     }
-    plan.steps.extend(user_cmds.into_iter().map(|(module, argv)| Step::RunAsUser { module, argv }));
+    plan.steps.extend(user_cmds.into_iter().map(|(module, c)| Step::RunAsUser {
+        module,
+        argv: c.argv,
+        manual: c.manual,
+    }));
 
     let advisories = crate::install::advisories(facts);
     plan.notes.extend(advisories.into_iter().map(|a| ("install".to_string(), a)));

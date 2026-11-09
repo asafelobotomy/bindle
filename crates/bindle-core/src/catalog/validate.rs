@@ -64,6 +64,13 @@ pub(super) fn validate(cat: &Catalog) -> Result<()> {
         if m.root_commands.iter().chain(&m.user_commands).any(|c| c.argv.is_empty()) {
             bail!("module `{}` has an empty command", m.id);
         }
+        if m.root_commands.iter().any(|c| !c.manual.is_empty()) {
+            bail!("module `{}`: `manual` exit codes are for user commands", m.id);
+        }
+        let manual = m.user_commands.iter().flat_map(|c| &c.manual);
+        if let Some((code, _)) = manual.clone().find(|(k, v)| v.is_empty() || !matches!(k.parse::<u8>(), Ok(1..))) {
+            bail!("module `{}` has a bad `manual` exit code `{code}` (1-255, with a message)", m.id);
+        }
         for c in &m.conflicts {
             let other = cat.module(c).expect("checked above");
             if !other.conflicts.contains(&m.id) {
@@ -190,6 +197,9 @@ mod tests {
             (module("a", &file("/usr/bin/x", "0o4755")), "mode"),
             (module("a", &file("/etc/x", "0o644")) + &module("b", &file("/etc/x", "0o644")), "both write"),
             (module("a", "aur = [\"x-bin\"]"), "aur-helper"),
+            (module("a", "user_commands = [{ argv = [\"x\"], manual = { 0 = \"y\" } }]"), "manual"),
+            (module("a", "user_commands = [{ argv = [\"x\"], manual = { 3 = \"\" } }]"), "manual"),
+            (module("a", "root_commands = [{ argv = [\"x\"], manual = { 3 = \"y\" } }]"), "manual"),
             (
                 module(
                     "a",

@@ -140,6 +140,10 @@ pub struct Command {
     pub when: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub unless: Vec<FileCheck>,
+    /// Exit codes (as strings) that mean "done, but the user must finish
+    /// something": the apply goes on and the message is shown at the end.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub manual: BTreeMap<String, String>,
 }
 
 #[derive(Deserialize)]
@@ -157,13 +161,15 @@ struct FullCommand {
     when: Vec<String>,
     #[serde(default)]
     unless: Vec<FileCheck>,
+    #[serde(default)]
+    manual: BTreeMap<String, String>,
 }
 
 impl From<CommandRepr> for Command {
     fn from(r: CommandRepr) -> Self {
         match r {
-            CommandRepr::Argv(argv) => Command { argv, when: vec![], unless: vec![] },
-            CommandRepr::Full(FullCommand { argv, when, unless }) => Command { argv, when, unless },
+            CommandRepr::Argv(argv) => Command { argv, when: vec![], unless: vec![], manual: BTreeMap::new() },
+            CommandRepr::Full(FullCommand { argv, when, unless, manual }) => Command { argv, when, unless, manual },
         }
     }
 }

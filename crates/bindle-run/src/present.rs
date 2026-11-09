@@ -105,7 +105,7 @@ pub fn describe(step: &Step) -> String {
         Step::WriteFile { module, file } => format!("write {} (mode {:o}) [{module}]", file.path, file.mode),
         Step::EnableUnits { units } => format!("systemctl enable {}", units.join(" ")),
         Step::AddToGroups { user, groups } => format!("usermod -aG {} {user}", groups.join(",")),
-        Step::RunAsRoot { module, argv } | Step::RunAsUser { module, argv } => {
+        Step::RunAsRoot { module, argv } | Step::RunAsUser { module, argv, .. } => {
             format!("{} [{module}]", argv.join(" "))
         }
         Step::RebuildInitramfs => "mkinitcpio -P".into(),

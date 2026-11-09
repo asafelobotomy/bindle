@@ -37,6 +37,9 @@ root_commands = [
     unless = [{ path = "/etc/ufw/user.rules", contains = "--dport 1714:1764" }] },
 ]
 user_commands = [{ argv = ["xdg-user-dirs-update"], unless = [{ path = "~/.config/user-dirs.dirs" }] }]
+# A user command may map exit codes to a manual step: the apply goes on and the
+# message is listed at the end. Any other non-zero exit fails the step.
+#   { argv = ["uqctl", "setup"], manual = { 3 = "add the lines it printed to hyprland.lua" } }
 builtin = "zram"                # hardware-computed steps (gpu, microcode, zram, aur-helper, desktop)
 notes = ["Shown on the review screen."]
 
@@ -118,8 +121,9 @@ finishes it on first login; `bindle iso` adds it to the saved selection). While
 that module is planned, the `desktop` builtin rounds out this desktop, not its base.
 uQ is the one such desktop: Hyprland plus the `uq` module (AUR `uq` and
 `uq-hyprland-pin`, then `uqctl setup` as the user, skipped once
-`~/.config/hypr/hyprland.lua` loads uQ). A failing `uqctl setup` fails the apply
-like any other step.
+`~/.config/hypr/hyprland.lua` loads uQ). `uqctl setup` exit codes: 0 done, 1 error
+and 2 (ran as root) fail the step, 3 (the user's own `hyprland.lua` was kept) is
+listed as a manual step.
 
 ### Recommended desktop
 

@@ -1,5 +1,6 @@
 //! Steps that must run as the invoking user (makepkg refuses root).
 
+use std::collections::BTreeMap;
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -12,17 +13,41 @@ use bindle_core::builtins::{AUR_HELPER, AUR_HELPER_COMMIT, AUR_HELPER_PKGBUILD_S
 use crate::sys::{shell_words, valid_name};
 
 pub(crate) fn run(argv: &[String], fake: bool, note: &mut dyn FnMut(&str)) -> Result<()> {
+    run_command(argv, &BTreeMap::new(), fake, note).map(drop)
+}
+
+/// A catalog user command. An exit code listed in `manual` isn't a failure:
+/// its message (what the user still has to do) is returned instead.
+pub(crate) fn run_command(
+    argv: &[String],
+    manual: &BTreeMap<String, String>,
+    fake: bool,
+    note: &mut dyn FnMut(&str),
+) -> Result<Option<String>> {
     let shown = shell_words(argv);
     if fake {
         note(&format!("would run: {shown}"));
-        return Ok(());
+        return Ok(None);
     }
     let (prog, args) = argv.split_first().context("empty command")?;
     let status = Command::new(prog).args(args).status().with_context(|| format!("start `{prog}`"))?;
-    if !status.success() {
-        bail!("`{shown}` failed ({status})");
+    exit_outcome(&shown, status.success(), status.code(), manual, &status.to_string())
+}
+
+fn exit_outcome(
+    shown: &str,
+    success: bool,
+    code: Option<i32>,
+    manual: &BTreeMap<String, String>,
+    status: &str,
+) -> Result<Option<String>> {
+    if success {
+        return Ok(None);
     }
-    Ok(())
+    match code.and_then(|c| manual.get(&c.to_string())) {
+        Some(todo) => Ok(Some(todo.clone())),
+        None => bail!("`{shown}` failed ({status})"),
+    }
 }
 
 /// Build the AUR helper as the user, from the pinned AUR commit; returns the
@@ -124,6 +149,16 @@ fn aur_argv(helper: &str, unattended: bool) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn manual_exit_codes_are_reported_not_failed() {
+        let manual = BTreeMap::from([("3".to_string(), "add the stub".to_string())]);
+        assert_eq!(exit_outcome("x", true, Some(0), &manual, "").unwrap(), None);
+        assert_eq!(exit_outcome("x", false, Some(3), &manual, "").unwrap().as_deref(), Some("add the stub"));
+        let e = exit_outcome("uqctl setup", false, Some(1), &manual, "exit status: 1").unwrap_err();
+        assert!(e.to_string().contains("`uqctl setup` failed"));
+        assert!(exit_outcome("x", false, None, &manual, "signal 9").is_err());
+    }
 
     #[test]
     fn debug_packages_are_not_installed() {

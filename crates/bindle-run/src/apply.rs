@@ -56,6 +56,9 @@ pub struct Report {
     pub needs_reboot: bool,
     /// Group memberships changed; they apply from the next login.
     pub relogin: bool,
+    /// Steps that did their part but left the user something to finish
+    /// (module id, what to do), from a command's `manual` exit codes.
+    pub manual: Vec<(String, String)>,
 }
 
 /// Run `plan`. Errors are setup failures (no root helper, no snapshot), when
@@ -86,12 +89,23 @@ pub fn run(plan: &Plan, facts: &Facts, opts: &Options, progress: &mut dyn Progre
     let aur_helper = facts.aur_helper.clone().unwrap_or_else(|| "paru".into());
     let total = plan.steps.len();
     let mut failed = None;
+    let mut manual = Vec::new();
     for (i, step) in plan.steps.iter().enumerate() {
         progress.step(i, total, step);
-        let result = run_step(step, helper.as_mut(), &aur_helper, opts.yes, fake, progress);
-        if let Err(e) = result {
-            failed = Some((i, e));
-            break;
+        match run_step(step, helper.as_mut(), &aur_helper, opts.yes, fake, progress) {
+            Ok(None) => {}
+            Ok(Some(todo)) => {
+                progress.note(&format!("needs a manual step: {todo}"));
+                let module = match step {
+                    Step::RunAsUser { module, .. } => module.clone(),
+                    _ => String::new(),
+                };
+                manual.push((module, todo));
+            }
+            Err(e) => {
+                failed = Some((i, e));
+                break;
+            }
         }
     }
     if let Some(mut h) = helper {
@@ -109,6 +123,7 @@ pub fn run(plan: &Plan, facts: &Facts, opts: &Options, progress: &mut dyn Progre
         log: sys::host(&opts.root(), &log),
         needs_reboot: needs_reboot(plan),
         relogin: plan.steps.iter().any(|s| matches!(s, Step::AddToGroups { .. })),
+        manual,
     })
 }
 
@@ -119,7 +134,10 @@ fn run_step(
     unattended: bool,
     fake: bool,
     progress: &mut dyn Progress,
-) -> Result<()> {
+) -> Result<Option<String>> {
+    if let Step::RunAsUser { argv, manual, .. } = step {
+        return user::run_command(argv, manual, fake, &mut |l| progress.note(l));
+    }
     let mut note = |l: &str| progress.note(l);
     match (step, helper) {
         (s, Some(h)) if s.privileged() => {
@@ -138,9 +156,9 @@ fn run_step(
             }
         }
         (Step::InstallAur { packages }, _) => user::install_aur(aur_helper, packages, unattended, fake, &mut note),
-        (Step::RunAsUser { argv, .. }, _) => user::run(argv, fake, &mut note),
         (s, _) => Err(anyhow!("no root helper for {s:?}")),
     }
+    .map(|()| None)
 }
 
 fn install_files(h: &mut HelperClient, files: Vec<String>, progress: &mut dyn Progress) -> Result<()> {

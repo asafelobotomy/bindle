@@ -92,6 +92,9 @@ pub fn apply(plan: &Plan, facts: &Facts, opts: &Options) -> Result<Outcome> {
     } else if report.relogin {
         println!("Log out and back in for the new group memberships.");
     }
+    for (module, todo) in &report.manual {
+        println!("Needs a manual step ({module}): {todo}");
+    }
     Ok(Outcome::Applied)
 }
 
