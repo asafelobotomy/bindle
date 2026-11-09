@@ -1,7 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.1.4 — 2026-11-09
 
+- The Bindle icon is flipped vertically.
 - `bindle undo` marks a snapshot undone once it is fully restored, so running
   it again steps back to the apply before instead of repeating the newest one.
   After an apply was re-run, the first run's file changes were only reachable
