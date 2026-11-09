@@ -7,6 +7,7 @@ use serde_json::{Value, json};
 use super::GFX_DRIVERS;
 use crate::desktops::{Desktop, by_id};
 use crate::detect::Facts;
+use crate::plan::Selection;
 
 /// archinstall release whose config schema and plugin API this was built against.
 pub const TESTED_ARCHINSTALL: &str = "4.5";
@@ -64,7 +65,9 @@ pub fn archinstall_preset(facts: &Facts, desktops: &[Desktop], choice: &IsoChoic
     if choice.profile == "gaming" {
         cfg["mirror_config"] = json!({ "optional_repositories": ["multilib"] });
     }
-    if let Some(d) = desktop {
+    if let Some(chosen) = desktop {
+        // uQ has no archinstall profile: install its base's, with uQ's greeter.
+        let d = chosen.profile(desktops);
         let mut custom = json!({});
         if d.id == "plasma" {
             custom = json!({ "plasma_flavor": "plasma-meta" });
@@ -74,7 +77,7 @@ pub fn archinstall_preset(facts: &Facts, desktops: &[Desktop], choice: &IsoChoic
         let mut profile = json!({
             "profile": { "main": "Desktop", "details": [d.name], "custom_settings": { d.name.clone(): custom } },
         });
-        if let Some(g) = &d.greeter {
+        if let Some(g) = chosen.greeter.as_ref().or(d.greeter.as_ref()) {
             profile["greeter"] = json!(g);
         }
         if let Some(gfx) = gfx_driver(&facts.gpus) {
@@ -83,6 +86,13 @@ pub fn archinstall_preset(facts: &Facts, desktops: &[Desktop], choice: &IsoChoic
         cfg["profile_config"] = profile;
     }
     cfg
+}
+
+/// The selection Bindle opens with on first login: the profile, plus the
+/// module that installs a desktop archinstall can't (uQ, from the AUR).
+pub fn first_login_selection(desktops: &[Desktop], choice: &IsoChoice) -> Selection {
+    let module = choice.desktop.as_deref().and_then(|id| by_id(desktops, id)).and_then(|d| d.module.clone());
+    Selection { profile: Some(choice.profile.clone()), include: module.into_iter().collect(), ..Default::default() }
 }
 
 /// Bindle's preset for `choice` with the user's `--config` overlay merged in.
@@ -188,6 +198,31 @@ mod tests {
         assert_eq!(r.multilib, Some(true));
         assert_eq!(r.network.as_deref(), Some("nm"));
         assert_eq!(r.plasma_flavor.as_deref(), Some("plasma-meta"));
+    }
+
+    #[test]
+    fn uq_installs_hyprlands_profile_with_its_own_greeter() {
+        let d = desktops::all().unwrap();
+        let choice = IsoChoice { desktop: Some("uq".into()), profile: "desktop".into() };
+        let preset = archinstall_preset(&Facts::default(), &d, &choice);
+        assert_eq!(preset.pointer("/profile_config/profile/details/0").unwrap(), "Hyprland");
+        assert_eq!(
+            preset.pointer("/profile_config/profile/custom_settings/Hyprland/seat_access").unwrap(),
+            "systemd-logind"
+        );
+        let r = archinstall_log::parse_config_json(&preset.to_string(), &d).unwrap();
+        assert_eq!(r.desktops, ["hyprland"]);
+        assert_eq!(r.greeter.as_deref(), Some("sddm"));
+    }
+
+    #[test]
+    fn uq_is_finished_by_its_module_on_first_login() {
+        let data = desktops::all().unwrap();
+        let pick = |d: Option<&str>| IsoChoice { desktop: d.map(String::from), profile: "desktop".into() };
+        let sel = first_login_selection(&data, &pick(Some("uq")));
+        assert_eq!((sel.profile.as_deref(), sel.include), (Some("desktop"), vec!["uq".to_string()]));
+        assert!(first_login_selection(&data, &pick(Some("plasma"))).include.is_empty());
+        assert!(first_login_selection(&data, &pick(None)).include.is_empty());
     }
 
     #[test]

@@ -248,3 +248,34 @@ fn release_assets_are_planned_until_installed() {
     };
     assert_eq!(assets(&resolve(&Catalog::arch().unwrap(), &f, &sel, &old).unwrap()), ["emobie"]);
 }
+
+#[test]
+fn uq_module_builds_from_the_aur_then_runs_setup_as_the_user() {
+    let mut f = facts();
+    f.desktops = vec!["hyprland".into()];
+    f.home = "/home/tester".into();
+    let sel = Selection { profile: Some("desktop".into()), include: vec!["uq".into()], ..Default::default() };
+    let p = plan(sel.clone(), &f).unwrap();
+    assert!(p.modules.contains(&"aur-helper".to_string()) && p.modules.contains(&"uq".to_string()));
+    let aur = p
+        .steps
+        .iter()
+        .position(|s| matches!(s, Step::InstallAur { packages } if packages == &["uq", "uq-hyprland-pin"]));
+    let setup = p.steps.iter().position(|s| matches!(s, Step::RunAsUser { argv, .. } if argv == &["uqctl", "setup"]));
+    assert!(aur.unwrap() < setup.unwrap(), "{:?}", p.steps);
+    // desktop-essentials rounds out uQ, not the Hyprland it rides on.
+    let pkgs = p.steps.iter().find_map(|s| match s {
+        Step::InstallPackages { packages } => Some(packages.clone()),
+        _ => None,
+    });
+    let pkgs = pkgs.unwrap();
+    assert!(pkgs.contains(&"papirus-icon-theme".into()) && pkgs.contains(&"kitty".into()));
+    assert!(!pkgs.contains(&"waybar".into()));
+    // Once uqctl has written its stub, setup isn't planned again.
+    let stub = "require(\"/usr/share/uq/hypr/base.lua\")\nrequire(\"./uq/generated.lua\")\n";
+    let done = resolve(&Catalog::arch().unwrap(), &f, &sel, &|p| {
+        (p == "/home/tester/.config/hypr/hyprland.lua").then(|| stub.to_string())
+    })
+    .unwrap();
+    assert!(!done.steps.iter().any(|s| matches!(s, Step::RunAsUser { argv, .. } if argv[0] == "uqctl")));
+}

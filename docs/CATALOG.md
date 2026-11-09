@@ -112,6 +112,34 @@ packages the `desktop` builtin adds. Check package names with `make check-packag
 `crates/bindle-core/src/builtins/`, which unit tests keep in sync with builtin output).
 Run `bindle detect` to see the facts for the current machine.
 
+A desktop archinstall has no profile for sets `base` (the archinstall desktop
+`bindle iso` installs), `includes = [base]`, and `module` (the catalog module that
+finishes it on first login; `bindle iso` adds it to the saved selection). While
+that module is planned, the `desktop` builtin rounds out this desktop, not its base.
+uQ is the one such desktop: Hyprland plus the `uq` module (AUR `uq` and
+`uq-hyprland-pin`, then `uqctl setup` as the user, skipped once
+`~/.config/hypr/hyprland.lua` loads uQ). A failing `uqctl setup` fails the apply
+like any other step.
+
+### Recommended desktop
+
+`status = "recommended"` marks the one desktop `bindle iso` pre-selects and labels
+"(recommended)"; `status = "preview"` labels it "(preview)" and pre-selects nothing.
+uQ is Bindle's default desktop, gated: it ships as `status = "preview"` until
+`uq` v0.2.0 is on the AUR and a fresh-VM `bindle iso` → uQ install passes
+(docs/VM-TEST.md). To flip it:
+
+1. `python3 scripts/check-packages.py --aur` prints
+   `preview desktop uq: uq uq-hyprland-pin on the AUR; it can be recommended`.
+2. In `catalog/desktops.toml`, change uQ's `status = "preview"` to `"recommended"`.
+3. Update the assertions in `crates/bindle-core/src/desktops.rs`
+   (`uq_rides_on_hyprland_and_is_a_preview_until_published`) and
+   `crates/bindle-cli/src/tui/iso.rs` (`opens_on_the_requested_then_the_recommended_desktop`),
+   then `make test`.
+
+Unattended runs (`bindle iso --yes` without `--desktop`) never pick a desktop on
+their own, recommended or not.
+
 ## Arch modules
 
 | Category | Modules |
@@ -119,7 +147,7 @@ Run `bindle detect` to see the facts for the current machine.
 | System | pacman-qol, mirrors, multilib, build-tools, aur-helper, microcode, firmware-updates, fstrim, man-pages |
 | Hardware | gpu-driver, audio-firmware, audio-pipewire, bluetooth, power-profiles, tlp, tlp-rdw, thermald, fingerprint, printing, scanning-qt, scanning-gtk, solaar, piper, openrgb, android-tools |
 | Performance | zram, xzram, oomd, earlyoom, io-schedulers, scx-schedulers, kernel-zen, makepkg-parallel, makepkg-native |
-| Desktop & apps | desktop-essentials, fonts, nerd-fonts, codecs, archives, user-dirs, flatpak, flatpak-discover, flatpak-gnome-software, media-players, spotify, libreoffice, obsidian, keepassxc, bitwarden, backup-gtk, backup-deja-dup, yakuake, emobie |
+| Desktop & apps | desktop-essentials, uq, fonts, nerd-fonts, codecs, archives, user-dirs, flatpak, flatpak-discover, flatpak-gnome-software, media-players, spotify, libreoffice, obsidian, keepassxc, bitwarden, backup-gtk, backup-deja-dup, yakuake, emobie |
 | Internet | firefox, chromium, brave, brave-origin, vivaldi, zen-browser, google-chrome, thunderbird, signal, telegram, element, proton-mail, proton-mail-bridge, proton-pass, proton-vpn, proton-authenticator, proton-drive-cli, syncthing, nextcloud-client, tailscale, qbittorrent, qbittorrent-enhanced, qbit-plugin-dl, hauler, av-morning-star |
 | Creative | gimp, krita, inkscape, darktable, rawtherapee, digikam, kdenlive, handbrake, obs-studio, audacity, blender, photocraft, lightcraft, filmcraft, vectorcraft, effectcraft, designcraft, pdfcraft, wordcraft, deckcraft, gridcraft |
 | Development | rustup, python, nodejs, js-runtimes, go, c-cpp, java, dotnet, zig, mise, git-tools, jujutsu, cli-tools, neovim, helix, code-oss, vscodium, vscode, zed, ghostty, kitty, alacritty, fish, zsh, docker, podman, distrobox, virt-manager |

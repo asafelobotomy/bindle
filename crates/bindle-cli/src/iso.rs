@@ -16,7 +16,7 @@ use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
 use bindle_core::install::preset::{self, IsoChoice, TESTED_ARCHINSTALL};
-use bindle_core::{Catalog, Facts, Selection, desktops};
+use bindle_core::{Catalog, Facts, desktops};
 use serde_json::Value;
 
 use crate::apply::sys::{is_root, write_atomic};
@@ -253,7 +253,7 @@ pub fn run(catalog: &Catalog, facts: &Facts, opts: IsoOpts) -> Result<()> {
     let sel = work.join("selection.toml");
     write_atomic(&config, serde_json::to_string_pretty(&preset)?.as_bytes(), 0o600)?;
     write_atomic(&plugin, PLUGIN.as_bytes(), 0o600)?;
-    let picked = Selection { profile: Some(choice.profile.clone()), ..Default::default() };
+    let picked = preset::first_login_selection(&data, &choice);
     write_atomic(&sel, selection::render(&picked)?.as_bytes(), 0o600)?;
 
     let exe = std::env::current_exe()?;

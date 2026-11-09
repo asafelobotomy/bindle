@@ -9,7 +9,9 @@ recently added packages as missing.
 
 Also checked: systemd units the catalog enables, against pacman's files DB
 (`sudo pacman -Fy`; skipped when it is missing), and with `--aur` (online) the
-AUR packages via the AUR RPC and the pinned GitHub release assets.
+AUR packages via the AUR RPC and the pinned GitHub release assets. A preview
+desktop's module (uQ) may not be on the AUR yet; that is reported, not failed,
+and once it is there the script says the desktop can be recommended.
 """
 import json, pathlib, re, subprocess, sys, tomllib, urllib.parse, urllib.request
 
@@ -22,13 +24,18 @@ provided = set()
 units = set()
 aur = set()
 releases = []
+module_aur = {}
 for f in (root / "arch").glob("*.toml"):
     for m in tomllib.loads(f.read_text()).get("module", []):
         names.update(m.get("packages", []))
         units.update(m.get("enable", []))
         aur.update(m.get("aur", []))
+        module_aur[m["id"]] = set(m.get("aur", []))
         releases += m.get("release", [])
-for d in tomllib.loads((root / "desktops.toml").read_text())["desktop"]:
+desktops = tomllib.loads((root / "desktops.toml").read_text())["desktop"]
+# Desktop id -> AUR packages its module installs, while the desktop is a preview.
+preview = {d["id"]: module_aur.get(d.get("module"), set()) for d in desktops if d.get("status") == "preview"}
+for d in desktops:
     for key in ("essentials", "nm", "bt"):
         names.update(d.get(key, []))
     if d.get("broken"):  # archinstall's own list is known-bad; never offered
@@ -87,8 +94,16 @@ def release_missing(r: dict) -> bool:
 if "--aur" in sys.argv[1:]:
     missing += [f"release:{r['repo']}/{r['tag']}/{r['asset']}" for r in releases if release_missing(r)]
     print(f"checked {len(releases)} release assets")
-    missing += [f"aur:{p}" for p in aur_missing(aur)]
+    not_on_aur = set(aur_missing(aur))
     print(f"checked {len(aur)} AUR packages")
+    for desktop, pkgs in sorted(preview.items()):
+        if pkgs & not_on_aur:
+            print(f"preview desktop {desktop}: not on the AUR yet: {' '.join(sorted(pkgs & not_on_aur))}")
+            not_on_aur -= pkgs
+        elif pkgs:
+            print(f"preview desktop {desktop}: {' '.join(sorted(pkgs))} on the AUR; it can be recommended "
+                  "(docs/CATALOG.md, \"Recommended desktop\")")
+    missing += [f"aur:{p}" for p in sorted(not_on_aur)]
 if missing:
     print("missing from sync DBs:", " ".join(missing))
     sys.exit(1)

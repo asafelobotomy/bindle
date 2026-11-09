@@ -13,6 +13,18 @@ when = ["desktop"]
 builtin = "desktop"
 
 [[module]]
+id = "uq"
+name = "uQ desktop"
+description = "uQ, a themeable Hyprland desktop: shell, theming daemon and base config. By asafelobotomy."
+notes = [
+  "Built from the AUR (uq, uq-hyprland-pin), then `uqctl setup` writes ~/.config/hypr/hyprland.lua for you.",
+  "An existing hyprland.lua is left alone; uqctl prints the lines to add to it.",
+]
+requires = ["aur-helper"]
+aur = ["uq", "uq-hyprland-pin"]
+user_commands = [{ argv = ["uqctl", "setup"], unless = [{ path = "~/.config/hypr/hyprland.lua", contains = "require(\"./uq/generated.lua\")" }] }]
+
+[[module]]
 id = "fonts"
 name = "Fonts"
 description = "Noto (with emoji and CJK), DejaVu and Liberation."

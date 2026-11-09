@@ -204,7 +204,12 @@ pub fn resolve(
 
     let multilib = facts.multilib_enabled
         || ordered.iter().any(|id| catalog.module(id).is_some_and(|m| m.repos.iter().any(|r| r == "multilib")));
-    let ctx = Ctx { facts, multilib };
+    // A module that installs a desktop (uQ) has the `desktop` builtin round out
+    // that desktop rather than the one it ships on.
+    let planned =
+        crate::desktops::all().ok().and_then(|d| crate::desktops::with_planned(&d, &facts.desktops, &ordered));
+    let with_planned = planned.map(|desktops| Facts { desktops, ..facts.clone() });
+    let ctx = Ctx { facts: with_planned.as_ref().unwrap_or(facts), multilib };
 
     let mut options = BTreeMap::new();
     let mut repos = Vec::new();

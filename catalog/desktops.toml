@@ -9,9 +9,32 @@
 #   nm / bt       extra packages when NetworkManager / Bluetooth hardware is present
 #   includes      desktops shipped as a component of this one (not separate choices)
 #   broken        archinstall's profile is known to fail; `bindle iso` won't offer it
+#   base          archinstall has no profile for this desktop: `bindle iso` installs
+#                 base's profile, and `module` (a catalog module) finishes it on first login
+#   status        "preview" (labelled, never pre-selected) or "recommended" (pre-selected;
+#                 at most one). See docs/CATALOG.md, "Recommended desktop".
 #
 # The common "Desktop" base archinstall adds to every desktop is DESKTOP_BASE in
 # crates/bindle-core/src/desktops.rs.
+
+# uQ is Bindle's default desktop once it installs from the AUR. Until `uq` v0.2.0
+# is published there (and a fresh-VM bindle -> uQ install passes), it stays a
+# preview: flip `status` to "recommended" then, and nothing else.
+[[desktop]]
+id = "uq"
+name = "uQ"
+kind = "desktop"
+display = "wayland"
+toolkit = "qt"
+detect = "uq"
+status = "preview"
+base = "hyprland"
+includes = ["hyprland"]
+module = "uq"
+greeter = "sddm"
+essentials = ["kitty", "papirus-icon-theme", "bibata-cursor-theme", "ttf-jetbrains-mono", "inter-font", "wireplumber", "playerctl", "networkmanager"]
+bt = ["bluez"]
+notes = ["uQ comes from the AUR; Bindle then runs `uqctl setup` as you. Log out and back in to start it."]
 
 [[desktop]]
 id = "plasma"

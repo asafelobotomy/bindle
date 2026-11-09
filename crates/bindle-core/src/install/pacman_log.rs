@@ -129,7 +129,7 @@ pub fn reconstruct(log: &str, desktops: &[Desktop]) -> Option<InstallRecord> {
         });
         flag(has("mesa") || has("nvidia-open-dkms"), &mut || r.gfx_driver = gfx_driver(p));
         flag(DESKTOP_BASE.iter().all(|b| has(b)), &mut || r.profile = Some("Desktop".into()));
-        for d in desktops {
+        for d in desktops.iter().filter(|d| d.base.is_none()) {
             let flavor = ["plasma-meta", "plasma", "plasma-desktop"].into_iter().find(|f| has(f));
             let matched = if d.id == "plasma" { flavor.is_some() } else { d.archinstall.iter().all(|x| has(x)) };
             flag(matched, &mut || {

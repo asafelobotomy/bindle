@@ -17,6 +17,7 @@ pub(super) fn validate(cat: &Catalog) -> Result<()> {
     let ids: BTreeSet<&str> = cat.modules.iter().map(|m| m.id.as_str()).collect();
     let profile_ids: BTreeSet<_> = cat.profiles.iter().map(|p| p.id.as_str()).collect();
     let desktops = desktops::all()?;
+    desktops::check(&desktops)?;
     for d in &desktops {
         if !TOOLKITS.contains(&d.toolkit.as_str()) || !DISPLAYS.contains(&d.display.as_str()) {
             bail!("desktop `{}` has toolkit `{}` / display `{}`", d.id, d.toolkit, d.display);

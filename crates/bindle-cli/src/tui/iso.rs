@@ -24,9 +24,7 @@ pub fn run(
     if profiles.is_empty() {
         anyhow::bail!("the catalog has no profiles");
     }
-    // Row 0 = "choose in archinstall"; rows 1.. = desktops.
-    let mut d_state = ListState::default()
-        .with_selected(Some(desktop.and_then(|id| desktops.iter().position(|d| d.id == id)).map_or(0, |i| i + 1)));
+    let mut d_state = ListState::default().with_selected(Some(desktop_row(desktops, desktop.as_deref())));
     let mut p_state = ListState::default().with_selected(Some(profile_index(profiles, profile.as_deref())));
     let mut focus_profile = false;
     let mut terminal = ratatui::init();
@@ -66,6 +64,13 @@ pub fn run(
     };
     ratatui::restore();
     result
+}
+
+/// Row 0 = "choose in archinstall"; rows 1.. = desktops. The requested
+/// desktop, else Bindle's recommended one, else row 0.
+fn desktop_row(desktops: &[Desktop], wanted: Option<&str>) -> usize {
+    let recommended = || bindle_core::desktops::recommended(desktops).map(|d| d.id.as_str());
+    wanted.or_else(recommended).and_then(|id| desktops.iter().position(|d| d.id == id)).map_or(0, |i| i + 1)
 }
 
 /// The requested profile, else `desktop` (the everyday default), else the first.
@@ -112,6 +117,7 @@ impl View<'_> {
         let mut items = vec![ListItem::new("Choose in archinstall")];
         items.extend(self.desktops.iter().map(|d| match &d.broken {
             Some(_) => ListItem::new(format!("{} (unavailable)", d.name)).style(Style::new().fg(Color::DarkGray)),
+            None if d.status.is_some() => ListItem::new(d.label()),
             None => ListItem::new(format!("{} ({})", d.name, d.display)),
         }));
         let list = List::new(items)
@@ -132,9 +138,19 @@ impl View<'_> {
 
     fn draw_summary(&self, f: &mut Frame, area: Rect, d_state: &ListState, p_state: &ListState) {
         let mut lines: Vec<Line> = Vec::new();
-        if let Some(why) = d_state.selected().filter(|&i| i > 0).and_then(|i| self.desktops[i - 1].broken.as_ref()) {
+        let picked = d_state.selected().filter(|&i| i > 0).map(|i| &self.desktops[i - 1]);
+        if let Some(why) = picked.and_then(|d| d.broken.as_ref()) {
             lines.push(Line::from(format!("Unavailable: {why}")).fg(Color::Red));
             lines.push(Line::from(""));
+        }
+        if let Some(d) = picked.filter(|d| d.base.is_some()) {
+            let base = d.profile(self.desktops);
+            lines.push(Line::from(format!(
+                "{}: archinstall installs {}; Bindle adds {} on first login.",
+                d.label(),
+                base.name,
+                d.name
+            )));
         }
         lines.extend(self.summary.iter().map(|l| Line::from(l.as_str())));
         lines.push(Line::from(""));
@@ -153,6 +169,19 @@ mod tests {
     use ratatui::backend::TestBackend;
 
     use super::*;
+
+    #[test]
+    fn opens_on_the_requested_then_the_recommended_desktop() {
+        let mut desktops = bindle_core::desktops::all().unwrap();
+        let row = |d: &[Desktop], id: &str| d.iter().position(|x| x.id == id).unwrap() + 1;
+        assert_eq!(desktop_row(&desktops, Some("gnome")), row(&desktops, "gnome"));
+        // uQ ships as a preview: nothing is pre-selected until it is recommended.
+        assert_eq!(desktop_row(&desktops, None), 0);
+        let uq = desktops.iter_mut().find(|d| d.id == "uq").unwrap();
+        uq.status = Some(bindle_core::desktops::Status::Recommended);
+        assert_eq!(desktop_row(&desktops, None), row(&desktops, "uq"));
+        assert_eq!(desktop_row(&desktops, Some("plasma")), row(&desktops, "plasma"));
+    }
 
     #[test]
     fn renders_on_an_80_column_console() {
