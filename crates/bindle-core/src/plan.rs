@@ -52,7 +52,9 @@ pub enum Step {
         enable_repos: Vec<String>,
     },
     /// Conflicting packages being replaced (`pacman -Rdd`): the next step
-    /// installs packages that provide what they did.
+    /// installs packages that provide what they did. A module with
+    /// `replace_after_install` has its own removal after its AUR or release
+    /// install and root commands, which may read the removed packages' files.
     RemovePackages {
         packages: Vec<String>,
     },
@@ -222,6 +224,11 @@ pub fn resolve(
     let mut groups = Vec::new();
     let mut root_cmds = Vec::new();
     let mut user_cmds = Vec::new();
+    // Root steps of modules that install from the AUR or a release: they
+    // run after that install, so they can use what it installed.
+    let mut late_root_cmds = Vec::new();
+    let mut late_units = Vec::new();
+    let mut late_removed = Vec::new();
     let mut aur = Vec::new();
     let mut releases: Vec<ReleaseAsset> = Vec::new();
     let mut bootstrap = false;
@@ -229,18 +236,24 @@ pub fn resolve(
 
     for id in &ordered {
         let m = catalog.module(id).expect("validated");
+        let late = m.installs_late();
         if selection.replace_conflicts {
-            let installed = m.package_conflicts.iter().filter(|p| facts.installed.contains(*p));
-            plan.replaced.extend(installed.map(|p| (id.clone(), p.clone())));
+            let installed: Vec<String> =
+                m.package_conflicts.iter().filter(|p| facts.installed.contains(*p)).cloned().collect();
+            if late && m.replace_after_install {
+                late_removed.extend(installed.iter().cloned());
+            }
+            plan.replaced.extend(installed.into_iter().map(|p| (id.clone(), p)));
         }
         options.extend(m.pacman.clone());
         repos.extend(m.repos.iter().filter(|r| !(r.as_str() == "multilib" && facts.multilib_enabled)).cloned());
         packages.extend(m.packages.iter().cloned());
         files.extend(m.files.iter().map(|f| (id.clone(), f.clone())));
-        units.extend(m.enable.iter().cloned());
+        if late { &mut late_units } else { &mut units }.extend(m.enable.iter().cloned());
         groups.extend(m.groups.iter().cloned());
         let pending = |c: &&Command| facts.matches(&c.when).is_ok() && !already_done(c, facts, current_file);
-        root_cmds.extend(m.root_commands.iter().filter(pending).map(|c| (id.clone(), c.argv.clone())));
+        let cmds = m.root_commands.iter().filter(pending).map(|c| (id.clone(), c.argv.clone()));
+        if late { &mut late_root_cmds } else { &mut root_cmds }.extend(cmds);
         user_cmds.extend(m.user_commands.iter().filter(pending).map(|c| (id.clone(), c.clone())));
         aur.extend(m.aur.iter().cloned());
         releases.extend(m.releases.iter().map(|r| ReleaseAsset { title: m.name.clone(), ..r.clone() }));
@@ -265,7 +278,8 @@ pub fn resolve(
     if !options.is_empty() || !repos.is_empty() {
         plan.steps.push(Step::EditPacmanConf { options, enable_repos: repos });
     }
-    let removed = dedup(plan.replaced.iter().map(|(_, p)| p.clone()));
+    let late_removed = dedup(late_removed);
+    let removed = dedup(plan.replaced.iter().map(|(_, p)| p.clone()).filter(|p| !late_removed.contains(p)));
     if !removed.is_empty() {
         plan.steps.push(Step::RemovePackages { packages: removed });
     }
@@ -278,7 +292,9 @@ pub fn resolve(
             plan.steps.push(Step::WriteFile { module, file });
         }
     }
-    let units = dedup(units.into_iter().filter(|u| !facts.enabled_units.contains(u)));
+    let enabled = |u: &String| !facts.enabled_units.contains(u);
+    let late_units = dedup(late_units.into_iter().filter(enabled));
+    let units = dedup(units.into_iter().filter(enabled).filter(|u| !late_units.contains(u)));
     if !units.is_empty() {
         plan.steps.push(Step::EnableUnits { units });
     }
@@ -300,6 +316,16 @@ pub fn resolve(
     releases.retain(|r| !release_installed(r, facts, current_file));
     if !releases.is_empty() {
         plan.steps.push(Step::InstallReleases { assets: releases });
+    }
+    // After the AUR and releases: the late modules' root commands (an import
+    // that reads what a conflicting package left), then the removal of those
+    // packages, then their units.
+    plan.steps.extend(late_root_cmds.into_iter().map(|(module, argv)| Step::RunAsRoot { module, argv }));
+    if !late_removed.is_empty() {
+        plan.steps.push(Step::RemovePackages { packages: late_removed });
+    }
+    if !late_units.is_empty() {
+        plan.steps.push(Step::EnableUnits { units: late_units });
     }
     plan.steps.extend(user_cmds.into_iter().map(|(module, c)| Step::RunAsUser {
         module,

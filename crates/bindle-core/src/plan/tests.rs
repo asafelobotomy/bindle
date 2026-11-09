@@ -282,3 +282,63 @@ fn uq_module_builds_from_the_aur_then_runs_setup_as_the_user() {
     .unwrap();
     assert!(!done.steps.iter().any(|s| matches!(s, Step::RunAsUser { argv, .. } if argv[0] == "uqctl")));
 }
+
+#[test]
+fn scdr_imports_ananicy_rules_before_removing_it_then_starts() {
+    let mut f = facts();
+    f.home = "/home/tester".into();
+    f.installed.extend(["ananicy-cpp", "cachyos-ananicy-rules"].map(String::from));
+    let sel = Selection { include: vec!["scdr".into()], replace_conflicts: true, ..Default::default() };
+    let p = plan(sel, &f).unwrap();
+    let at = |pred: &dyn Fn(&Step) -> bool| p.steps.iter().position(pred).unwrap_or_else(|| panic!("{:?}", p.steps));
+    let aur = at(&|s| matches!(s, Step::InstallAur { packages } if packages.contains(&"scdr".into())));
+    let import = at(&|s| matches!(s, Step::RunAsRoot { argv, .. } if argv[..3] == ["scdrctl", "import", "ananicy"]));
+    let removed = at(&|s| matches!(s, Step::RemovePackages { .. }));
+    let enabled = at(&|s| matches!(s, Step::EnableUnits { units } if units == &["scdrd.service"]));
+    let session = at(&|s| matches!(s, Step::RunAsUser { argv, .. } if argv.contains(&"scdr-session.service".into())));
+    assert!(aur < import && import < removed && removed < enabled && enabled < session, "{:?}", p.steps);
+    let Step::RemovePackages { packages } = &p.steps[removed] else { unreachable!() };
+    assert_eq!(packages, &["ananicy-cpp", "cachyos-ananicy-rules"].map(String::from));
+    assert_eq!(p.steps.iter().filter(|s| matches!(s, Step::RemovePackages { .. })).count(), 1);
+    // Without ananicy there is nothing to import or remove.
+    let sel = Selection { include: vec!["scdr".into()], ..Default::default() };
+    let p = plan(sel, &facts()).unwrap();
+    assert!(
+        !p.steps.iter().any(|s| matches!(s, Step::RunAsRoot { .. } | Step::RemovePackages { .. })),
+        "{:?}",
+        p.steps
+    );
+}
+
+#[test]
+fn scdr_sched_ext_leaves_scx_loader_without_a_default() {
+    let sel = Selection { include: vec!["scdr-sched-ext".into()], ..Default::default() };
+    let p = plan(sel, &facts()).unwrap();
+    assert!(p.modules.contains(&"scdr".to_string()), "pulled in: {:?}", p.modules);
+    let written: Vec<&str> = p
+        .steps
+        .iter()
+        .filter_map(|s| match s {
+            Step::WriteFile { file, .. } => Some(file.path.as_str()),
+            _ => None,
+        })
+        .collect();
+    assert!(written.contains(&"/etc/scdr/rules.d/40-bindle-sched-ext.toml"), "{written:?}");
+    assert!(!written.contains(&"/etc/scx_loader/config.toml"), "{written:?}");
+    let both = Selection { include: vec!["scdr-sched-ext".into(), "scx-schedulers".into()], ..Default::default() };
+    assert!(plan(both, &facts()).is_err(), "scx_loader's default and scdr would both pick the scheduler");
+}
+
+#[test]
+fn noti_fi_takes_over_once() {
+    let mut f = facts();
+    f.home = "/home/tester".into();
+    let sel = Selection { include: vec!["noti-fi".into()], ..Default::default() };
+    let takeover = |p: &Plan| p.steps.iter().any(|s| matches!(s, Step::RunAsUser { argv, .. } if argv[0] == "notify"));
+    assert!(takeover(&plan(sel.clone(), &f).unwrap()));
+    let done = resolve(&Catalog::arch().unwrap(), &f, &sel, &|p| {
+        (p == "/home/tester/.local/state/notifd/takeover.json").then(String::new)
+    })
+    .unwrap();
+    assert!(!takeover(&done));
+}

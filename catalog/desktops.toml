@@ -31,6 +31,8 @@ status = "preview"
 base = "hyprland"
 includes = ["hyprland"]
 module = "uq"
+# uQ's own apps: pre-selected with it on first login, each one can be unticked.
+apps = ["scdr", "crumbs", "noti-fi"]
 greeter = "sddm"
 essentials = ["kitty", "papirus-icon-theme", "ttf-jetbrains-mono", "inter-font", "wireplumber", "playerctl", "networkmanager"]
 bt = ["bluez"]

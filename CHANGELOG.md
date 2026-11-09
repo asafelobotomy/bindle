@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- uQ's own apps: new modules `scdr` (process priorities; replaces ananicy-cpp and system76-scheduler after importing their rules), `scdr-sched-ext` (scdr picks the sched_ext scheduler; conflicts with `scx-schedulers`), `noti-fi` (notifications; replaces mako, dunst, swaync) and `crumbs` (uninstaller and cleaner). `bindle iso` pre-selects scdr, crumbs and noti-fi with uQ.
+- Modules that install from the AUR or a release enable their units and run their root commands after that install. `replace_after_install` removes their `package_conflicts` after it too.
+- `when` takes `installed:<package>`.
+
 ## 0.1.6 — 2026-11-09
 
 - Logo: the bundle is a knotted, lumpy cloth hanging from a tie round the

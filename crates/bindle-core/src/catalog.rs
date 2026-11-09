@@ -203,6 +203,12 @@ pub struct Module {
     /// skipped while any is installed (pacman --noconfirm would abort).
     #[serde(default)]
     pub package_conflicts: Vec<String>,
+    /// Remove `package_conflicts` after the module's AUR or release install
+    /// and its root commands instead of before, so a root command can read
+    /// their files first (scdr importing ananicy rules). Only for modules
+    /// whose install doesn't clash with them.
+    #[serde(default)]
+    pub replace_after_install: bool,
     #[serde(default)]
     pub aur: Vec<String>,
     /// Pinned GitHub release assets (`[[module.release]]`).
@@ -229,6 +235,14 @@ pub struct Module {
     pub builtin: Option<String>,
     #[serde(default)]
     pub notes: Vec<String>,
+}
+
+impl Module {
+    /// Installs from the AUR or a release: its root commands, `package_conflicts`
+    /// removal and `enable` run after that install (see `plan::resolve`).
+    pub fn installs_late(&self) -> bool {
+        !self.aur.is_empty() || !self.releases.is_empty()
+    }
 }
 
 #[derive(Debug, Deserialize)]

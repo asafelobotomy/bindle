@@ -28,13 +28,19 @@ module_aur = {}
 for f in (root / "arch").glob("*.toml"):
     for m in tomllib.loads(f.read_text()).get("module", []):
         names.update(m.get("packages", []))
-        units.update(m.get("enable", []))
+        # Units of AUR and release modules ship with what they install, not the sync DBs.
+        if not (m.get("aur") or m.get("release")):
+            units.update(m.get("enable", []))
         aur.update(m.get("aur", []))
         module_aur[m["id"]] = set(m.get("aur", []))
         releases += m.get("release", [])
 desktops = tomllib.loads((root / "desktops.toml").read_text())["desktop"]
-# Desktop id -> AUR packages its module installs, while the desktop is a preview.
-preview = {d["id"]: module_aur.get(d.get("module"), set()) for d in desktops if d.get("status") == "preview"}
+# Desktop id -> AUR packages its module and its apps install, while the desktop is a preview.
+preview = {
+    d["id"]: set().union(*(module_aur.get(m, set()) for m in [d.get("module"), *d.get("apps", [])]))
+    for d in desktops
+    if d.get("status") == "preview"
+}
 for d in desktops:
     for key in ("essentials", "nm", "bt"):
         names.update(d.get(key, []))

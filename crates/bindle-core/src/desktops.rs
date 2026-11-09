@@ -59,6 +59,10 @@ pub struct Desktop {
     /// `desktop` builtin rounds out this desktop instead of the ones it `includes`.
     #[serde(default)]
     pub module: Option<String>,
+    /// Catalog modules `bindle iso` pre-selects with `module` on first login
+    /// (uQ's own apps); they stay ordinary modules the user can untick.
+    #[serde(default)]
+    pub apps: Vec<String>,
     #[serde(default)]
     pub status: Option<Status>,
 }
@@ -239,6 +243,9 @@ mod tests {
         for d in all().unwrap() {
             if let Some(m) = &d.module {
                 assert!(cat.module(m).is_some(), "{} is installed by unknown module {m}", d.id);
+            }
+            for m in &d.apps {
+                assert!(cat.module(m).is_some(), "{} pre-selects unknown module {m}", d.id);
             }
         }
     }

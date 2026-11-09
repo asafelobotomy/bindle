@@ -76,11 +76,61 @@ ACTION=="add|change", KERNEL=="sd[a-z]*", ATTR{queue/rotational}=="1", ATTR{queu
 '''
 
 [[module]]
+id = "scdr"
+name = "scdr (process priorities)"
+description = "Keeps the focused app, games and audio responsive with CPU and I/O priorities, and demotes builds and background work. By asafelobotomy."
+notes = [
+  "Replaces ananicy-cpp and system76-scheduler; ananicy rules you had are imported to /etc/scdr/rules.d/50-ananicy.toml first.",
+  "`scdrctl status` shows what it manages; removing scdr restores every priority it set.",
+]
+requires = ["aur-helper"]
+aur = ["scdr"]
+package_conflicts = ["ananicy-cpp", "cachyos-ananicy-rules", "system76-scheduler"]
+# Import the ananicy rules (scdr is installed by then), then remove ananicy.
+replace_after_install = true
+enable = ["scdrd.service"]
+[[module.root_commands]]
+argv = ["scdrctl", "import", "ananicy", "/etc/ananicy.d", "--output", "/etc/scdr/rules.d/50-ananicy.toml"]
+when = ["installed:ananicy-cpp"]
+unless = [{ path = "/etc/scdr/rules.d/50-ananicy.toml" }]
+# The session agent boosts the focused window; uQ starts it with the session's environment.
+[[module.user_commands]]
+argv = ["systemctl", "--user", "enable", "scdr-session.service"]
+unless = [{ path = "~/.config/systemd/user/graphical-session.target.wants/scdr-session.service" }]
+
+[[module]]
+id = "scdr-sched-ext"
+name = "Scheduler per game and power profile (scdr)"
+description = "scdr picks the sched_ext scheduler: LAVD while a game runs, bpfland on performance, LAVD powersave on power-saver, the kernel's own otherwise."
+notes = ["Edit /etc/scdr/rules.d/40-bindle-sched-ext.toml to change the picks; scdr leaves a scheduler you switch to by hand (scxctl) running."]
+risk = "moderate"
+when = ["distro:arch", "!virt"]
+requires = ["scdr"]
+conflicts = ["scx-schedulers"]
+packages = ["scx-scheds", "scx-tools"]
+# No default_sched in scx_loader's config: scdr starts and switches schedulers.
+enable = ["scx_loader.service"]
+[[module.files]]
+path = "/etc/scdr/rules.d/40-bindle-sched-ext.toml"
+content = '''
+# Managed by Bindle
+[sched_ext]
+enable = true
+default = "eevdf"
+gaming = "lavd:gaming"
+
+[sched_ext.power]
+performance = "bpfland"
+power-saver = "lavd:powersave"
+'''
+
+[[module]]
 id = "scx-schedulers"
 name = "Low-latency CPU scheduler (sched_ext)"
 description = "scx_bpfland via scx_loader: lower latency for desktops and games under load."
 risk = "moderate"
 when = ["distro:arch", "!virt"]
+conflicts = ["scdr-sched-ext"]
 packages = ["scx-scheds", "scx-tools"]
 enable = ["scx_loader.service"]
 notes = ["Switch schedulers with `scxctl`; stop scx_loader.service to return to the kernel's own scheduler."]

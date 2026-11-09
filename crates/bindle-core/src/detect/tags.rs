@@ -52,6 +52,7 @@ pub fn label(tag: &str) -> String {
             .and_then(|d| crate::desktops::by_id(&d, value).map(|d| d.name.clone()))
             .unwrap_or_else(|| value.into()),
         "installer" => format!("an {value} install"),
+        "installed" => format!("{value} installed"),
         _ => tag.into(),
     }
 }
@@ -77,6 +78,7 @@ mod tests {
         assert_eq!(reason("cpu:intel", false), "needs an Intel CPU");
         assert_eq!(reason("fs:btrfs", false), "needs a Btrfs root filesystem");
         assert_eq!(reason("desktop:plasma", false), "needs KDE Plasma");
+        assert_eq!(reason("installed:ananicy-cpp", false), "needs ananicy-cpp installed");
         assert_eq!(reason("toolkit:qt", true), "not for a Qt desktop (e.g. Plasma)");
     }
 }
