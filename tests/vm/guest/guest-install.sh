@@ -12,6 +12,7 @@ setup_autologin() {
     local key=${1%-dms} sessions session name exec
     key=${key%4}
     sessions=$(ls /mnt/usr/share/wayland-sessions/*.desktop /mnt/usr/share/xsessions/*.desktop 2>/dev/null)
+    # shellcheck disable=SC2046 # one basename per word is the point
     echo "BINDLE-VM: sessions:" $(printf '%s\n' $sessions | xargs -rn1 basename)
     session=$(printf '%s\n' $sessions | grep -i -- "$key" | grep -m1 uwsm \
         || printf '%s\n' $sessions | grep -m1 "/$key.desktop$" \

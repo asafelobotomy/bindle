@@ -55,6 +55,7 @@ start_servers() {
 }
 
 monitor() { socat - "UNIX-CONNECT:$WORK/mon.sock" <<<"$1" >/dev/null 2>&1 || true; }
+# shellcheck disable=SC2054 # the commas are inside QEMU option values
 qemu_base=(qemu-system-x86_64 -enable-kvm -cpu host -smp "$CPUS"
     -drive "if=pflash,format=raw,readonly=on,file=$OVMF/OVMF_CODE.4m.fd"
     -drive "if=pflash,format=raw,file=$WORK/vars.fd"
