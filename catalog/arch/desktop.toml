@@ -182,3 +182,15 @@ tag = "v0.8.2"
 asset = "emobie_0.8.2_amd64.AppImage"
 sha256 = "3d36a1040d005545204bfe8475cf953292ced9389317950dac1e1892deab66c8"
 name = "emobie"
+
+[[module]]
+id = "appofholding"
+name = "appOFholding (AppImage manager)"
+description = "Adds AppImages to your application menu, keeps them up to date from GitHub and GitLab, and sandboxes them. By asafelobotomy."
+notes = ["Once it is in use, crumBS leaves the AppImages in ~/Applications to it."]
+[[module.release]]
+repo = "asafelobotomy/appofholding"
+tag = "v0.5.0"
+asset = "appofholding-0.5.0-1-x86_64.pkg.tar.zst"
+sha256 = "5b6c6df53a98a25d5ce76aa0415c8e1b8c6a2a06c9066e0fc5a7c23355469a88"
+name = "appofholding"
