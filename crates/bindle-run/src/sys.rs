@@ -267,7 +267,15 @@ mod tests {
         let held = lock_exclusive(&dir.join("lock")).unwrap();
         assert!(lock_exclusive(&dir.join("lock")).is_err(), "second holder must be refused");
         drop(held);
-        assert!(lock_exclusive(&dir.join("lock")).is_ok());
+        // A child forked by a concurrent test (before its exec closes the
+        // inherited descriptors) can hold the lock for a moment: retry briefly.
+        let retaken = (0..50).any(|_| {
+            lock_exclusive(&dir.join("lock")).is_ok() || {
+                std::thread::sleep(std::time::Duration::from_millis(20));
+                false
+            }
+        });
+        assert!(retaken, "the lock must be free once its holder is dropped");
         std::os::unix::fs::symlink(dir.join("lock"), dir.join("link")).unwrap();
         assert!(lock_exclusive(&dir.join("link")).is_err());
     }
