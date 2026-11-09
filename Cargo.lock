@@ -233,7 +233,7 @@ checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
 
 [[package]]
 name = "bindle-cli"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "anyhow",
  "bindle-core",
@@ -249,7 +249,7 @@ dependencies = [
 
 [[package]]
 name = "bindle-core"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "anyhow",
  "serde",
@@ -259,7 +259,7 @@ dependencies = [
 
 [[package]]
 name = "bindle-gui"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "anyhow",
  "bindle-core",
@@ -274,7 +274,7 @@ dependencies = [
 
 [[package]]
 name = "bindle-run"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "anyhow",
  "bindle-core",

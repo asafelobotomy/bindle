@@ -29,7 +29,12 @@ install -Dm644 "$HERE/bindle.desktop" "$APPDIR/bindle.desktop"
 install -Dm644 branding/bindle.svg "$APPDIR/bindle.svg"
 install -Dm644 LICENSE "$APPDIR/usr/share/licenses/bindle/LICENSE"
 install -Dm644 branding/bindle.svg "$APPDIR/usr/share/icons/hicolor/scalable/apps/bindle.svg"
-ln -sf bindle.svg "$APPDIR/.DirIcon"
+for png in branding/png/bindle-*.png; do
+    n="${png##*-}"; n="${n%.png}"
+    install -Dm644 "$png" "$APPDIR/usr/share/icons/hicolor/${n}x${n}/apps/bindle.png"
+done
+# .DirIcon is a PNG by the AppImage spec (file managers' thumbnails).
+cp branding/png/bindle-256.png "$APPDIR/.DirIcon"
 
 if [ "${1:-}" = "--appdir-only" ]; then
     echo "Staged $APPDIR"

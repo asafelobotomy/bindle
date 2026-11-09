@@ -2,6 +2,7 @@ mod apply;
 mod firstlogin;
 mod firstlogin_cmd;
 mod gui;
+mod icons;
 mod iso;
 mod notify;
 mod print;

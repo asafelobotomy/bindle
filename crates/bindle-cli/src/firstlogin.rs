@@ -22,12 +22,10 @@ pub const GUI_BIN: &str = "/usr/local/bin/bindle-gui";
 pub const AUTOSTART: &str = "/etc/xdg/autostart/bindle-first-login.desktop";
 pub const PROFILE_HOOK: &str = "/etc/profile.d/bindle-first-login.sh";
 pub const LAUNCHER: &str = "/usr/local/share/applications/bindle.desktop";
-pub const ICON: &str = "/usr/local/share/icons/hicolor/scalable/apps/bindle.svg";
 pub const USER_UNIT: &str = "/etc/systemd/user/bindle-first-login.service";
 pub const USER_UNIT_WANTS: &str = "/etc/systemd/user/default.target.wants/bindle-first-login.service";
 /// The desktop window's password dialog message (pkexec).
 pub const POLKIT: &str = "/usr/share/polkit-1/actions/io.github.asafelobotomy.bindle.policy";
-const SVG: &str = include_str!("../../../branding/bindle.svg");
 const POLICY: &str = include_str!("../../../packaging/polkit/io.github.asafelobotomy.bindle.policy");
 
 const USER_UNIT_FILE: &str = "[Unit]
@@ -108,13 +106,8 @@ pub fn install(root: &Path, tty_hook: bool) -> Result<Vec<String>> {
         write_atomic(&gui_target, &data, 0o755)?;
         done.push(format!("installed {GUI_BIN}"));
     }
-    let mut files = vec![
-        (AUTOSTART, AUTOSTART_ENTRY),
-        (LAUNCHER, LAUNCHER_ENTRY),
-        (ICON, SVG),
-        (USER_UNIT, USER_UNIT_FILE),
-        (POLKIT, POLICY),
-    ];
+    let mut files =
+        vec![(AUTOSTART, AUTOSTART_ENTRY), (LAUNCHER, LAUNCHER_ENTRY), (USER_UNIT, USER_UNIT_FILE), (POLKIT, POLICY)];
     if tty_hook {
         files.push((PROFILE_HOOK, HOOK));
     }
@@ -122,6 +115,11 @@ pub fn install(root: &Path, tty_hook: bool) -> Result<Vec<String>> {
         write_atomic(&host(root, path), content.as_bytes(), 0o644)?;
         done.push(format!("wrote {path}"));
     }
+    let icons = crate::icons::files();
+    for (path, data) in &icons {
+        write_atomic(&host(root, path), data, 0o644)?;
+    }
+    done.push(format!("wrote the icon ({} sizes) under /usr/local/share/icons/hicolor", icons.len()));
     // What `systemctl --global enable` does, without needing systemd running (chroot).
     let wants = host(root, USER_UNIT_WANTS);
     create_dirs(wants.parent().context("wants dir")?)?;
@@ -133,9 +131,11 @@ pub fn install(root: &Path, tty_hook: bool) -> Result<Vec<String>> {
 
 pub fn remove(root: &Path, purge: bool) -> Result<Vec<String>> {
     require_root(root)?;
+    let icons: Vec<String> = crate::icons::files().into_iter().map(|(p, _)| p).collect();
     let mut paths = vec![AUTOSTART, PROFILE_HOOK, USER_UNIT_WANTS, USER_UNIT];
     if purge {
-        paths.extend([LAUNCHER, ICON, POLKIT, GUI_BIN, BIN]);
+        paths.extend([LAUNCHER, POLKIT, GUI_BIN, BIN]);
+        paths.extend(icons.iter().map(String::as_str));
     }
     let mut done = Vec::new();
     for p in paths {
@@ -150,7 +150,7 @@ pub fn remove(root: &Path, purge: bool) -> Result<Vec<String>> {
 
 pub fn status(root: &Path) -> Vec<String> {
     let mut out: Vec<String> =
-        [BIN, GUI_BIN, AUTOSTART, USER_UNIT, USER_UNIT_WANTS, PROFILE_HOOK, LAUNCHER, ICON, POLKIT]
+        [BIN, GUI_BIN, AUTOSTART, USER_UNIT, USER_UNIT_WANTS, PROFILE_HOOK, LAUNCHER, crate::icons::SVG_PATH, POLKIT]
             .iter()
             .map(|p| format!("{} {p}", if host(root, p).exists() { "✓" } else { "·" }))
             .collect();

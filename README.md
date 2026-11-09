@@ -1,3 +1,5 @@
+<img src="branding/bindle.svg" alt="" width="112" align="right">
+
 # Bindle
 
 Pack your fresh Linux install for the road. Bindle is a wizard you run right

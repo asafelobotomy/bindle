@@ -1,9 +1,12 @@
 # Changelog
 
-## Unreleased
+## 0.1.6 — 2026-11-09
 
 - Logo: the bundle is a knotted, lumpy cloth hanging from a tie round the
   stick, and the stick's far end is hidden behind it.
+- The icon everywhere: PNG sizes (16–512) next to the SVG for first-login
+  installs and the AppImage, a PNG `.DirIcon`, the desktop window's own icon
+  (X11 and window lists), and the README.
 
 ## 0.1.5 — 2026-11-09
 

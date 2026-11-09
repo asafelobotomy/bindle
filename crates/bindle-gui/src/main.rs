@@ -46,6 +46,7 @@ fn main() {
 
     let mut app = QGuiApplication::new();
     app::ffi::bindle_describe_application(env!("CARGO_PKG_VERSION"));
+    app::ffi::bindle_set_window_icon(include_bytes!("../../../branding/bindle.svg"));
     let mut engine = QQmlApplicationEngine::new();
     if let Some(engine) = engine.as_mut() {
         engine.load(&QUrl::from("qrc:/qt/qml/org/bindle/wizard/qml/Main.qml"));
