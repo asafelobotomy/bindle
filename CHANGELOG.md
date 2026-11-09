@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Logo: the bag is tied round the stick, and the stick's far end is hidden
+  behind it.
+
 ## 0.1.5 — 2026-11-09
 
 - New logo: a traveller in a fedora, seen from behind, with the bindle over

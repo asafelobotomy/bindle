@@ -32,17 +32,23 @@
       <path d="M11 92h82l1 14H10z" fill="#2a211b"/>
     </g>
     <!-- shadows the bindle casts on him -->
-    <path d="M200.4 195.6L144.5 68.3L123.5 79.7L191.6 200.4z" fill="#000" fill-opacity="0.22"/>
     <ellipse cx="152" cy="172" rx="66" ry="62" fill="url(#cast)"/>
     <!-- the stick: far end on his shoulder, near end coming at the camera -->
-    <path d="M190.6 186.6L114.5 28.3L93.5 39.7L185.4 189.4z" fill="url(#stick)"/>
+    <path d="M160.2 123.2L114.5 28.3L93.5 39.7L148.6 129.6z" fill="url(#stick)"/>
     <!-- the bag, hanging from the stick in the centre -->
     <g transform="translate(-68 -34)">
       <path d="M196 104c-42 6-66 42-60 80 5 32 32 50 60 50s56-18 62-50c6-38-18-74-62-80z" fill="url(#bag)"/>
       <circle cx="174" cy="146" r="9" fill="url(#dot)"/><circle cx="214" cy="138" r="9" fill="url(#dot)"/>
       <circle cx="186" cy="188" r="9" fill="url(#dot)"/><circle cx="228" cy="184" r="8" fill="url(#dot)" opacity="0.85"/>
       <circle cx="160" cy="210" r="8" fill="url(#dot)" opacity="0.85"/>
-      <path d="M190 108l-14-24 20 8z" fill="url(#knot)"/><path d="M202 106l24-16-4 20z" fill="url(#knot)"/>
+    </g>
+    <!-- the bag's neck, gathered up and tied round the stick -->
+    <path d="M109.8 90.0c4-4 8-10 9-16h14c1 6 5 12 9 16z" fill="url(#knot)"/>
+    <path d="M121.8 72.0c-12-2-22-10-24-20 10-1 20 6 26 16z" fill="url(#knot)"/>
+    <path d="M130.8 71.0c6-10 16-16 28-14-4 10-16 16-28 14z" fill="url(#knot)"/>
+    <g transform="rotate(-29 125.8 74.0)">
+      <rect x="113.2" y="69.0" width="25.3" height="10" rx="5" fill="url(#knot)"/>
+      <path d="M115.2 75.0h21.3" stroke="#8f2e2e" stroke-width="1.5" opacity="0.6"/>
     </g>
     <!-- the cut end of the stick, facing the camera -->
     <ellipse cx="104" cy="34" rx="12" ry="11" transform="rotate(-29 104 34)" fill="url(#grain)" stroke="#6e4724" stroke-width="1.5"/>
