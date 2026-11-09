@@ -109,6 +109,8 @@ pub const VALUE_TAGS: &[(&str, Option<&[&str]>)] = &[
     ("toolkit", Some(&["qt", "gtk", "other"])),
     ("display", Some(&["wayland", "xorg"])),
     ("installer", Some(&["archinstall", "pacstrap"])),
+    // `installed:<package>`: checked against `installed` directly, not listed by `tags`.
+    ("installed", None),
 ];
 
 impl Facts {
@@ -252,7 +254,11 @@ impl Facts {
         let tags = self.tags();
         for c in conditions {
             let (negate, tag) = c.strip_prefix('!').map_or((false, c.as_str()), |t| (true, t));
-            if tags.contains(tag) == negate {
+            let holds = match tag.strip_prefix("installed:") {
+                Some(pkg) => self.installed.contains(pkg),
+                None => tags.contains(tag),
+            };
+            if holds == negate {
                 return Err(tags::reason(tag, negate));
             }
         }

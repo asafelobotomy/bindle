@@ -30,6 +30,30 @@ unless = [{ path = "~/.config/hypr/hyprland.lua", contains = "require(\"./uq/gen
 manual = { 3 = "your own ~/.config/hypr/hyprland.lua was kept. Add the lines `uqctl setup` printed above to the top of it, then log out and back in to start uQ." }
 
 [[module]]
+id = "noti-fi"
+name = "noti-fi (notifications)"
+description = "Notification daemon (notifd) with grouped popups, rules, history and Do Not Disturb; uQ's bar and OSD use it. By asafelobotomy."
+notes = ["Replaces mako, dunst and swaync. `notify restore` hands notifications back."]
+requires = ["aur-helper"]
+aur = ["noti-fi"]
+package_conflicts = ["mako", "dunst", "swaync"]
+# Outside Plasma takeover installs notifd as a plain user service; --now also
+# switches the running session, and refuses while another daemon holds the name.
+[[module.user_commands]]
+argv = ["notify", "takeover", "--now"]
+unless = [{ path = "~/.local/state/notifd/takeover.json" }]
+manual = { 1 = "notifd could not take over notifications yet. Log in to your desktop and run `notify takeover --now`." }
+
+[[module]]
+id = "crumbs"
+name = "crumBS (uninstaller and cleaner)"
+description = "Lists every installed app, uninstalls them with their leftovers, and cleans caches and old files, all to the trash with undo. By asafelobotomy."
+notes = ["Run `crumbs scan` to see what can be cleaned. uQ's own packages need a second confirmation to remove."]
+requires = ["aur-helper"]
+# -bin: a static build, no Rust toolchain needed.
+aur = ["crum-bs-bin"]
+
+[[module]]
 id = "fonts"
 name = "Fonts"
 description = "Noto (with emoji and CJK), DejaVu and Liberation."

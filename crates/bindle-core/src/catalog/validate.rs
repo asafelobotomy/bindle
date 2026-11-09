@@ -71,6 +71,12 @@ pub(super) fn validate(cat: &Catalog) -> Result<()> {
         if let Some((code, _)) = manual.clone().find(|(k, v)| v.is_empty() || !matches!(k.parse::<u8>(), Ok(1..))) {
             bail!("module `{}` has a bad `manual` exit code `{code}` (1-255, with a message)", m.id);
         }
+        if m.replace_after_install && (!m.installs_late() || m.package_conflicts.is_empty()) {
+            bail!(
+                "module `{}` sets replace_after_install without package_conflicts and an AUR or release install",
+                m.id
+            );
+        }
         for c in &m.conflicts {
             let other = cat.module(c).expect("checked above");
             if !other.conflicts.contains(&m.id) {

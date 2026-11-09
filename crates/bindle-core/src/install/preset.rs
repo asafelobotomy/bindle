@@ -89,10 +89,12 @@ pub fn archinstall_preset(facts: &Facts, desktops: &[Desktop], choice: &IsoChoic
 }
 
 /// The selection Bindle opens with on first login: the profile, plus the
-/// module that installs a desktop archinstall can't (uQ, from the AUR).
+/// module that installs a desktop archinstall can't (uQ, from the AUR) and
+/// that desktop's own apps.
 pub fn first_login_selection(desktops: &[Desktop], choice: &IsoChoice) -> Selection {
-    let module = choice.desktop.as_deref().and_then(|id| by_id(desktops, id)).and_then(|d| d.module.clone());
-    Selection { profile: Some(choice.profile.clone()), include: module.into_iter().collect(), ..Default::default() }
+    let desktop = choice.desktop.as_deref().and_then(|id| by_id(desktops, id));
+    let include = desktop.map(|d| d.module.iter().chain(&d.apps).cloned().collect()).unwrap_or_default();
+    Selection { profile: Some(choice.profile.clone()), include, ..Default::default() }
 }
 
 /// Bindle's preset for `choice` with the user's `--config` overlay merged in.
@@ -220,7 +222,8 @@ mod tests {
         let data = desktops::all().unwrap();
         let pick = |d: Option<&str>| IsoChoice { desktop: d.map(String::from), profile: "desktop".into() };
         let sel = first_login_selection(&data, &pick(Some("uq")));
-        assert_eq!((sel.profile.as_deref(), sel.include), (Some("desktop"), vec!["uq".to_string()]));
+        let include = ["uq", "scdr", "crumbs", "noti-fi"].map(String::from).to_vec();
+        assert_eq!((sel.profile.as_deref(), sel.include), (Some("desktop"), include));
         assert!(first_login_selection(&data, &pick(Some("plasma"))).include.is_empty());
         assert!(first_login_selection(&data, &pick(None)).include.is_empty());
     }

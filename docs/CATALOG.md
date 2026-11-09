@@ -25,6 +25,8 @@ conflicts = ["tlp"]             # cannot be selected together
 packages = ["pkg"]              # repo packages (one pacman transaction)
 package_conflicts = ["pkg-old"]  # installed packages `packages` replace: removed after confirmation
                                 # (pacman -Rdd), or the module is skipped with --yes
+replace_after_install = false   # true: remove package_conflicts after this module's AUR/release
+                                # install and root commands (e.g. an import that reads them first)
 aur = ["pkg-bin"]               # installed as the user via the AUR helper
 enable = ["foo.timer"]          # systemctl enable
 groups = ["docker"]             # usermod -aG for the invoking user
@@ -58,6 +60,15 @@ content = '''
 …
 '''
 ```
+
+## Modules that install from the AUR or a release
+
+A module with `aur` or `[[module.release]]` has its `enable` units and
+`root_commands` run after the AUR and release installs, so they can use what
+was installed (scdr's `scdrd.service`, `scdrctl import`). Its
+`package_conflicts` are still removed before installing, unless it sets
+`replace_after_install`: then they go after its root commands and before its
+units (scdr imports ananicy's rules, then removes ananicy, then starts).
 
 ## Release assets
 
@@ -101,7 +112,8 @@ file and check paths.
 `snapshots-mount` (`/.snapshots` is its own mount, e.g. archinstall's
 `@.snapshots`), `hybrid-gpu` (NVIDIA plus Intel/AMD),
 plus `desktop:<id>`, `toolkit:<qt|gtk|other>`, `display:<wayland|xorg>` and
-`installer:<archinstall|pacstrap>`. Prefix with `!` to negate.
+`installer:<archinstall|pacstrap>`, and `installed:<package>` (the package is
+installed now). Prefix with `!` to negate.
 
 Modules the installer already set up (see [ARCHINSTALL.md](ARCHINSTALL.md)) are
 reported as provided and never planned.
@@ -119,6 +131,9 @@ A desktop archinstall has no profile for sets `base` (the archinstall desktop
 `bindle iso` installs), `includes = [base]`, and `module` (the catalog module that
 finishes it on first login; `bindle iso` adds it to the saved selection). While
 that module is planned, the `desktop` builtin rounds out this desktop, not its base.
+A desktop's `apps` are modules `bindle iso` pre-selects with its `module` on
+first login; each stays an ordinary module the user can untick. uQ's are
+`scdr`, `crumbs` and `noti-fi`.
 uQ is the one such desktop: Hyprland plus the `uq` module (AUR `uq` and
 `uq-hyprland-pin`, then `uqctl setup` as the user, skipped once
 `~/.config/hypr/hyprland.lua` loads uQ). `uqctl setup` exit codes: 0 done, 1 error
@@ -150,8 +165,8 @@ their own, recommended or not.
 |---|---|
 | System | pacman-qol, mirrors, multilib, build-tools, aur-helper, microcode, firmware-updates, fstrim, man-pages |
 | Hardware | gpu-driver, audio-firmware, audio-pipewire, bluetooth, power-profiles, tlp, tlp-rdw, thermald, fingerprint, printing, scanning-qt, scanning-gtk, solaar, piper, openrgb, android-tools |
-| Performance | zram, xzram, oomd, earlyoom, io-schedulers, scx-schedulers, kernel-zen, makepkg-parallel, makepkg-native |
-| Desktop & apps | desktop-essentials, uq, fonts, nerd-fonts, codecs, archives, user-dirs, flatpak, flatpak-discover, flatpak-gnome-software, media-players, spotify, libreoffice, obsidian, keepassxc, bitwarden, backup-gtk, backup-deja-dup, yakuake, emobie |
+| Performance | zram, xzram, oomd, earlyoom, io-schedulers, scdr, scdr-sched-ext, scx-schedulers, kernel-zen, makepkg-parallel, makepkg-native |
+| Desktop & apps | desktop-essentials, uq, noti-fi, crumbs, fonts, nerd-fonts, codecs, archives, user-dirs, flatpak, flatpak-discover, flatpak-gnome-software, media-players, spotify, libreoffice, obsidian, keepassxc, bitwarden, backup-gtk, backup-deja-dup, yakuake, emobie |
 | Internet | firefox, chromium, brave, brave-origin, vivaldi, zen-browser, google-chrome, thunderbird, signal, telegram, element, proton-mail, proton-mail-bridge, proton-pass, proton-vpn, proton-authenticator, proton-drive-cli, syncthing, nextcloud-client, tailscale, qbittorrent, qbittorrent-enhanced, qbit-plugin-dl, hauler, av-morning-star |
 | Creative | gimp, krita, inkscape, darktable, rawtherapee, digikam, kdenlive, handbrake, obs-studio, audacity, blender, photocraft, lightcraft, filmcraft, vectorcraft, effectcraft, designcraft, pdfcraft, wordcraft, deckcraft, gridcraft |
 | Development | rustup, python, nodejs, js-runtimes, go, c-cpp, java, dotnet, zig, mise, git-tools, jujutsu, cli-tools, neovim, helix, code-oss, vscodium, vscode, zed, ghostty, kitty, alacritty, fish, zsh, docker, podman, distrobox, virt-manager |
