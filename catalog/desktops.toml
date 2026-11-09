@@ -32,7 +32,7 @@ base = "hyprland"
 includes = ["hyprland"]
 module = "uq"
 greeter = "sddm"
-essentials = ["kitty", "papirus-icon-theme", "bibata-cursor-theme", "ttf-jetbrains-mono", "inter-font", "wireplumber", "playerctl", "networkmanager"]
+essentials = ["kitty", "papirus-icon-theme", "ttf-jetbrains-mono", "inter-font", "wireplumber", "playerctl", "networkmanager"]
 bt = ["bluez"]
 notes = ["uQ comes from the AUR; Bindle then runs `uqctl setup` as you. Log out and back in to start it."]
 

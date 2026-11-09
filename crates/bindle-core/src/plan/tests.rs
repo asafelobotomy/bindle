@@ -260,7 +260,7 @@ fn uq_module_builds_from_the_aur_then_runs_setup_as_the_user() {
     let aur = p
         .steps
         .iter()
-        .position(|s| matches!(s, Step::InstallAur { packages } if packages == &["uq", "uq-hyprland-pin"]));
+        .position(|s| matches!(s, Step::InstallAur { packages } if packages == &["uq", "uq-hyprland-pin", "bibata-cursor-theme-bin"]));
     let setup = p.steps.iter().position(|s| matches!(s, Step::RunAsUser { argv, .. } if argv == &["uqctl", "setup"]));
     assert!(aur.unwrap() < setup.unwrap(), "{:?}", p.steps);
     // Exit 3 (the user's own hyprland.lua was kept) is a manual step, not a failure.

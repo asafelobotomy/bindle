@@ -17,11 +17,12 @@ id = "uq"
 name = "uQ desktop"
 description = "uQ, a themeable Hyprland desktop: shell, theming daemon and base config. By asafelobotomy."
 notes = [
-  "Built from the AUR (uq, uq-hyprland-pin), then `uqctl setup` writes ~/.config/hypr/hyprland.lua for you.",
+  "Built from the AUR (uq, uq-hyprland-pin, the Bibata cursors), then `uqctl setup` writes ~/.config/hypr/hyprland.lua for you.",
   "An existing hyprland.lua is kept: add the lines uqctl prints to it to start uQ.",
 ]
 requires = ["aur-helper"]
-aur = ["uq", "uq-hyprland-pin"]
+# Bibata left the Arch repos for the AUR; -bin skips building it from source.
+aur = ["uq", "uq-hyprland-pin", "bibata-cursor-theme-bin"]
 # uqctl setup: 0 = uQ's hyprland.lua is in place, 1 = error, 2 = ran as root, 3 = the user's own file was kept.
 [[module.user_commands]]
 argv = ["uqctl", "setup"]
