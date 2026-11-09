@@ -75,7 +75,10 @@ them back).
 
 Without an ID, undo reverts the latest apply **and** any failed applies it
 resumed (a failed apply's snapshot stays "incomplete"), newest first, so the
-system ends up as it was before the first attempt. A file that can't be
+system ends up as it was before the first attempt. A fully restored
+snapshot is marked undone (`--list` shows it), so running `bindle undo` again
+steps back to the apply before; `bindle undo <id>` still reverts any snapshot.
+A file that can't be
 restored doesn't stop the rest; undo lists what it couldn't do and exits
 non-zero. Only one apply or undo runs at a time (`/var/lib/bindle/lock`).
 

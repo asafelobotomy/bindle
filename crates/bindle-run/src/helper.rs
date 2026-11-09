@@ -220,7 +220,7 @@ impl Helper {
                     }
                     bail!("snapshot {id}: {} item(s) could not be restored (listed above)", errors.len());
                 }
-                Ok(None)
+                snapshot::mark_undone(self.root(), &id).map(|()| None)
             }
             Request::Complete { id } => snapshot::mark_complete(self.root(), &id).map(|()| None),
             Request::Quit => Ok(None),

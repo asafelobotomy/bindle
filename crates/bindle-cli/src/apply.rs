@@ -109,12 +109,13 @@ pub fn undo(id: Option<String>, list: bool, opts: &Options) -> Result<()> {
                 n => format!("{}, +{} more", mods[..3].join(", "), n - 3),
             };
             println!(
-                "{}  {}  {} files, {} units, {} packages  [{label}]",
+                "{}  {}  {} files, {} units, {} packages  [{label}]{}",
                 m.id,
                 m.created,
                 m.files.len(),
                 m.units.len(),
                 m.packages.len() + m.aur.len(),
+                if m.undone { "  (undone)" } else { "" },
             );
         }
         return Ok(());
@@ -124,6 +125,10 @@ pub fn undo(id: Option<String>, list: bool, opts: &Options) -> Result<()> {
         Some(id) => vec![snapshot::load(&root, &id)?],
         None => snapshot::latest_session(&snaps),
     };
+    if session.is_empty() {
+        println!("Nothing left to undo: every snapshot has been undone (`bindle undo <id>` reverts one again).");
+        return Ok(());
+    }
     for m in &session {
         println!(
             "Undo snapshot {} ({}){}:",

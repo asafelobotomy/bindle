@@ -82,7 +82,9 @@ main() {
 
     local dir
     dir="$(mktemp -d /tmp/bindle.XXXXXX)"
-    trap 'rm -rf "$dir"' EXIT
+    # Expanded now: `dir` is local to main and gone when the trap runs.
+    # shellcheck disable=SC2064
+    trap "rm -rf '$dir'" EXIT
     say "Downloading Bindle ($version)…"
     "${curl[@]}" --progress-bar -o "$dir/bindle" "$base/bindle-x86_64"
     "${curl[@]}" -sS -o "$dir/SHA256SUMS" "$base/SHA256SUMS"

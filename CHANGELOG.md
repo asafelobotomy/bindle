@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- `bindle undo` marks a snapshot undone once it is fully restored, so running
+  it again steps back to the apply before instead of repeating the newest one.
+  After an apply was re-run, the first run's file changes were only reachable
+  with `bindle undo <id>`.
+- `install.sh`: a failed download no longer ends in `dir: unbound variable`
+  from the cleanup trap; the temporary directory is removed.
+- `bindle first-login snippet` warns when no `--sha256` is given.
+
 ## 0.1.3 — 2026-11-08
 
 - The desktop window opens at first login on graphical sessions (falling back

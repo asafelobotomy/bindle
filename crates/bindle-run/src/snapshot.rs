@@ -46,6 +46,9 @@ pub struct Manifest {
     /// the re-run's. Snapshots from before this field count as complete.
     #[serde(default = "complete_default")]
     pub complete: bool,
+    /// `bindle undo` restored it; plain `undo` moves on to the run before.
+    #[serde(default)]
+    pub undone: bool,
 }
 
 fn complete_default() -> bool {
@@ -121,6 +124,7 @@ fn fill(root: &Path, plan: &SnapshotPlan, id: &str, dir: &Path) -> Result<Manife
         manual: plan.manual.clone(),
         created_dirs,
         complete: false,
+        undone: false,
     };
     write_atomic(&dir.join("manifest.json"), serde_json::to_string_pretty(&manifest)?.as_bytes(), 0o644)?;
     Ok(manifest)
@@ -186,12 +190,19 @@ pub fn mark_complete(root: &Path, id: &str) -> Result<()> {
     save(root, &m)
 }
 
-/// What plain `bindle undo` reverts, newest first: the latest snapshot plus
-/// the incomplete ones (failed applies it resumed) right before it.
-/// `snaps` is newest first, as `list` returns it.
+pub fn mark_undone(root: &Path, id: &str) -> Result<()> {
+    let mut m = load(root, id)?;
+    m.undone = true;
+    save(root, &m)
+}
+
+/// What plain `bindle undo` reverts, newest first: the latest snapshot not
+/// yet undone, plus the incomplete ones (failed applies it resumed) right
+/// before it. `snaps` is newest first, as `list` returns it.
 pub fn latest_session(snaps: &[Manifest]) -> Vec<Manifest> {
-    let mut out: Vec<Manifest> = snaps.iter().take(1).cloned().collect();
-    out.extend(snaps.iter().skip(1).take_while(|m| !m.complete).cloned());
+    let mut live = snaps.iter().filter(|m| !m.undone);
+    let mut out: Vec<Manifest> = live.next().into_iter().cloned().collect();
+    out.extend(live.take_while(|m| !m.complete).cloned());
     out
 }
 
@@ -332,5 +343,14 @@ mod tests {
         assert_eq!(session, [ids[11].clone(), ids[10].clone()]);
         mark_complete(&root, &ids[11]).unwrap();
         assert_eq!(latest_session(&list(&root)).len(), 2, "a finished resume still undoes the failed run");
+        // Undoing that session moves plain `undo` on to the run before it.
+        mark_undone(&root, &ids[11]).unwrap();
+        mark_undone(&root, &ids[10]).unwrap();
+        let next: Vec<String> = latest_session(&list(&root)).into_iter().map(|m| m.id).collect();
+        assert_eq!(next, [ids[9].clone()]);
+        for id in &ids[..10] {
+            mark_undone(&root, id).unwrap();
+        }
+        assert!(latest_session(&list(&root)).is_empty());
     }
 }

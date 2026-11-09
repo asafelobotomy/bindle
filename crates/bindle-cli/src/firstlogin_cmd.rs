@@ -16,7 +16,15 @@ pub fn dispatch(action: FirstLoginCmd) -> Result<()> {
         FirstLoginCmd::Install { root, no_tty_hook } => firstlogin::install(&root, !no_tty_hook)?,
         FirstLoginCmd::Remove { root, purge } => firstlogin::remove(&root, purge)?,
         FirstLoginCmd::Status { root } => firstlogin::status(&root),
-        FirstLoginCmd::Snippet { url, sha256 } => vec![firstlogin::archinstall_snippet(&url, sha256.as_deref())?],
+        FirstLoginCmd::Snippet { url, sha256 } => {
+            if sha256.is_none() {
+                eprintln!(
+                    "warning: without --sha256 the install runs whatever the URL serves; \
+                     pass the binary's SHA-256 (from the release's signed SHA256SUMS)"
+                );
+            }
+            vec![firstlogin::archinstall_snippet(&url, sha256.as_deref())?]
+        }
         FirstLoginCmd::Watch => return session::watch(),
         FirstLoginCmd::QuietWelcome { root } => quiet_welcome(&root)?,
         FirstLoginCmd::Dismiss => {
