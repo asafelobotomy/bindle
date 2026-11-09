@@ -139,6 +139,19 @@ enable = ["tailscaled.service"]
 notes = ["Run `sudo tailscale up` afterwards to sign in."]
 
 [[module]]
+id = "scale_tail"
+name = "scale_tail (Tailscale tray)"
+description = "System-tray control centre for Tailscale: connect, switch exit nodes and accounts, start on login. By asafelobotomy."
+requires = ["tailscale"]
+packages = ["fuse2"]
+[[module.release]]
+repo = "asafelobotomy/scale_tail"
+tag = "v0.5.1"
+asset = "scale_tail-0.5.1-x86_64.AppImage"
+sha256 = "b1f2b583d2e25ed7df1b23a237a39d608a11958807981b63e9b1ed5f01df3ef5"
+name = "scale_tail"
+
+[[module]]
 id = "qbittorrent"
 name = "qBittorrent"
 description = "BitTorrent client."
