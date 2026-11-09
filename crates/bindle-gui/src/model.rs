@@ -174,6 +174,19 @@ fn names(catalog: &Catalog, ids: &[&str]) -> String {
     names.join(", ")
 }
 
+/// The planned modules by category, in catalog order: what the summary cards show.
+fn groups(p: &Plan, catalog: &Catalog) -> Vec<Value> {
+    catalog
+        .categories
+        .iter()
+        .filter_map(|c| {
+            let names: Vec<&str> =
+                catalog.modules_in(&c.id).filter(|m| p.modules.contains(&m.id)).map(|m| m.name.as_str()).collect();
+            (!names.is_empty()).then(|| json!({ "id": c.id, "name": c.name, "modules": names }))
+        })
+        .collect()
+}
+
 fn review_json(p: &Plan, catalog: &Catalog) -> Value {
     let name = |id: &str| catalog.module(id).map_or(id.to_string(), |m| m.name.clone());
     let mut packages = 0;
@@ -205,6 +218,10 @@ fn review_json(p: &Plan, catalog: &Catalog) -> Value {
     json!({
         "ok": true,
         "empty": p.is_empty(),
+        "groups": groups(p, catalog),
+        "needsReboot": bindle_run::apply::needs_reboot(p),
+        "relogin": p.steps.iter().any(|s| matches!(s, Step::AddToGroups { .. })),
+        "password": p.steps.iter().any(Step::privileged),
         "counts": { "modules": p.modules.len(), "packages": packages, "files": files, "services": services },
         "replaced": pair(&p.replaced, &|id, pkg| format!("{} replaces the installed {pkg}", name(id))),
         "pulled_in": pair(&p.pulled_in, &|dep, by| format!("{} added: {} needs it", name(dep), name(by))),
@@ -301,5 +318,22 @@ mod tests {
         let steps = r["steps"].as_array().unwrap();
         assert!(steps.iter().any(|s| s["text"].as_str().unwrap().contains("blender")));
         assert!(steps.iter().any(|s| s["root"] == true));
+        assert_eq!(r["password"], true);
+        assert!(r["needsReboot"].is_boolean() && r["relogin"].is_boolean());
+    }
+
+    #[test]
+    fn review_groups_every_planned_module_by_category() {
+        let mut w = wizard(arch());
+        w.toggle("blender");
+        let r = w.review(std::path::Path::new("/"));
+        let groups = r["groups"].as_array().unwrap();
+        let total: usize = groups.iter().map(|g| g["modules"].as_array().unwrap().len()).sum();
+        assert_eq!(total as u64, r["counts"]["modules"].as_u64().unwrap());
+        let creative = groups.iter().find(|g| g["id"] == "creative").unwrap();
+        assert!(creative["modules"].as_array().unwrap().iter().any(|m| m == "Blender"), "{creative}");
+        // Catalog order, empty categories left out.
+        let ids: Vec<&str> = groups.iter().map(|g| g["id"].as_str().unwrap()).collect();
+        assert!(!ids.contains(&"gaming"), "{ids:?}");
     }
 }

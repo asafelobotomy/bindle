@@ -313,8 +313,8 @@ pub fn run(catalog: &Catalog, facts: &Facts, opts: IsoOpts) -> Result<()> {
     Ok(())
 }
 
-/// What `bindle-gui` needs on the installed system.
-const WINDOW_RUNTIME: &[&str] = &["qt6-declarative", "kirigami"];
+/// What `bindle-gui` needs on the installed system (breeze-icons: its icons).
+const WINDOW_RUNTIME: &[&str] = &["qt6-declarative", "kirigami", "breeze-icons"];
 
 /// Append to archinstall's extra `packages`, keeping any from `--config`.
 fn add_packages(preset: &mut Value, pkgs: &[&str]) {
@@ -336,10 +336,10 @@ mod tests {
     fn window_runtime_joins_the_users_packages() {
         let mut p = json!({ "packages": ["vim", "kirigami"] });
         add_packages(&mut p, WINDOW_RUNTIME);
-        assert_eq!(p["packages"], json!(["vim", "kirigami", "qt6-declarative"]));
+        assert_eq!(p["packages"], json!(["vim", "kirigami", "qt6-declarative", "breeze-icons"]));
         let mut p = json!({});
         add_packages(&mut p, WINDOW_RUNTIME);
-        assert_eq!(p["packages"], json!(["qt6-declarative", "kirigami"]));
+        assert_eq!(p["packages"], json!(["qt6-declarative", "kirigami", "breeze-icons"]));
     }
     use serde_json::json;
 

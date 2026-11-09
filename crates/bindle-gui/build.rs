@@ -14,6 +14,10 @@ fn main() {
         QmlFile::from("qml/ModuleDetails.qml"),
         QmlFile::from("qml/ReviewPage.qml"),
         QmlFile::from("qml/ApplyPage.qml"),
+        QmlFile::from("qml/CategoryCard.qml"),
+        QmlFile::from("qml/Notice.qml"),
+        QmlFile::from("qml/Disclosure.qml"),
+        QmlFile::from("qml/Glyph.qml"),
     ]))
     .qt_module("Gui")
     .qt_module("Quick")

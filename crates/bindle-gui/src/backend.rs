@@ -63,6 +63,10 @@ pub mod qobject {
         /// Save the window as a PNG (screenshot tests).
         #[qinvokable]
         fn grab_window(self: &Backend, path: &QString) -> bool;
+        /// A theme icon drawn in one colour (`#rrggbb`), as a `data:` URL;
+        /// empty when no installed theme has it.
+        #[qinvokable]
+        fn glyph(self: &Backend, name: &QString, color: &QString) -> QString;
     }
 
     impl cxx_qt::Threading for Backend {}
@@ -226,5 +230,9 @@ impl Backend {
 
     fn grab_window(&self, path: &QString) -> bool {
         crate::app::ffi::bindle_grab_window(&path.to_string())
+    }
+
+    fn glyph(&self, name: &QString, color: &QString) -> QString {
+        QString::from(&crate::glyph::url(&name.to_string(), &color.to_string()))
     }
 }

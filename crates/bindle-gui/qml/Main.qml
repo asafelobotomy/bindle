@@ -68,6 +68,7 @@ QQC2.ApplicationWindow {
     Component.onCompleted: {
         Theme.win = winColors.Kirigami.Theme;
         Theme.view = viewColors.Kirigami.Theme;
+        Theme.backend = backend;
     }
 
     function go(to) {
@@ -133,10 +134,14 @@ QQC2.ApplicationWindow {
             onToggled: id => backend.toggle(id)
         }
         ReviewPage {
+            id: reviewPage
             review: JSON.parse(backend.reviewJson || "{}")
         }
         ApplyPage {
+            id: applyPage
             apply: root.apply
+            review: reviewPage.review
+            onRestart: backend.reboot()
         }
     }
 
@@ -160,11 +165,6 @@ QQC2.ApplicationWindow {
                 text: root.page === 4 ? "Back to review" : "Back"
                 visible: root.page > 0 && !root.running && root.apply.state !== "done"
                 onClicked: root.go(root.page === 4 ? 3 : root.page - 1)
-            }
-            ActionButton {
-                text: "Restart now"
-                visible: root.page === 4 && root.apply.state === "done" && root.apply.needsReboot
-                onClicked: backend.reboot()
             }
             QQC2.Label {
                 Layout.fillWidth: true
@@ -210,8 +210,10 @@ QQC2.ApplicationWindow {
             { page: 2, name: "3-choose", category: 0 },
             { page: 2, name: "4-choose-hardware", category: 1, module: 1 },
             { page: 3, name: "5-review" },
+            { page: 3, name: "5b-review-details", details: true },
             // Only with --sandbox: apply for real (recording commands) and wait.
-            { page: 4, name: "6-applied", apply: true }
+            { page: 4, name: "6-applied", apply: true },
+            { page: 4, name: "6b-applied-details", details: true }
         ]
         property bool waiting: false
 
@@ -233,7 +235,17 @@ QQC2.ApplicationWindow {
                 Qt.quit();
                 return;
             }
-            root.go(s.page);
+            if (s.details) {
+                // Open the current page's details, scrolled to show them.
+                if (s.page === 3) {
+                    reviewPage.detailsOpen = true;
+                    reviewPage.showDetails();
+                } else {
+                    applyPage.detailsOpen = true;
+                }
+            } else {
+                root.go(s.page);
+            }
             if (s.apply) {
                 backend.startApply();
                 waiting = true;

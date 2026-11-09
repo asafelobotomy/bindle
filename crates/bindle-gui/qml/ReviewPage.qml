@@ -3,53 +3,82 @@ import QtQuick.Controls as QQC2
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 
-// What applying will do: counts, replacements and skips, then every step.
+// What applying will do, at a glance: one sentence, counts, the features by
+// category and anything that needs attention. Every step, with the files
+// it writes, sits under "Technical details".
 QQC2.ScrollView {
     id: page
 
     property var review: ({})
     readonly property var counts: review.counts || {}
+    property alias detailsOpen: details.open
 
     contentWidth: availableWidth
+
+    // Scroll so the details toggle sits at the top (the screenshot run).
+    function showDetails() {
+        Qt.callLater(() => page.contentItem.contentY = Math.max(0, details.y - Kirigami.Units.largeSpacing));
+    }
+
+    // "Bindle will add 25 features. You'll be asked for your password once…"
+    function summary() {
+        const n = page.counts.modules || 0;
+        let s = "Bindle will add " + n + (n === 1 ? " feature" : " features") + " to this computer.";
+        if (page.review.password)
+            s += " You'll be asked for your password once.";
+        if (page.review.needsReboot)
+            s += " Restart afterwards to finish.";
+        else if (page.review.relogin)
+            s += " Log out and back in afterwards.";
+        return s;
+    }
 
     ColumnLayout {
         width: page.availableWidth
         spacing: Kirigami.Units.mediumSpacing
 
-        QQC2.Label {
-            font.pointSize: Theme.headingSize
-            font.weight: Font.DemiBold
-            text: "Review your changes"
-            color: Theme.text
-        }
-
-        Panel {
-            Layout.fillWidth: true
-            visible: page.review.ok === false
-            edge: Theme.error
-            implicitHeight: err.implicitHeight + 2 * padding
+        ColumnLayout {
+            spacing: Kirigami.Units.smallSpacing
             QQC2.Label {
-                id: err
-                width: parent.width
-                wrapMode: Text.Wrap
-                text: "Bindle can't build a plan from this selection: " + (page.review.error || "")
+                font.pointSize: Theme.headingSize
+                font.weight: Font.DemiBold
+                text: "Review your changes"
                 color: Theme.text
+            }
+            QQC2.Label {
+                Layout.fillWidth: true
+                visible: page.review.ok === true && page.review.empty !== true
+                wrapMode: Text.Wrap
+                text: page.summary()
+                color: Theme.textMuted
             }
         }
 
-        QQC2.Label {
+        Notice {
+            Layout.fillWidth: true
+            visible: page.review.ok === false
+            tone: "error"
+            icon: "dialog-error"
+            text: "Bindle can't build a plan from this selection: " + (page.review.error || "")
+        }
+        Notice {
+            Layout.fillWidth: true
             visible: page.review.empty === true
+            tone: "success"
+            icon: "dialog-ok-apply"
             text: "Nothing to do: this system already matches the selection."
-            color: Theme.success
         }
 
+        // Counts.
         RowLayout {
             Layout.fillWidth: true
-            visible: page.review.ok === true
+            visible: page.review.ok === true && page.review.empty !== true
             spacing: Kirigami.Units.mediumSpacing
             Repeater {
-                model: [["Modules", page.counts.modules], ["Packages", page.counts.packages],
-                    ["Files", page.counts.files], ["Services", page.counts.services]]
+                model: [["Features", page.counts.modules, "plugins"],
+                    ["Packages", page.counts.packages, "package-x-generic"],
+                    ["Settings files", page.counts.files, "document-edit"],
+                    ["Services", page.counts.services, "system-run"]]
                 Rectangle {
                     required property var modelData
                     Layout.fillWidth: true
@@ -60,11 +89,18 @@ QQC2.ScrollView {
                         id: tile
                         anchors.centerIn: parent
                         spacing: 0
-                        QQC2.Label {
+                        RowLayout {
                             Layout.alignment: Qt.AlignHCenter
-                            text: modelData[0]
-                            color: Theme.textMuted
-                            font.pointSize: Theme.smallSize
+                            spacing: Kirigami.Units.smallSpacing
+                            Glyph {
+                                name: modelData[2]
+                                tint: Theme.textMuted
+                            }
+                            QQC2.Label {
+                                text: modelData[0]
+                                color: Theme.textMuted
+                                font.pointSize: Theme.smallSize
+                            }
                         }
                         QQC2.Label {
                             Layout.alignment: Qt.AlignHCenter
@@ -78,42 +114,65 @@ QQC2.ScrollView {
             }
         }
 
+        // What you get, by category.
+        GridLayout {
+            Layout.fillWidth: true
+            columns: Math.max(1, Math.floor(page.availableWidth / (Kirigami.Units.gridUnit * 14)))
+            columnSpacing: Kirigami.Units.mediumSpacing
+            rowSpacing: Kirigami.Units.mediumSpacing
+            Repeater {
+                model: page.review.groups || []
+                CategoryCard {
+                    required property var modelData
+                    Layout.fillWidth: true
+                    Layout.preferredWidth: Kirigami.Units.gridUnit * 13
+                    Layout.alignment: Qt.AlignTop
+                    categoryId: modelData.id
+                    name: modelData.name
+                    modules: modelData.modules
+                }
+            }
+        }
+
+        // Anything that needs attention: one band per line.
         Repeater {
-            model: [[page.review.replaced, Theme.warning, "↔ "], [page.review.pulled_in, Theme.accent, "+ "],
-                [page.review.provided, Theme.success, "✓ "], [page.review.skipped, Theme.textMuted, "– "]]
+            model: [[page.review.replaced, "warning", "exchange-positions"],
+                [page.review.pulled_in, "accent", "list-add"],
+                [page.review.provided, "success", "emblem-success"],
+                [page.review.skipped, "muted", "list-remove"],
+                [page.review.notes, "muted", "help-about"]]
             ColumnLayout {
                 required property var modelData
+                readonly property var kind: modelData
                 Layout.fillWidth: true
                 visible: (modelData[0] || []).length > 0
                 spacing: 2
                 Repeater {
-                    model: modelData[0] || []
-                    QQC2.Label {
+                    model: kind[0] || []
+                    Notice {
                         required property string modelData
                         Layout.fillWidth: true
-                        wrapMode: Text.Wrap
-                        text: parent.modelData[2] + modelData
-                        color: parent.modelData[1]
+                        text: modelData
+                        tone: kind[1]
+                        icon: kind[2]
                     }
                 }
             }
         }
 
-        QQC2.Label {
+        Disclosure {
+            id: details
             visible: (page.review.steps || []).length > 0
-            Layout.topMargin: Kirigami.Units.mediumSpacing
-            text: "Steps"
-            color: Theme.text
-            font.weight: Font.DemiBold
+            text: "Technical details: " + (page.review.steps || []).length + " steps, with the files and commands"
         }
         Repeater {
-            model: page.review.steps || []
+            model: details.open ? (page.review.steps || []) : []
             Panel {
                 id: step
                 required property var modelData
                 required property int index
                 Layout.fillWidth: true
-                padding: Kirigami.Units.mediumSpacing
+                padding: Kirigami.Units.smallSpacing
                 implicitHeight: stepBody.implicitHeight + 2 * padding
                 ColumnLayout {
                     id: stepBody
@@ -132,10 +191,8 @@ QQC2.ScrollView {
                             text: step.modelData.text
                             wrapMode: Text.Wrap
                             color: Theme.text
-                        }
-                        Pill {
-                            visible: step.modelData.root
-                            text: "admin"
+                            font.family: Theme.fontMono
+                            font.pointSize: Theme.smallSize
                         }
                     }
                     Repeater {
@@ -150,24 +207,6 @@ QQC2.ScrollView {
                         }
                     }
                 }
-            }
-        }
-
-        QQC2.Label {
-            visible: (page.review.notes || []).length > 0
-            Layout.topMargin: Kirigami.Units.mediumSpacing
-            text: "Notes"
-            color: Theme.text
-            font.weight: Font.DemiBold
-        }
-        Repeater {
-            model: page.review.notes || []
-            QQC2.Label {
-                required property string modelData
-                Layout.fillWidth: true
-                wrapMode: Text.Wrap
-                text: "• " + modelData
-                color: Theme.textMuted
             }
         }
     }

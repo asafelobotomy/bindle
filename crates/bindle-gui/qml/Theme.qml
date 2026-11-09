@@ -13,6 +13,8 @@ QtObject {
     // Kirigami.Theme of the window (Window colour set) and of a View item.
     property QtObject win: null
     property QtObject view: null
+    // The Backend (set by Main), for glyph(): theme icons in one colour.
+    property QtObject backend: null
 
     function pick(key, fallback) {
         return uq ? tokens.colors[key] : fallback;

@@ -1,6 +1,8 @@
 #include "bindle-gui/cpp/app.h"
 
 #include <QBuffer>
+#include <QDir>
+#include <QStandardPaths>
 #include <QGuiApplication>
 #include <QIcon>
 #include <QImageReader>
@@ -21,6 +23,33 @@ void bindle_describe_application(rust::Str version)
     QGuiApplication::setApplicationVersion(toQString(version));
     // The Wayland app id; matches bindle.desktop for the icon and taskbar.
     QGuiApplication::setDesktopFileName(QStringLiteral("bindle"));
+
+    // Outside a full desktop (Hyprland, the offscreen screenshot run) Qt may
+    // search no icon folders and have no icon theme: add the XDG ones, then
+    // use the first installed theme that has the names the views ask for.
+    // QML hides any icon that still isn't found.
+    QStringList paths = QIcon::themeSearchPaths();
+    for (const QString &dir : QStandardPaths::locateAll(QStandardPaths::GenericDataLocation, QStringLiteral("icons"),
+                                                        QStandardPaths::LocateDirectory)) {
+        if (!paths.contains(dir))
+            paths.append(dir);
+    }
+    QIcon::setThemeSearchPaths(paths);
+    const QString current = QIcon::themeName();
+    const bool none = current.isEmpty() || current == QStringLiteral("hicolor");
+    for (const auto &theme : {QStringLiteral("breeze"), QStringLiteral("breeze-dark"), QStringLiteral("Papirus"),
+                              QStringLiteral("Adwaita")}) {
+        bool found = false;
+        for (const QString &dir : QIcon::themeSearchPaths())
+            found = found || QDir(dir).exists(theme + QStringLiteral("/index.theme"));
+        if (!found)
+            continue;
+        if (none)
+            QIcon::setThemeName(theme);
+        else
+            QIcon::setFallbackThemeName(theme);
+        break;
+    }
 }
 
 void bindle_set_window_icon(rust::Slice<const std::uint8_t> svg)

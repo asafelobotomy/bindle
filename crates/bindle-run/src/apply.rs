@@ -168,7 +168,8 @@ fn install_files(h: &mut HelperClient, files: Vec<String>, progress: &mut dyn Pr
     root_request(h, &Request::InstallFiles { paths: files }, &mut |l| progress.output(l)).map(drop)
 }
 
-fn needs_reboot(plan: &Plan) -> bool {
+/// Whether the plan changes the kernel, microcode or drivers.
+pub fn needs_reboot(plan: &Plan) -> bool {
     plan.steps.iter().any(|s| match s {
         Step::RebuildInitramfs => true,
         Step::InstallPackages { packages } => packages

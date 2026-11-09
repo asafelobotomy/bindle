@@ -18,6 +18,7 @@ const EXIT_APPLIED: i32 = 0;
 const EXIT_CLOSED: i32 = 3;
 const EXIT_NO_WINDOW: i32 = 4;
 mod backend;
+mod glyph;
 mod model;
 mod theme;
 

@@ -94,7 +94,7 @@ Bluetooth hardware is present.
 
 **First login** opens the wizard: in a graphical session, the desktop window
 when `bindle-gui` is installed and Kirigami is present (`bindle iso` adds
-`kirigami` and `qt6-declarative` for graphical profiles), else the wizard in
+`kirigami`, `qt6-declarative` and `breeze-icons` for graphical profiles), else the wizard in
 the desktop's terminal. Applying from the window marks setup finished; closing
 it without applying gives a reminder at the next login, as below; if the
 window can't start, the terminal wizard opens instead. **Later logins**, if setup isn't finished,

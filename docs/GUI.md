@@ -34,9 +34,11 @@ follows uQ's app conventions so it can fill that role.
 ## Screens
 
 Welcome (install summary, already set up, suggestions) → Profile → Choose
-(categories, modules, details, search) → Review (counts, replacements, skips,
-steps) → Apply (progress, per-step status, log) → Done (reboot/log-out note,
-undo hint, and on uQ "Open uQ Welcome"). Each screen reads the same data the
+(categories, modules, details, search) → Review (a one-sentence summary,
+counts, the features by category, replacements, skips and notes; every step
+folded under "Technical details") → Apply (progress, per-step status, log) →
+Done (result banner, restart/log-out callout, the features by category, undo
+hint, steps and log folded away, and on uQ "Open uQ Welcome"). Each screen reads the same data the
 terminal wizard does: `print::install_lines`, `print::module_details`,
 `plan::resolve`.
 
@@ -78,7 +80,7 @@ terminal wizard does: `print::install_lines`, `print::module_details`,
   session (`WAYLAND_DISPLAY` or `DISPLAY`), `bindle-gui` is installed next to
   `bindle`, and Kirigami is installed; otherwise it opens the terminal wizard as
   now. uQ's Hyprland config can launch it the same way.
-- `bindle iso` adds `kirigami` and `qt6-declarative` to the install so the
+- `bindle iso` adds `kirigami`, `qt6-declarative` and `breeze-icons` to the install so the
   window works at first login on any desktop, not only Qt ones.
 - If pkexec has no polkit agent to ask for the password (some window managers
   before Bindle installs one), the window offers to continue in a terminal with
@@ -93,6 +95,11 @@ terminal wizard does: `print::install_lines`, `print::module_details`,
 - Rust unit tests for the backend's models and the token-to-theme mapping.
 - Offscreen screenshots (`QT_QPA_PLATFORM=offscreen`) of every screen in every
   uQ theme variant, mirroring uQ's per-theme screenshot tests.
+- Icons are Breeze names drawn by `Glyph.qml` in one theme colour: the backend
+  rewrites the SVG's colours (`src/glyph.rs`), which works without a GPU and
+  on any background. Use outline-style names; a full-colour icon becomes a
+  solid square. Qt logs QML errors to the journal: run with
+  `QT_FORCE_STDERR_LOGGING=1` to see them.
 - Apply end to end through `--sandbox` (the helper's `--fake-commands`).
 - The VM test screenshots the window at first login, including on uQ.
 
