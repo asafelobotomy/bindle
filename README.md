@@ -19,9 +19,6 @@ bash <(curl -fsSL https://raw.githubusercontent.com/asafelobotomy/bindle/main/in
 Pick a desktop and profile, finish archinstall's pre-filled menu, reboot, and
 Bindle greets you on first login. See [docs/ISO.md](docs/ISO.md).
 
-> The repository is private until the first release, so this URL (and
-> `releases/latest/download/…`) only works once it is public.
-
 The AppImage, for an existing install, is on the
 [releases page](https://github.com/asafelobotomy/bindle/releases/latest) as
 `Bindle-x86_64.AppImage`.
