@@ -80,7 +80,7 @@ id = "scdr"
 name = "scdr (process priorities)"
 description = "Keeps the focused app, games and audio responsive with CPU and I/O priorities, and demotes builds and background work. By asafelobotomy."
 notes = [
-  "Replaces ananicy-cpp and system76-scheduler; ananicy rules you had are imported to /etc/scdr/rules.d/50-ananicy.toml first.",
+  "Replaces ananicy-cpp and system76-scheduler; ananicy's game list is imported to /etc/scdr/rules.d/50-ananicy.toml first (see `scdrctl import --help` for the rest).",
   "`scdrctl status` shows what it manages; removing scdr restores every priority it set.",
 ]
 requires = ["aur-helper"]
@@ -90,7 +90,9 @@ package_conflicts = ["ananicy-cpp", "cachyos-ananicy-rules", "system76-scheduler
 replace_after_install = true
 enable = ["scdrd.service"]
 [[module.root_commands]]
-argv = ["scdrctl", "import", "ananicy", "/etc/ananicy.d", "--output", "/etc/scdr/rules.d/50-ananicy.toml"]
+# Only its game list: a full import brings CachyOS's other choices along
+# (bash at nice -4, NetworkManager demoted), which scdr's own rules cover.
+argv = ["scdrctl", "import", "ananicy", "/etc/ananicy.d", "--only", "Game", "--output", "/etc/scdr/rules.d/50-ananicy.toml"]
 when = ["installed:ananicy-cpp"]
 unless = [{ path = "/etc/scdr/rules.d/50-ananicy.toml" }]
 # The session agent boosts the focused window; uQ starts it with the session's environment.
