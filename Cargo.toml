@@ -6,7 +6,7 @@ members = ["crates/bindle-core", "crates/bindle-run", "crates/bindle-cli", "crat
 default-members = ["crates/bindle-core", "crates/bindle-run", "crates/bindle-cli"]
 
 [workspace.package]
-version = "0.1.4"
+version = "0.1.5"
 edition = "2024"
 license = "GPL-3.0-or-later"
 rust-version = "1.88"

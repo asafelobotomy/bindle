@@ -1,10 +1,52 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
-  <rect width="256" height="256" rx="56" fill="#1f2430"/>
-  <g transform="matrix(1 0 0 -1 0 256)">
-    <line x1="40" y1="216" x2="196" y2="72" stroke="#a0703c" stroke-width="14" stroke-linecap="round"/>
-    <path d="M150 64c-34 0-58 26-52 58 5 26 30 40 56 40s50-14 54-40c5-32-24-58-58-58z" fill="#d94f4f"/>
-    <circle cx="132" cy="104" r="7" fill="#f4e1c1"/><circle cx="168" cy="96" r="7" fill="#f4e1c1"/>
-    <circle cx="150" cy="132" r="7" fill="#f4e1c1"/><circle cx="182" cy="128" r="7" fill="#f4e1c1"/>
-    <path d="M176 70l22-20 6 16-14 10z" fill="#d94f4f"/>
+  <defs>
+    <clipPath id="tile"><rect width="256" height="256" rx="56"/></clipPath>
+    <radialGradient id="bg" cx="0.25" cy="0.2" r="1"><stop offset="0" stop-color="#2b3244"/><stop offset="1" stop-color="#171b24"/></radialGradient>
+    <linearGradient id="coat" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#53627d"/><stop offset="0.5" stop-color="#3e4a5f"/><stop offset="1" stop-color="#2a3242"/></linearGradient>
+    <radialGradient id="hair" cx="0.65" cy="0.3" r="0.8"><stop offset="0" stop-color="#4f3e32"/><stop offset="1" stop-color="#2a201a"/></radialGradient>
+    <linearGradient id="crown" x1="1" y1="0" x2="0" y2="0"><stop offset="0" stop-color="#86694f"/><stop offset="1" stop-color="#4f3c2d"/></linearGradient>
+    <linearGradient id="brim" x1="1" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6c5441"/><stop offset="1" stop-color="#3f3024"/></linearGradient>
+    <linearGradient id="skin" x1="1" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d49a73"/><stop offset="1" stop-color="#a86f4e"/></linearGradient>
+    <radialGradient id="cast" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#000" stop-opacity="0.5"/><stop offset="0.7" stop-color="#000" stop-opacity="0.25"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
+    <radialGradient id="bag" cx="0.35" cy="0.3" r="0.75" fx="0.3" fy="0.25"><stop offset="0" stop-color="#f07a6a"/><stop offset="0.55" stop-color="#d94f4f"/><stop offset="1" stop-color="#9e3434"/></radialGradient>
+    <linearGradient id="knot" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e86060"/><stop offset="1" stop-color="#a83a3a"/></linearGradient>
+    <radialGradient id="dot" cx="0.35" cy="0.3" r="0.7"><stop offset="0" stop-color="#fff4e2"/><stop offset="1" stop-color="#dcc4a0"/></radialGradient>
+    <linearGradient id="stick" gradientUnits="userSpaceOnUse" x1="93.5" y1="39.7" x2="114.5" y2="28.3"><stop offset="0" stop-color="#6e4724"/><stop offset="0.45" stop-color="#b9824a"/><stop offset="0.6" stop-color="#c8935a"/><stop offset="1" stop-color="#7a5029"/></linearGradient>
+    <radialGradient id="grain" cx="0.45" cy="0.4" r="0.6"><stop offset="0" stop-color="#ecc48f"/><stop offset="1" stop-color="#c08a52"/></radialGradient>
+  </defs>
+  <rect width="256" height="256" rx="56" fill="url(#bg)"/>
+  <g clip-path="url(#tile)">
+    <!-- a traveller from behind, in from the right; light from the top left -->
+    <g transform="matrix(-1 0 0 1 256 0)">
+      <path d="M38 160h30l4 34H34z" fill="url(#skin)"/>
+      <path d="M-12 256V190c22-8 40-10 52-10 6 8 18 8 24 0 40 0 80 6 112 22 30 14 50 38 58 56z" fill="url(#coat)"/>
+      <path d="M36 182c6 10 26 10 32 0" fill="none" stroke="#252d3b" stroke-width="5" stroke-linecap="round"/>
+      <ellipse cx="12" cy="134" rx="9" ry="15" fill="url(#skin)"/>
+      <ellipse cx="92" cy="134" rx="9" ry="15" fill="url(#skin)"/>
+      <ellipse cx="12" cy="134" rx="4" ry="9" fill="#93603f"/>
+      <ellipse cx="92" cy="134" rx="4" ry="9" fill="#93603f"/>
+      <path d="M12 116c0-26 18-40 40-40s40 14 40 40c0 26-8 46-18 54-6 4-14 6-22 6s-16-2-22-6c-10-8-18-28-18-54z" fill="url(#hair)"/>
+      <ellipse cx="52" cy="118" rx="60" ry="10" fill="#000" fill-opacity="0.25"/>
+      <ellipse cx="52" cy="106" rx="86" ry="14" fill="url(#brim)"/>
+      <path d="M12 106C7 70 20 44 40 40l12 12 12-12c20 4 33 30 28 66z" fill="url(#crown)"/>
+      <path d="M11 92h82l1 14H10z" fill="#2a211b"/>
+    </g>
+    <!-- shadows the bindle casts on him -->
+    <path d="M200.4 195.6L144.5 68.3L123.5 79.7L191.6 200.4z" fill="#000" fill-opacity="0.22"/>
+    <ellipse cx="152" cy="172" rx="66" ry="62" fill="url(#cast)"/>
+    <!-- the stick: far end on his shoulder, near end coming at the camera -->
+    <path d="M190.6 186.6L114.5 28.3L93.5 39.7L185.4 189.4z" fill="url(#stick)"/>
+    <!-- the bag, hanging from the stick in the centre -->
+    <g transform="translate(-68 -34)">
+      <path d="M196 104c-42 6-66 42-60 80 5 32 32 50 60 50s56-18 62-50c6-38-18-74-62-80z" fill="url(#bag)"/>
+      <circle cx="174" cy="146" r="9" fill="url(#dot)"/><circle cx="214" cy="138" r="9" fill="url(#dot)"/>
+      <circle cx="186" cy="188" r="9" fill="url(#dot)"/><circle cx="228" cy="184" r="8" fill="url(#dot)" opacity="0.85"/>
+      <circle cx="160" cy="210" r="8" fill="url(#dot)" opacity="0.85"/>
+      <path d="M190 108l-14-24 20 8z" fill="url(#knot)"/><path d="M202 106l24-16-4 20z" fill="url(#knot)"/>
+    </g>
+    <!-- the cut end of the stick, facing the camera -->
+    <ellipse cx="104" cy="34" rx="12" ry="11" transform="rotate(-29 104 34)" fill="url(#grain)" stroke="#6e4724" stroke-width="1.5"/>
+    <ellipse cx="103.5" cy="33.5" rx="5.5" ry="5" transform="rotate(-29 104 34)" fill="none" stroke="#a87443" stroke-width="1.2"/>
+    <circle cx="103" cy="33" r="1.6" fill="#8a5a30"/>
   </g>
 </svg>

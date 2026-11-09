@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.5 — 2026-11-09
+
+- New logo: a traveller in a fedora, seen from behind, with the bindle over
+  the shoulder and its bag in the foreground.
+
 ## 0.1.4 — 2026-11-09
 
 - The Bindle icon is flipped vertically.
