@@ -60,8 +60,12 @@ impl App<'_> {
             .iter()
             .map(|m| {
                 let done = self.provided.contains_key(&m.id);
+                let unavailable = self.facts.matches(&m.when).is_err();
                 let mark = if done {
                     "[✓]"
+                } else if unavailable {
+                    // A profile may include it, but the plan skips it here.
+                    "[-]"
                 } else if self.selected.contains(&m.id) {
                     "[x]"
                 } else {
@@ -76,7 +80,7 @@ impl App<'_> {
                 let mut line = Line::from(spans);
                 if done {
                     line = line.fg(Color::Green);
-                } else if self.facts.matches(&m.when).is_err() {
+                } else if unavailable {
                     line = line.add_modifier(Modifier::DIM);
                 }
                 ListItem::new(line)

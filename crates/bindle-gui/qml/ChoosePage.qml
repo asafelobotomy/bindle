@@ -121,7 +121,7 @@ RowLayout {
                     spacing: Kirigami.Units.mediumSpacing
                     QQC2.CheckBox {
                         checked: row.modelData.selected || row.provided
-                        enabled: !row.provided
+                        enabled: !row.provided && !row.unavailable
                         onToggled: {
                             page.moduleId = row.modelData.id;
                             page.toggled(row.modelData.id);

@@ -203,7 +203,7 @@ pub fn install_summary(f: &Facts) -> InstallSummary {
         ("Printing", yes(r.printing)),
         ("Firewall", opt(&r.firewall)),
         ("Fonts", if r.fonts.is_empty() { dash() } else { format!("{} packages", r.fonts.len()) }),
-        ("multilib", yes(r.multilib.or(Some(f.multilib_enabled)))),
+        ("32-bit (multilib)", yes(r.multilib.or(Some(f.multilib_enabled)))),
         (
             "Locale",
             [&r.locale, &r.keyboard, &r.timezone].iter().filter_map(|x| x.as_deref()).collect::<Vec<_>>().join(" · "),

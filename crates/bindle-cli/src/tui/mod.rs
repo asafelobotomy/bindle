@@ -185,8 +185,8 @@ impl<'a> App<'a> {
                 if let Some(m) = self.current_modules().get(self.module.selected().unwrap_or(0)) {
                     let id = m.id.clone();
                     let rivals = m.conflicts.clone();
-                    if self.provided.contains_key(&id) {
-                        // Set up by the installer; nothing to toggle.
+                    if self.provided.contains_key(&id) || self.facts.matches(&m.when).is_err() {
+                        // Set up by the installer, or skipped here; nothing to toggle.
                     } else if !self.selected.remove(&id) {
                         // Picking one of a conflicting pair drops the other.
                         let dropped: Vec<String> = rivals.into_iter().filter(|r| self.selected.remove(r)).collect();

@@ -46,8 +46,20 @@ QQC2.ScrollView {
 
                     Layout.fillWidth: true
                     implicitHeight: body.implicitHeight + 2 * padding
-                    edge: active ? Theme.accent : Theme.border
-                    border.width: active ? 2 : 1
+                    edge: active || activeFocus ? Theme.accent : Theme.border
+                    border.width: active || activeFocus ? 2 : 1
+
+                    // Tab to a card, Space or Enter to choose it.
+                    activeFocusOnTab: true
+                    Keys.onSpacePressed: page.chosen(card.modelData.id)
+                    Keys.onReturnPressed: page.chosen(card.modelData.id)
+                    Keys.onEnterPressed: page.chosen(card.modelData.id)
+                    Accessible.role: Accessible.RadioButton
+                    Accessible.name: card.modelData.name
+                    Accessible.description: card.modelData.description
+                    Accessible.checkable: true
+                    Accessible.checked: card.active
+                    Accessible.onPressAction: page.chosen(card.modelData.id)
 
                     ColumnLayout {
                         id: body

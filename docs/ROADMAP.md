@@ -43,7 +43,7 @@
 - AppImage update info (zsync) and a short `curl … | sh`-free install doc for TTY users
 
 ## Phase 3: GUI
-- Desktop wizard: Rust + cxx-qt + Kirigami over `bindle-run`, themed by uQ; see [GUI.md](GUI.md)
+- ~~Desktop wizard: Rust + cxx-qt + Kirigami over `bindle-run`, themed by uQ~~ ✅ `bindle-gui`; next: the uQ hand-off and uq-settings page, blocked on uQ release packages ([GUI.md](GUI.md))
 - ~~Shared apply engine (`bindle-run`, `Progress` trait)~~ ✅
 
 ## Phase 4: catalog depth

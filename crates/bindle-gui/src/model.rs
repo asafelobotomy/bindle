@@ -46,7 +46,8 @@ impl Wizard {
     /// the other; the returned line says so.
     pub fn toggle(&mut self, id: &str) -> Option<String> {
         let m = self.catalog.module(id)?;
-        if self.provided.contains_key(id) || self.selected.remove(id) {
+        // Set up already, or the plan would skip it: nothing to toggle.
+        if self.provided.contains_key(id) || self.facts.matches(&m.when).is_err() || self.selected.remove(id) {
             return None;
         }
         let dropped: Vec<&str> =
@@ -135,11 +136,13 @@ impl Wizard {
             Risk::Moderate => "moderate",
             Risk::Advanced => "advanced",
         };
+        let unavailable = self.facts.matches(&m.when).err();
         json!({
             "id": m.id, "name": m.name, "description": m.description, "risk": risk,
-            "selected": self.selected.contains(&m.id),
+            // A profile may include it, but the plan skips it here: show it off.
+            "selected": unavailable.is_none() && self.selected.contains(&m.id),
             "provided": self.provided.get(&m.id),
-            "unavailable": self.facts.matches(&m.when).err(),
+            "unavailable": unavailable,
             "notes": m.notes,
             "details": present::module_details(m, &self.facts),
             "requires": names(&self.catalog, &m.requires.iter().map(String::as_str).collect::<Vec<_>>()),
@@ -270,6 +273,22 @@ mod tests {
         let vm = wizard(Facts { virt: "kvm".into(), gpus: vec!["virtual".into()], ..arch() });
         assert!(vm.header().ends_with("GiB · virtual machine"), "{}", vm.header());
         assert!(w.welcome()["rows"].is_array());
+    }
+
+    #[test]
+    fn modules_that_dont_apply_here_are_not_ticked() {
+        // Reflector needs Arch; the desktop profile includes it.
+        let mut w = wizard(Facts { distro_id: "manjaro".into(), ..arch() });
+        assert!(w.selected.contains("mirrors"));
+        let cats = w.categories();
+        let sys = cats.as_array().unwrap().iter().find(|c| c["id"] == "base").unwrap();
+        let r = sys["modules"].as_array().unwrap().iter().find(|m| m["id"] == "mirrors").unwrap();
+        assert_eq!(r["selected"], false);
+        assert!(r["unavailable"].is_string());
+        let ticked = sys["modules"].as_array().unwrap().iter().filter(|m| m["selected"] == true).count();
+        assert_eq!(sys["selected"].as_u64().unwrap() as usize, ticked);
+        assert_eq!(w.toggle("mirrors"), None);
+        assert!(w.selected.contains("mirrors"), "toggling an unavailable module changes nothing");
     }
 
     #[test]

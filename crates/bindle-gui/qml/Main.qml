@@ -53,6 +53,23 @@ QQC2.ApplicationWindow {
         value: JSON.parse(backend.themeJson || '{"present": false}')
     }
 
+    // Off uQ, Theme takes the desktop's colours from Kirigami, which the
+    // desktop style also draws controls with.
+    Item {
+        id: winColors
+        Kirigami.Theme.colorSet: Kirigami.Theme.Window
+        Kirigami.Theme.inherit: false
+        Item {
+            id: viewColors
+            Kirigami.Theme.colorSet: Kirigami.Theme.View
+            Kirigami.Theme.inherit: false
+        }
+    }
+    Component.onCompleted: {
+        Theme.win = winColors.Kirigami.Theme;
+        Theme.view = viewColors.Kirigami.Theme;
+    }
+
     function go(to) {
         root.footerNote = "";
         if (to === 3)

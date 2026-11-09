@@ -34,7 +34,7 @@ These shaped every decision below:
 
 ```
 ┌──────────────── bindle (single static binary, packaged as AppImage) ───────────────┐
-│  frontends:  TUI wizard (ratatui) │ CLI (detect/list/plan/apply) │ GUI (later)       │
+│  frontends:  TUI wizard (ratatui) │ CLI (detect/list/plan/apply) │ GUI (Kirigami)    │
 │                         └────────────── all produce a Selection ──────────────┘       │
 │  bindle-core:  detect ─► Facts ─┐                                                  │
 │                catalog (TOML) ──┼─► plan::resolve ─► Plan { steps[] }  (pure, JSON) │
