@@ -11,6 +11,7 @@
 #      KEEP_WELCOME=1   install with the desktops' welcome apps left on (bindle iso --keep-welcome)
 #      CLOSE_WELCOME=1  boot: press Alt+F4 after the third screenshot (closes a welcome app)
 #      SECOND_LOGIN=1   boot: pre-mark the wizard as seen, so login shows the reminder notification
+#      WITH="m1 m2"     boot: add these modules to plan and apply (bindle apply --with)
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
@@ -163,6 +164,8 @@ boot_phase() {
     serve_build
     rm -f "$WORK/serve/second-login"
     [[ "${SECOND_LOGIN:-0}" == 1 ]] && touch "$WORK/serve/second-login"
+    rm -f "$WORK/serve/with"
+    [[ -n "${WITH:-}" ]] && printf '%s\n' "$WITH" >"$WORK/serve/with"
     start_servers
     mkdir -p "$WORK/shots" && rm -f "$WORK"/shots/*
     : >"$WORK/boot-serial.log"
