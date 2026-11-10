@@ -147,9 +147,7 @@ impl View<'_> {
             let base = d.profile(self.desktops);
             lines.push(Line::from(format!(
                 "{}: archinstall installs {}; Bindle adds {} on first login.",
-                d.name,
-                base.name,
-                d.name
+                d.name, base.name, d.name
             )));
         }
         lines.extend(self.summary.iter().map(|l| Line::from(l.as_str())));
