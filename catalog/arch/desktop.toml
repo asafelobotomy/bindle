@@ -54,6 +54,41 @@ requires = ["aur-helper"]
 aur = ["crum-bs-bin"]
 
 [[module]]
+id = "uq-dev"
+name = "uQ developer setup"
+description = "Clones uQ and its apps into ~/Projects and installs what building them needs, so you can work on them while you use the installed ones. By asafelobotomy."
+notes = [
+  "`uq-dev session` opens a nested uQ running your ~/Projects/uq checkout; `uq-dev run <repo>` runs an app from its checkout beside the installed one.",
+  "`uq-dev promote <repo>` installs a build of a checkout and `uq-dev rollback <package>` undoes it. See docs/developing.md in ~/Projects/uq.",
+]
+profiles = ["developer"]
+when = ["desktop:uq"]
+# uq ships uq-dev; rustup, build-tools and python bring cargo, makepkg, git and uv.
+requires = ["uq", "rustup", "build-tools", "python"]
+# The rest of what the checkouts' builds and tests use (Qt for uq-settings and the Bindle GUI).
+packages = ["github-cli", "jq", "lua", "shellcheck", "qt6-base", "qt6-declarative", "kirigami"]
+# Over HTTPS, so no key is needed yet; a repo already there is left alone. Exit 3 = some
+# failed (offline, or a private repo), listed on stderr.
+[[module.user_commands]]
+argv = ["sh", "-ec", """
+mkdir -p "$HOME/Projects"
+failed=""
+for r in uq bindle noti-fi scdr crumbs appofholding scale_tail romforge hauler emobie oysterAV XZram; do
+  [ -d "$HOME/Projects/$r/.git" ] && continue
+  git clone -q "https://github.com/asafelobotomy/$r.git" "$HOME/Projects/$r" || failed="$failed $r"
+done
+if [ -n "$failed" ]; then echo "could not clone:$failed" >&2; exit 3; fi"""]
+unless = [
+  { path = "~/Projects/uq/.git/HEAD" }, { path = "~/Projects/bindle/.git/HEAD" },
+  { path = "~/Projects/noti-fi/.git/HEAD" }, { path = "~/Projects/scdr/.git/HEAD" },
+  { path = "~/Projects/crumbs/.git/HEAD" }, { path = "~/Projects/appofholding/.git/HEAD" },
+  { path = "~/Projects/scale_tail/.git/HEAD" }, { path = "~/Projects/romforge/.git/HEAD" },
+  { path = "~/Projects/hauler/.git/HEAD" }, { path = "~/Projects/emobie/.git/HEAD" },
+  { path = "~/Projects/oysterAV/.git/HEAD" }, { path = "~/Projects/XZram/.git/HEAD" },
+]
+manual = { 3 = "some uQ repos could not be cloned (see above). Clone them into ~/Projects later; uq-dev uses whichever are there." }
+
+[[module]]
 id = "fonts"
 name = "Fonts"
 description = "Noto (with emoji and CJK), DejaVu and Liberation."
