@@ -196,7 +196,7 @@ mod tests {
     }
 
     #[test]
-    fn uq_rides_on_hyprland_and_is_a_preview_until_published() {
+    fn uq_rides_on_hyprland_and_is_recommended() {
         let d = all().unwrap();
         check(&d).unwrap();
         let uq = by_id(&d, "uq").unwrap();
@@ -205,10 +205,9 @@ mod tests {
         assert_eq!(uq.profile(&d).id, "hyprland");
         assert_eq!(uq.module.as_deref(), Some("uq"));
         assert!(uq.greeter.is_some() && uq.archinstall.is_empty());
-        // The switch: flip `status` to "recommended" once uq v0.2.0 is on the AUR.
-        assert_eq!(uq.status, Some(Status::Preview));
-        assert_eq!(uq.label(), "uQ (preview)");
-        assert!(recommended(&d).is_none());
+        assert_eq!(uq.status, Some(Status::Recommended));
+        assert_eq!(uq.label(), "uQ (recommended)");
+        assert_eq!(recommended(&d).map(|r| r.id.as_str()), Some("uq"));
         // archinstall never logs a "uQ" profile.
         assert!(by_archinstall_name(&d, "uQ").is_none());
     }

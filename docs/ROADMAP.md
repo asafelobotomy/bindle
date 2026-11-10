@@ -36,7 +36,7 @@
 - ~~Real apply runs in an Arch VM per desktop~~ ✅ all installable desktops ([VM-TEST.md](VM-TEST.md))
 - Turn advisories into optional steps (prune GPU drivers, iwd → NetworkManager)
 - Progress view inside the TUI instead of dropping to the terminal
-- uQ as the default desktop: offered as "uQ (preview)" now; flip it to recommended once `uq` v0.2.0 is on the AUR and a VM `bindle iso` → uQ run passes ([CATALOG.md](CATALOG.md#recommended-desktop))
+- ✅ uQ as the default desktop: recommended since 2026-11-10 (`uq` 0.2.1 on the AUR; the VM `bindle iso` → uQ run with uq, scdr, crumbs and noti-fi passes) ([CATALOG.md](CATALOG.md#recommended-desktop))
 
 ## Phase 2: distribution
 - ~~GitHub Actions: lint, test, musl static build, AppImage and the bare binary as release assets~~ ✅ (Phase 1.2)

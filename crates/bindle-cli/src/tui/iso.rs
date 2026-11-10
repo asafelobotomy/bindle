@@ -147,7 +147,7 @@ impl View<'_> {
             let base = d.profile(self.desktops);
             lines.push(Line::from(format!(
                 "{}: archinstall installs {}; Bindle adds {} on first login.",
-                d.label(),
+                d.name,
                 base.name,
                 d.name
             )));
@@ -175,11 +175,12 @@ mod tests {
         let mut desktops = bindle_core::desktops::all().unwrap();
         let row = |d: &[Desktop], id: &str| d.iter().position(|x| x.id == id).unwrap() + 1;
         assert_eq!(desktop_row(&desktops, Some("gnome")), row(&desktops, "gnome"));
-        // uQ ships as a preview: nothing is pre-selected until it is recommended.
-        assert_eq!(desktop_row(&desktops, None), 0);
-        let uq = desktops.iter_mut().find(|d| d.id == "uq").unwrap();
-        uq.status = Some(bindle_core::desktops::Status::Recommended);
+        // uQ is recommended, so it is pre-selected.
         assert_eq!(desktop_row(&desktops, None), row(&desktops, "uq"));
+        // A preview desktop pre-selects nothing.
+        let uq = desktops.iter_mut().find(|d| d.id == "uq").unwrap();
+        uq.status = Some(bindle_core::desktops::Status::Preview);
+        assert_eq!(desktop_row(&desktops, None), 0);
         assert_eq!(desktop_row(&desktops, Some("plasma")), row(&desktops, "plasma"));
     }
 
