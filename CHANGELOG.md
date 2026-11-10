@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.7 — 2026-11-10
 
 - uQ is now the recommended desktop: `bindle iso` pre-selects it. `uq` is on the AUR, and the fresh-VM install of uQ with scdr, crumbs and noti-fi passes.
 - New modules `appofholding` (AppImage manager, from its v0.5.0 release package) and `scale_tail` (Tailscale tray, from its v0.5.1 AppImage; pulls in `tailscale`).
