@@ -40,13 +40,20 @@ if curl -fs --max-time 5 -o /dev/null http://10.0.2.2:8765/second-login; then
     echo "BINDLE-VM: second-login mode (first-login-seen pre-set)"
 fi
 profile=$(sed -n 's/^profile = "\(.*\)"/\1/p' /etc/bindle/selection.toml)
+# WITH="mod ..." on the host: extra modules for plan and apply (e.g. uQ's apps).
+with=""
+if curl -fs --max-time 5 -o /tmp/bindle-with http://10.0.2.2:8765/with; then
+    for m in $(cat /tmp/bindle-with); do with="$with --with $m"; done
+    echo "BINDLE-VM: extra modules:$with"
+fi
 as_tester "bindle archinstall"
 as_tester "bindle first-login status"
-as_tester "bindle plan --profile $profile"
-# script(1) gives apply a terminal so sudo is used, as for a real user.
-as_tester "script -qec 'bindle apply --profile $profile --yes' /dev/null"
+as_tester "bindle plan --profile $profile$with"
+# script(1) gives apply a terminal so sudo is used, as for a real user. With extra
+# modules, --replace-conflicts does what the first-login wizard does (it always replaces).
+as_tester "script -qec 'bindle apply --profile $profile$with --yes${with:+ --replace-conflicts}' /dev/null"
 as_tester "bindle undo --list"
 echo "BINDLE-VM: second plan (should only contain non-idempotent leftovers):"
-as_tester "bindle plan --profile $profile"
+as_tester "bindle plan --profile $profile$with"
 systemctl disable bindle-vm-check.service
 echo "BINDLE-VM: CHECK DONE"
