@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- New module `scdr-devbox`: scx_devbox, scdr's own sched_ext scheduler for development with LLM agent apps (the focused window and short tool calls first, builds wait; scdr hands it the focused app). From the AUR's `scx-devbox`, split from `scdr` from its next release. Conflicts with `scdr-sched-ext` and `scx-schedulers`, so only one thing starts a scheduler.
+
 ## 0.1.7 — 2026-11-10
 
 - New module `uq-dev` (uQ developer setup, developer profile, only with uQ): clones uQ and its apps into `~/Projects` over HTTPS, installs the build and test tools, and points to `uq-dev` (session, run, promote, rollback) from the uq package.

@@ -330,6 +330,32 @@ fn scdr_sched_ext_leaves_scx_loader_without_a_default() {
 }
 
 #[test]
+fn scdr_devbox_installs_after_scdr_and_starts_alone() {
+    let sel = Selection { include: vec!["scdr-devbox".into()], ..Default::default() };
+    let p = plan(sel, &facts()).unwrap();
+    assert!(p.modules.contains(&"scdr".to_string()), "pulled in: {:?}", p.modules);
+    let installs_devbox =
+        |s: &Step| matches!(s, Step::InstallAur { packages } if packages.contains(&"scx-devbox".into()));
+    assert!(p.steps.iter().any(installs_devbox), "{:?}", p.steps);
+    let enabled: Vec<&String> = p
+        .steps
+        .iter()
+        .filter_map(|s| match s {
+            Step::EnableUnits { units } => Some(units),
+            _ => None,
+        })
+        .flatten()
+        .collect();
+    assert!(enabled.contains(&&"scx_devbox.service".to_string()), "{enabled:?}");
+    assert!(!enabled.contains(&&"scx_loader.service".to_string()), "{enabled:?}");
+    // Only one thing may start a sched_ext scheduler.
+    for other in ["scdr-sched-ext", "scx-schedulers"] {
+        let both = Selection { include: vec!["scdr-devbox".into(), other.into()], ..Default::default() };
+        assert!(plan(both, &facts()).is_err(), "scdr-devbox with {other}");
+    }
+}
+
+#[test]
 fn noti_fi_takes_over_once() {
     let mut f = facts();
     f.home = "/home/tester".into();
