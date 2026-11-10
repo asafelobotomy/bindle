@@ -17,9 +17,8 @@
 # The common "Desktop" base archinstall adds to every desktop is DESKTOP_BASE in
 # crates/bindle-core/src/desktops.rs.
 
-# uQ is Bindle's default desktop once it installs from the AUR. Until `uq` v0.2.0
-# is published there (and a fresh-VM bindle -> uQ install passes), it stays a
-# preview: flip `status` to "recommended" then, and nothing else.
+# uQ is Bindle's default desktop: `uq` is on the AUR and a fresh-VM bindle -> uQ
+# install passes (2026-11-10, uq 0.2.1), so it is recommended.
 [[desktop]]
 id = "uq"
 name = "uQ"
@@ -27,7 +26,7 @@ kind = "desktop"
 display = "wayland"
 toolkit = "qt"
 detect = "uq"
-status = "preview"
+status = "recommended"
 base = "hyprland"
 includes = ["hyprland"]
 module = "uq"

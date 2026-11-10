@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- uQ is now the recommended desktop: `bindle iso` pre-selects it. `uq` is on the AUR, and the fresh-VM install of uQ with scdr, crumbs and noti-fi passes.
 - New modules `appofholding` (AppImage manager, from its v0.5.0 release package) and `scale_tail` (Tailscale tray, from its v0.5.1 AppImage; pulls in `tailscale`).
 - uQ's own apps: new modules `scdr` (process priorities; replaces ananicy-cpp and system76-scheduler after importing their rules), `scdr-sched-ext` (scdr picks the sched_ext scheduler; conflicts with `scx-schedulers`), `noti-fi` (notifications; replaces mako, dunst, swaync) and `crumbs` (uninstaller and cleaner). `bindle iso` pre-selects scdr, crumbs and noti-fi with uQ.
 - Modules that install from the AUR or a release enable their units and run their root commands after that install. `replace_after_install` removes their `package_conflicts` after it too.

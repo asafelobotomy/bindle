@@ -144,9 +144,9 @@ listed as a manual step.
 
 `status = "recommended"` marks the one desktop `bindle iso` pre-selects and labels
 "(recommended)"; `status = "preview"` labels it "(preview)" and pre-selects nothing.
-uQ is Bindle's default desktop, gated: it ships as `status = "preview"` until
-`uq` v0.2.0 is on the AUR and a fresh-VM `bindle iso` → uQ install passes
-(docs/VM-TEST.md). To flip it:
+uQ is Bindle's default desktop. It was gated as `status = "preview"` until `uq`
+was on the AUR and a fresh-VM `bindle iso` → uQ install passed (docs/VM-TEST.md);
+both held on 2026-11-10, so it is `"recommended"`. The steps used to flip it:
 
 1. `python3 scripts/check-packages.py --aur` prints
    `preview desktop uq: uq uq-hyprland-pin on the AUR; it can be recommended`.
