@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.1.8 — 2026-11-11
+
 - uQ hand-off (uQ Phase 5): while the first-login wizard is open in a uQ session, Bindle holds `$XDG_RUNTIME_DIR/uq/welcome.defer` so uQ's Welcome waits; when the wizard ends it removes the file and runs `uqctl welcome`. A crash still lets Welcome open (uQ ignores a defer file older than 30 minutes).
 - The defer file is created as soon as the login hook starts, before Bindle waits for the desktop's own welcome apps, so uQ (which decides about 20 s after login) never opens Welcome on top of the wizard.
 - Closing the terminal window the first-login wizard runs in (SIGHUP), logging out (SIGTERM) or an interrupt (SIGINT) now still removes the defer file and runs `uqctl welcome`, so uQ's Welcome opens in that session instead of at the next login. The same when the wizard's terminal process returns early (already done, or not a regular user session) after taking the hold over.
