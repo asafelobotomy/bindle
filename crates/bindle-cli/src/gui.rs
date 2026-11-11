@@ -100,6 +100,7 @@ mod tests {
     #[test]
     fn exit_codes_say_how_the_window_ended() {
         let sh = |code: i32| {
+            let _lock = crate::script_lock();
             let dir = crate::apply::sys::test_dir(&format!("gui-exit-{code}"));
             let script = dir.join("bindle-gui");
             std::fs::write(&script, format!("#!/bin/sh\nexit {code}\n")).unwrap();
