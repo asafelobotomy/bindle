@@ -157,14 +157,32 @@ pub fn lock_exclusive(path: &Path) -> Result<fs::File> {
     Ok(file)
 }
 
-/// Ignore Ctrl-C (`true`) or restore the default (`false`). Used around root
-/// steps: interrupting pacman or the helper mid-step can leave the system
-/// half-changed, and pacman handles its own interrupts safely.
+/// Ignore Ctrl-C (`true`), or put back what handled it before (`false`; the
+/// default if nothing did). Used around root steps: interrupting pacman or the
+/// helper mid-step can leave the system half-changed, and pacman handles its
+/// own interrupts safely. Putting back the previous handler keeps one that a
+/// frontend installed (the first-login wizard's hand-off to uQ's Welcome).
 pub fn ignore_interrupts(ignore: bool) {
-    let handler = if ignore { libc::SIG_IGN } else { libc::SIG_DFL };
-    // SAFETY: installs a disposition constant, not a Rust handler.
+    static PREVIOUS: std::sync::Mutex<Option<libc::sigaction>> = std::sync::Mutex::new(None);
+    let mut previous = PREVIOUS.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    // SAFETY: sigaction with zeroed (valid) structs we own; the dispositions
+    // installed are SIG_IGN, SIG_DFL, or the one that was installed before.
     unsafe {
-        libc::signal(libc::SIGINT, handler);
+        if ignore {
+            let mut ign: libc::sigaction = std::mem::zeroed();
+            ign.sa_sigaction = libc::SIG_IGN;
+            let mut old: libc::sigaction = std::mem::zeroed();
+            if libc::sigaction(libc::SIGINT, &ign, &mut old) == 0 && previous.is_none() {
+                *previous = Some(old);
+            }
+        } else {
+            let restore = previous.take().unwrap_or_else(|| {
+                let mut dfl: libc::sigaction = std::mem::zeroed();
+                dfl.sa_sigaction = libc::SIG_DFL;
+                dfl
+            });
+            libc::sigaction(libc::SIGINT, &restore, std::ptr::null_mut());
+        }
     }
 }
 

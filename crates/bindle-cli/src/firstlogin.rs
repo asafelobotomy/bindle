@@ -27,6 +27,15 @@ pub const USER_UNIT_WANTS: &str = "/etc/systemd/user/default.target.wants/bindle
 /// The desktop window's password dialog message (pkexec).
 pub const POLKIT: &str = "/usr/share/polkit-1/actions/io.github.asafelobotomy.bindle.policy";
 const POLICY: &str = include_str!("../../../packaging/polkit/io.github.asafelobotomy.bindle.policy");
+/// uQ Settings' "Re-run setup" page (read only from /usr/share/uq), and the
+/// path its commands run Bindle by (they may only run programs under /usr/lib
+/// or /usr/bin). Harmless without uQ; uQ installed later picks the page up.
+pub const UQ_PAGE_DIR: &str = "/usr/share/uq/settings/pages/bindle";
+pub const UQ_PAGE: &str = "/usr/share/uq/settings/pages/bindle/page.toml";
+pub const UQ_PAGE_QML: &str = "/usr/share/uq/settings/pages/bindle/Page.qml";
+pub const UQ_PAGE_BIN: &str = "/usr/lib/bindle/bindle";
+const PAGE_TOML: &str = include_str!("../../../uq/pages/bindle/page.toml");
+const PAGE_QML: &str = include_str!("../../../uq/pages/bindle/Page.qml");
 
 const USER_UNIT_FILE: &str = "[Unit]
 Description=Open Bindle on the first graphical login
@@ -106,8 +115,14 @@ pub fn install(root: &Path, tty_hook: bool) -> Result<Vec<String>> {
         write_atomic(&gui_target, &data, 0o755)?;
         done.push(format!("installed {GUI_BIN}"));
     }
-    let mut files =
-        vec![(AUTOSTART, AUTOSTART_ENTRY), (LAUNCHER, LAUNCHER_ENTRY), (USER_UNIT, USER_UNIT_FILE), (POLKIT, POLICY)];
+    let mut files = vec![
+        (AUTOSTART, AUTOSTART_ENTRY),
+        (LAUNCHER, LAUNCHER_ENTRY),
+        (USER_UNIT, USER_UNIT_FILE),
+        (POLKIT, POLICY),
+        (UQ_PAGE, PAGE_TOML),
+        (UQ_PAGE_QML, PAGE_QML),
+    ];
     if tty_hook {
         files.push((PROFILE_HOOK, HOOK));
     }
@@ -126,6 +141,11 @@ pub fn install(root: &Path, tty_hook: bool) -> Result<Vec<String>> {
     let _ = fs::remove_file(&wants);
     symlink("../bindle-first-login.service", &wants).context("enable user unit")?;
     done.push(format!("enabled {USER_UNIT} for all users"));
+    let link = host(root, UQ_PAGE_BIN);
+    create_dirs(link.parent().context("page bin dir")?)?;
+    let _ = fs::remove_file(&link);
+    symlink(BIN, &link).with_context(|| format!("link {UQ_PAGE_BIN}"))?;
+    done.push(format!("linked {UQ_PAGE_BIN} to {BIN} for uQ Settings' Re-run setup page"));
     Ok(done)
 }
 
@@ -134,7 +154,7 @@ pub fn remove(root: &Path, purge: bool) -> Result<Vec<String>> {
     let icons: Vec<String> = crate::icons::files().into_iter().map(|(p, _)| p).collect();
     let mut paths = vec![AUTOSTART, PROFILE_HOOK, USER_UNIT_WANTS, USER_UNIT];
     if purge {
-        paths.extend([LAUNCHER, POLKIT, GUI_BIN, BIN]);
+        paths.extend([LAUNCHER, POLKIT, UQ_PAGE, UQ_PAGE_QML, UQ_PAGE_BIN, GUI_BIN, BIN]);
         paths.extend(icons.iter().map(String::as_str));
     }
     let mut done = Vec::new();
@@ -145,15 +165,32 @@ pub fn remove(root: &Path, purge: bool) -> Result<Vec<String>> {
             done.push(format!("removed {p}"));
         }
     }
+    if purge {
+        // Only once empty: never anything someone else put there.
+        for dir in [UQ_PAGE_DIR, "/usr/lib/bindle"] {
+            let _ = fs::remove_dir(host(root, dir));
+        }
+    }
     Ok(done)
 }
 
 pub fn status(root: &Path) -> Vec<String> {
-    let mut out: Vec<String> =
-        [BIN, GUI_BIN, AUTOSTART, USER_UNIT, USER_UNIT_WANTS, PROFILE_HOOK, LAUNCHER, crate::icons::SVG_PATH, POLKIT]
-            .iter()
-            .map(|p| format!("{} {p}", if host(root, p).exists() { "✓" } else { "·" }))
-            .collect();
+    let mut out: Vec<String> = [
+        BIN,
+        GUI_BIN,
+        AUTOSTART,
+        USER_UNIT,
+        USER_UNIT_WANTS,
+        PROFILE_HOOK,
+        LAUNCHER,
+        crate::icons::SVG_PATH,
+        POLKIT,
+        UQ_PAGE,
+        UQ_PAGE_BIN,
+    ]
+    .iter()
+    .map(|p| format!("{} {p}", if host(root, p).exists() { "✓" } else { "·" }))
+    .collect();
     if marker_path().is_some() {
         let state = if is_done() {
             "done — won't open again"
@@ -281,11 +318,41 @@ mod tests {
         assert!(unit.contains("ConditionUser=!@system"));
         assert!(fs::read_to_string(host(&root, PROFILE_HOOK)).unwrap().contains("UID_MIN"));
         assert!(fs::read_to_string(host(&root, POLKIT)).unwrap().contains(&format!(">{BIN}<")));
+        // uQ Settings' page runs Bindle by a path under /usr/lib.
+        assert!(fs::read_to_string(host(&root, UQ_PAGE)).unwrap().contains(&format!("\"{UQ_PAGE_BIN}\"")));
+        assert!(host(&root, UQ_PAGE_QML).is_file());
+        assert_eq!(fs::read_link(host(&root, UQ_PAGE_BIN)).unwrap(), PathBuf::from(BIN));
         remove(&root, false).unwrap();
         assert!(!host(&root, AUTOSTART).exists() && host(&root, BIN).exists());
         assert!(host(&root, USER_UNIT_WANTS).symlink_metadata().is_err());
         remove(&root, true).unwrap();
         assert!(!host(&root, BIN).exists() && !host(&root, POLKIT).exists());
+        assert!(!host(&root, UQ_PAGE_DIR).exists() && host(&root, UQ_PAGE_BIN).symlink_metadata().is_err());
+    }
+
+    /// The page only runs Bindle commands that exist, through the linked path.
+    #[test]
+    fn the_uq_page_runs_real_subcommands() {
+        let page: toml::Value = toml::from_str(PAGE_TOML).unwrap();
+        assert_eq!(page["id"].as_str(), Some("bindle"));
+        let commands = page["command"].as_array().unwrap();
+        let argv = |id: &str| -> Vec<String> {
+            let c = commands.iter().find(|c| c["id"].as_str() == Some(id)).unwrap();
+            c["argv"].as_array().unwrap().iter().map(|a| a.as_str().unwrap().to_string()).collect()
+        };
+        assert_eq!(argv("status"), [UQ_PAGE_BIN, "status", "--json"]);
+        assert_eq!(argv("open"), [UQ_PAGE_BIN, "open", "--detach"]);
+        use clap::CommandFactory;
+        let cli = crate::Cli::command();
+        for id in ["status", "open"] {
+            let args = argv(id);
+            cli.clone().try_get_matches_from(&args).unwrap_or_else(|e| panic!("{id}: {e}"));
+        }
+        // Only UqLabel shows text (uQ refuses Text and Label).
+        for refused in ["Text {", "Label {", "TextEdit", "TextInput", "createQmlObject"] {
+            let plain = PAGE_QML.replace("UqLabel {", "");
+            assert!(!plain.contains(refused), "Page.qml uses {refused}");
+        }
     }
 
     #[test]

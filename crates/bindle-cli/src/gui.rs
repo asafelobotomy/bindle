@@ -41,6 +41,10 @@ pub fn run(gui: &Path, first_login: bool) -> Ended {
     if first_login {
         cmd.arg("--first-login");
     }
+    wait(cmd)
+}
+
+fn wait(mut cmd: Command) -> Ended {
     match cmd.status().ok().and_then(|s| s.code()) {
         Some(EXIT_APPLIED) => Ended::Applied,
         Some(EXIT_CLOSED) => Ended::Closed,
@@ -57,6 +61,29 @@ pub fn open() -> Result<()> {
     }
     let exe = std::env::current_exe()?.to_string_lossy().into_owned();
     crate::terminal::spawn(&[exe])
+}
+
+/// `bindle open` in a new session, not waited for: it outlives the caller and
+/// anything that ends the caller's process group.
+pub fn open_detached() -> Result<()> {
+    use std::os::unix::process::CommandExt;
+    let exe = std::env::current_exe()?;
+    let mut cmd = std::process::Command::new(exe);
+    cmd.arg("open")
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null());
+    // SAFETY: setsid is async-signal-safe and touches no memory of this process.
+    unsafe {
+        cmd.pre_exec(|| {
+            if libc::setsid() < 0 {
+                return Err(std::io::Error::last_os_error());
+            }
+            Ok(())
+        });
+    }
+    cmd.spawn()?;
+    Ok(())
 }
 
 #[cfg(test)]
@@ -76,12 +103,12 @@ mod tests {
 
     #[test]
     fn exit_codes_say_how_the_window_ended() {
+        // `sh -c`, not a script written here and exec'd: another test's fork
+        // could still hold its write handle (ETXTBSY, "Text file busy").
         let sh = |code: i32| {
-            let dir = crate::apply::sys::test_dir(&format!("gui-exit-{code}"));
-            let script = dir.join("bindle-gui");
-            std::fs::write(&script, format!("#!/bin/sh\nexit {code}\n")).unwrap();
-            std::fs::set_permissions(&script, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
-            run(&script, true)
+            let mut cmd = Command::new("/bin/sh");
+            cmd.args(["-c", &format!("exit {code}")]);
+            wait(cmd)
         };
         assert_eq!(sh(EXIT_APPLIED), Ended::Applied);
         assert_eq!(sh(EXIT_CLOSED), Ended::Closed);
