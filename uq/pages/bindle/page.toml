@@ -1,0 +1,32 @@
+# uQ Settings' "Re-run setup" page (uQ Phase 5 spec §5.3). `bindle first-login install`
+# installs it to /usr/share/uq/settings/pages/bindle/, with /usr/lib/bindle/bindle linking
+# to /usr/local/bin/bindle (a page's commands may only run programs under /usr/bin or /usr/lib).
+# Reference: docs/settings-pages.md in the uQ repository.
+uq_api = 1
+id = "bindle"
+name = "Re-run setup"
+icon = "system-software-install"
+qml = "Page.qml"
+keywords = ["bindle", "setup", "apps", "install", "profile", "missing"]
+
+[[setting]]
+id = "pick-apps"
+label = "Pick apps again"
+keywords = ["bindle", "install", "apps"]
+
+[[setting]]
+id = "missing"
+label = "Check for missing pieces"
+keywords = ["bindle", "check", "repair"]
+
+[[command]]
+id = "status"
+argv = ["/usr/lib/bindle/bindle", "status", "--json"]
+output = "json"
+timeout_ms = 60000
+
+[[command]]
+id = "open"
+argv = ["/usr/lib/bindle/bindle", "open", "--detach"]
+output = "none"
+timeout_ms = 10000

@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- uQ hand-off (uQ Phase 5): while the first-login wizard is open in a uQ session, Bindle holds `$XDG_RUNTIME_DIR/uq/welcome.defer` so uQ's Welcome waits; when the wizard ends it removes the file and runs `uqctl welcome`. A crash still lets Welcome open (uQ ignores a defer file older than 30 minutes).
+- The `uq` module installs `greetd` and runs `uqctl greeter enable` as root, so uQ's own login screen replaces the one archinstall set up from the next boot (`run0 uqctl greeter disable` switches back). Needs a uq release with the login screen on the AUR.
+- `bindle status [--json]`: the selection Bindle last applied for you, when, and the steps applying it again would run.
+- uQ Settings gets a "Re-run setup" page (`uq/pages/bindle/`, installed by `bindle first-login install` with `/usr/lib/bindle/bindle` linking to Bindle): shows the profile and when it last ran, "Pick apps again" opens Bindle (`bindle open --detach`), and "Check for missing pieces" lists what isn't in place.
+
 ## 0.1.7 — 2026-11-10
 
 - New module `uq-dev` (uQ developer setup, developer profile, only with uQ): clones uQ and its apps into `~/Projects` over HTTPS, installs the build and test tools, and points to `uq-dev` (session, run, promote, rollback) from the uq package.
