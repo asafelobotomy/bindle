@@ -142,7 +142,7 @@ mod tests {
 
     #[test]
     fn begin_holds_the_file_and_finish_opens_welcome() {
-        let _lock = crate::script_lock();
+        let _lock = crate::gui::script_lock();
         let t = tempdir();
         let uqctl = fake_uqctl(t.path());
         let h = Handoff::begin_in(t.path(), &uqctl).unwrap();
@@ -154,7 +154,7 @@ mod tests {
 
     #[test]
     fn disarm_keeps_the_file_for_the_next_process() {
-        let _lock = crate::script_lock();
+        let _lock = crate::gui::script_lock();
         let t = tempdir();
         let uqctl = fake_uqctl(t.path());
         Handoff::begin_in(t.path(), &uqctl).unwrap().disarm();
@@ -165,7 +165,7 @@ mod tests {
 
     #[test]
     fn dropping_still_hands_off() {
-        let _lock = crate::script_lock();
+        let _lock = crate::gui::script_lock();
         let t = tempdir();
         let uqctl = fake_uqctl(t.path());
         drop(Handoff::begin_in(t.path(), &uqctl).unwrap());
@@ -175,7 +175,7 @@ mod tests {
 
     #[test]
     fn a_link_in_place_of_the_file_is_left_alone() {
-        let _lock = crate::script_lock();
+        let _lock = crate::gui::script_lock();
         let t = tempdir();
         let uqctl = fake_uqctl(t.path());
         fs::create_dir_all(t.path().join("uq")).unwrap();

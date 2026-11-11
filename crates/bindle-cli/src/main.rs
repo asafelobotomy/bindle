@@ -241,15 +241,6 @@ impl SelArgs {
     }
 }
 
-/// Tests that write a script and then run it hold this, so another test's
-/// fork can't inherit the script's still-open write handle (the exec would
-/// fail with ETXTBSY, "Text file busy").
-#[cfg(test)]
-pub(crate) fn script_lock() -> std::sync::MutexGuard<'static, ()> {
-    static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
-    LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
-}
-
 /// Written into the new system by the archinstall plugin.
 const SYSTEM_SELECTION: &str = "/etc/bindle/selection.toml";
 
