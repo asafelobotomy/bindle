@@ -59,6 +59,29 @@ pub fn open() -> Result<()> {
     crate::terminal::spawn(&[exe])
 }
 
+/// `bindle open` in a new session, not waited for: it outlives the caller and
+/// anything that ends the caller's process group.
+pub fn open_detached() -> Result<()> {
+    use std::os::unix::process::CommandExt;
+    let exe = std::env::current_exe()?;
+    let mut cmd = std::process::Command::new(exe);
+    cmd.arg("open")
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null());
+    // SAFETY: setsid is async-signal-safe and touches no memory of this process.
+    unsafe {
+        cmd.pre_exec(|| {
+            if libc::setsid() < 0 {
+                return Err(std::io::Error::last_os_error());
+            }
+            Ok(())
+        });
+    }
+    cmd.spawn()?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -8,7 +8,7 @@ use anyhow::{Context, Result, bail};
 use bindle_core::{Catalog, Facts};
 
 use crate::apply::{self, sys::is_root};
-use crate::{FirstLoginCmd, firstlogin, gui, notify, session, terminal, welcome};
+use crate::{FirstLoginCmd, firstlogin, gui, notify, session, terminal, uq_handoff, welcome};
 
 /// Every subcommand except `run` (which needs hardware detection).
 pub fn dispatch(action: FirstLoginCmd) -> Result<()> {
@@ -83,11 +83,18 @@ pub fn run(catalog: &Catalog, facts: &Facts, in_terminal: bool, lock: Option<Str
             // Open after the desktop's own welcome app, so Bindle ends up on top.
             welcome::wait_for_welcome_apps();
         }
+        // In a uQ session, hold uQ's Welcome back until the wizard ends.
+        let handoff = uq_handoff::Handoff::begin();
         // The desktop window when it can start; this process holds the
         // launch lock while it's open.
         if let Some(window) = gui::available() {
             let ended = gui::run(&window, true);
             if ended != gui::Ended::Failed {
+                // The window failing to start falls through to the terminal,
+                // which keeps holding the hand-off.
+                if let Some(h) = handoff {
+                    h.finish();
+                }
                 release();
                 firstlogin::mark_seen()?;
                 if ended == gui::Ended::Applied {
@@ -101,7 +108,13 @@ pub fn run(catalog: &Catalog, facts: &Facts, in_terminal: bool, lock: Option<Str
         if let Some(t) = &token {
             argv.extend(["--lock".into(), t.clone()]);
         }
-        return terminal::spawn(&argv).inspect_err(|_| release());
+        // The wizard in the terminal takes the hand-off over; if it can't
+        // start, `handoff` drops here and Welcome opens.
+        return terminal::spawn(&argv).inspect_err(|_| release()).map(|()| {
+            if let Some(h) = handoff {
+                h.disarm();
+            }
+        });
     }
     if seen && !in_terminal {
         // Console login after the first: a one-line reminder instead of the wizard.
@@ -114,6 +127,9 @@ pub fn run(catalog: &Catalog, facts: &Facts, in_terminal: bool, lock: Option<Str
         // Hold the launch lock for as long as the wizard runs.
         session::adopt_launch(lock.as_deref());
     }
+    // Held (or refreshed, after the hand-over from the launcher) while the
+    // wizard runs; dropped at the end of this function, opening uQ's Welcome.
+    let _handoff = uq_handoff::Handoff::begin();
     let result = wizard_once(catalog, facts);
     if in_terminal {
         // The window closes with this process: show any error and wait.

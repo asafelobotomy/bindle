@@ -8,8 +8,10 @@ mod notify;
 mod print;
 
 mod session;
+mod status;
 mod terminal;
 mod tui;
+mod uq_handoff;
 mod welcome;
 
 use std::io::IsTerminal;
@@ -53,6 +55,12 @@ enum Cmd {
         #[command(flatten)]
         sel: SelArgs,
         /// Print the resolved plan as JSON.
+        #[arg(long)]
+        json: bool,
+    },
+    /// What Bindle last set up here, and what of it is missing now.
+    Status {
+        /// Print it as JSON (uQ Settings' "Re-run setup" page reads this).
         #[arg(long)]
         json: bool,
     },
@@ -119,7 +127,12 @@ enum Cmd {
     /// The desktop window if it can start, else the wizard in a terminal (the
     /// app-menu entry).
     #[command(hide = true)]
-    Open,
+    Open {
+        /// Start it in its own session and return at once (uQ Settings'
+        /// "Re-run setup" page, which ends its commands' process groups).
+        #[arg(long)]
+        detach: bool,
+    },
     /// Open a terminal running `bindle <args>`, kept open at the end
     /// (the desktop window's fallback when it can't ask for a password).
     #[command(hide = true)]
@@ -262,7 +275,8 @@ fn main() -> Result<()> {
         Cmd::Helper { log, root, fake_commands } => {
             return apply::helper::serve(apply::helper::HelperOpts { root, fake_commands, log });
         }
-        Cmd::Open => return gui::open(),
+        Cmd::Open { detach: false } => return gui::open(),
+        Cmd::Open { detach: true } => return gui::open_detached(),
         Cmd::InTerminal { args } => {
             let exe = std::env::current_exe()?.to_string_lossy().into_owned();
             // Arguments travel as "$@", never through the script text.
@@ -318,6 +332,7 @@ fn main() -> Result<()> {
             print::list(&catalog, &facts);
             Ok(())
         }
+        Cmd::Status { json } => status::run(&catalog, &facts, json, std::path::Path::new(SYSTEM_SELECTION)),
         Cmd::Plan { sel, json } => {
             warn_distro(&facts);
             // Preview what an interactive apply would do.
@@ -338,7 +353,7 @@ fn main() -> Result<()> {
             apply_selection(&catalog, &facts, &sel, apply::Options { yes, sandbox, launch: Default::default() })
                 .map(drop)
         }
-        Cmd::Helper { .. } | Cmd::Open | Cmd::InTerminal { .. } | Cmd::Undo { .. } | Cmd::FirstLogin { .. } => {
+        Cmd::Helper { .. } | Cmd::Open { .. } | Cmd::InTerminal { .. } | Cmd::Undo { .. } | Cmd::FirstLogin { .. } => {
             unreachable!("handled above")
         }
     }

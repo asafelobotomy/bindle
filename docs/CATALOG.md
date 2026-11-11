@@ -138,7 +138,16 @@ uQ is the one such desktop: Hyprland plus the `uq` module (AUR `uq` and
 `uq-hyprland-pin`, then `uqctl setup` as the user, skipped once
 `~/.config/hypr/hyprland.lua` loads uQ). `uqctl setup` exit codes: 0 done, 1 error
 and 2 (ran as root) fail the step, 3 (the user's own `hyprland.lua` was kept) is
-listed as a manual step.
+listed as a manual step. The module also installs `greetd` and runs
+`uqctl greeter enable` as root (skipped once `display-manager.service` is
+greetd), so uQ's login screen replaces the display manager from the next boot.
+uQ's `greeter` in `desktops.toml` stays `sddm`: archinstall can only install its
+own greeters, so that one starts the first login, then uQ's takes over.
+
+In a uQ session the first-login wizard holds back uQ's Welcome
+(`$XDG_RUNTIME_DIR/uq/welcome.defer`) and opens it with `uqctl welcome` when it
+ends (`crates/bindle-cli/src/uq_handoff.rs`). `bindle first-login install` also
+installs uQ Settings' "Re-run setup" page from `uq/pages/bindle/`.
 
 ### Recommended desktop
 

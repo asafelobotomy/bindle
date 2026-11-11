@@ -32,10 +32,12 @@ includes = ["hyprland"]
 module = "uq"
 # uQ's own apps: pre-selected with it on first login, each one can be unticked.
 apps = ["scdr", "crumbs", "noti-fi"]
+# archinstall can't install uQ's own login screen (greetd + uq), so the install
+# boots into sddm once; the uq module then switches to uQ's (`uqctl greeter enable`).
 greeter = "sddm"
 essentials = ["kitty", "papirus-icon-theme", "ttf-jetbrains-mono", "inter-font", "wireplumber", "playerctl", "networkmanager"]
 bt = ["bluez"]
-notes = ["uQ comes from the AUR; Bindle then runs `uqctl setup` as you. Log out and back in to start it."]
+notes = ["uQ comes from the AUR; Bindle then runs `uqctl setup` as you and turns on uQ's login screen. Restart to log in to uQ."]
 
 [[desktop]]
 id = "plasma"
