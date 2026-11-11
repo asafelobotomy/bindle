@@ -41,6 +41,10 @@ pub fn run(gui: &Path, first_login: bool) -> Ended {
     if first_login {
         cmd.arg("--first-login");
     }
+    wait(cmd)
+}
+
+fn wait(mut cmd: Command) -> Ended {
     match cmd.status().ok().and_then(|s| s.code()) {
         Some(EXIT_APPLIED) => Ended::Applied,
         Some(EXIT_CLOSED) => Ended::Closed,
@@ -82,15 +86,6 @@ pub fn open_detached() -> Result<()> {
     Ok(())
 }
 
-/// Tests that write a script and then run it hold this, so another test's
-/// fork can't inherit the script's still-open write handle (the exec would
-/// fail with ETXTBSY, "Text file busy").
-#[cfg(test)]
-pub(crate) fn script_lock() -> std::sync::MutexGuard<'static, ()> {
-    static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
-    LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -108,13 +103,12 @@ mod tests {
 
     #[test]
     fn exit_codes_say_how_the_window_ended() {
+        // `sh -c`, not a script written here and exec'd: another test's fork
+        // could still hold its write handle (ETXTBSY, "Text file busy").
         let sh = |code: i32| {
-            let _lock = crate::gui::script_lock();
-            let dir = crate::apply::sys::test_dir(&format!("gui-exit-{code}"));
-            let script = dir.join("bindle-gui");
-            std::fs::write(&script, format!("#!/bin/sh\nexit {code}\n")).unwrap();
-            std::fs::set_permissions(&script, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
-            run(&script, true)
+            let mut cmd = Command::new("/bin/sh");
+            cmd.args(["-c", &format!("exit {code}")]);
+            wait(cmd)
         };
         assert_eq!(sh(EXIT_APPLIED), Ended::Applied);
         assert_eq!(sh(EXIT_CLOSED), Ended::Closed);
