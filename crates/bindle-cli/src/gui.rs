@@ -82,6 +82,15 @@ pub fn open_detached() -> Result<()> {
     Ok(())
 }
 
+/// Tests that write a script and then run it hold this, so another test's
+/// fork can't inherit the script's still-open write handle (the exec would
+/// fail with ETXTBSY, "Text file busy").
+#[cfg(test)]
+pub(crate) fn script_lock() -> std::sync::MutexGuard<'static, ()> {
+    static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -100,6 +109,7 @@ mod tests {
     #[test]
     fn exit_codes_say_how_the_window_ended() {
         let sh = |code: i32| {
+            let _lock = crate::gui::script_lock();
             let dir = crate::apply::sys::test_dir(&format!("gui-exit-{code}"));
             let script = dir.join("bindle-gui");
             std::fs::write(&script, format!("#!/bin/sh\nexit {code}\n")).unwrap();
