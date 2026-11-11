@@ -65,6 +65,10 @@ pub fn run(catalog: &Catalog, facts: &Facts, in_terminal: bool, lock: Option<Str
         // Autostart and the user service can both fire in one session.
         let Some(token) = session::claim_launch() else { return Ok(()) };
         let release = || session::release_launch(token.as_deref());
+        // In a uQ session, hold uQ's Welcome back until the wizard ends. First
+        // thing, before any wait: uQ's shell decides about Welcome about 20 s
+        // after it starts. Ending early (reminder dismissed) hands off at once.
+        let handoff = uq_handoff::Handoff::begin();
         if seen {
             // Later logins get a reminder, not the wizard. Without a notification
             // server, fall back to opening the wizard so the reminder isn't lost.
@@ -83,8 +87,6 @@ pub fn run(catalog: &Catalog, facts: &Facts, in_terminal: bool, lock: Option<Str
             // Open after the desktop's own welcome app, so Bindle ends up on top.
             welcome::wait_for_welcome_apps();
         }
-        // In a uQ session, hold uQ's Welcome back until the wizard ends.
-        let handoff = uq_handoff::Handoff::begin();
         // The desktop window when it can start; this process holds the
         // launch lock while it's open.
         if let Some(window) = gui::available() {
