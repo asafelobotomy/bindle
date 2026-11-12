@@ -215,6 +215,28 @@ name = "Backups (Déjà Dup)"
 description = "Simple scheduled backups to a drive or the cloud."
 packages = ["deja-dup"]
 
+# KWrite (from the kate package): a plain notepad that follows uQ's theme
+# through qt6ct. uQ and Hyprland pre-select it (desktops.toml `apps`).
+[[module]]
+id = "text-editor"
+name = "Text editor (KWrite)"
+description = "A simple notepad for text files and quick edits, with tabs and syntax colours. Follows uQ's theme."
+when = ["desktop"]
+packages = ["kate"]
+
+[[module]]
+id = "kyko"
+name = "kyko (drop-down terminal)"
+description = "Drop-down terminal for uQ and other Wayland desktops, in the manner of Yakuake: one key slides it down, sessions keep running. By asafelobotomy."
+notes = ["Early preview (0.0.2): this installs kykod, which keeps the shells running, but the drop-down window isn't finished yet."]
+when = ["desktop"]
+[[module.release]]
+repo = "asafelobotomy/kyko"
+tag = "v0.0.2"
+asset = "kyko-0.0.2-1-x86_64.pkg.tar.zst"
+sha256 = "892d9bc1770266c3cd207aae94d9b54b28c007492fe7da623ac19cf0686e44f7"
+name = "kyko"
+
 [[module]]
 id = "yakuake"
 name = "Yakuake"

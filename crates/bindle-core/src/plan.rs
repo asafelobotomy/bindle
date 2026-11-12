@@ -269,6 +269,7 @@ pub fn resolve(
         if let Some(b) = &m.builtin {
             let e = builtins::expand(b, &ctx);
             packages.extend(e.packages);
+            aur.extend(e.aur);
             files.extend(e.files.into_iter().map(|f| (id.clone(), f)));
             units.extend(e.enable);
             bootstrap |= e.aur_bootstrap;
