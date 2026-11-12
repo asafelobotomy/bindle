@@ -4,7 +4,9 @@
 
 mod draw;
 mod flow;
+mod manual;
 mod pages;
+pub mod progress;
 
 use anyhow::Result;
 use bindle_core::catalog::Profile;
@@ -17,6 +19,7 @@ use ratatui::crossterm::event::KeyCode;
 use ratatui::widgets::ListState;
 
 use crate::livesys::{self, Disk, WifiNetwork};
+use manual::ManualDisk;
 
 /// What the wizard hands back when the user confirms Install.
 pub struct Outcome {
@@ -73,6 +76,8 @@ enum Action {
     Scan,
     Connect(String, Option<String>),
     Apps,
+    /// Open archinstall's disk editor (manual partitioning).
+    Partition,
     Install,
 }
 
@@ -98,6 +103,8 @@ pub(crate) struct Wizard<'a> {
     pub disk: ListState,
     pub filesystem: Filesystem,
     pub encrypt: bool,
+    /// A layout from archinstall's disk editor, instead of the whole disk.
+    pub manual: Option<ManualDisk>,
     pub fields: Vec<Field>,
     pub field: usize,
     /// Apps unticked on the Apps page or chosen in the bindle wizard (`m`
@@ -135,6 +142,7 @@ impl<'a> Wizard<'a> {
             disk: ListState::default().with_selected(Some(0)),
             filesystem: Filesystem::Btrfs,
             encrypt: false,
+            manual: None,
             fields: vec![
                 field(Key::Hostname, "Computer name", "archlinux", false),
                 field(Key::Username, "Your user name", "", false),
@@ -169,9 +177,14 @@ impl<'a> Wizard<'a> {
         self.apps.clone().unwrap_or_else(|| preset::first_login_selection(self.desktops, &self.choice()))
     }
 
+    /// Bindle's own layout with encryption on (a manual layout brings its own).
+    pub fn encrypting(&self) -> bool {
+        self.encrypt && self.manual.is_none()
+    }
+
     /// The fields shown: the disk passphrase only with encryption on.
     pub fn visible(&self) -> Vec<usize> {
-        (0..self.fields.len()).filter(|&i| self.encrypt || self.fields[i].key != Key::DiskPassphrase).collect()
+        (0..self.fields.len()).filter(|&i| self.encrypting() || self.fields[i].key != Key::DiskPassphrase).collect()
     }
 
     fn value(&self, key: Key) -> &str {
@@ -180,7 +193,11 @@ impl<'a> Wizard<'a> {
 
     /// Why the You page isn't complete, or the answers.
     pub fn answers(&self) -> Result<Answers, String> {
-        let disk = self.disks.get(self.disk.selected().unwrap_or(0)).ok_or("choose a disk")?;
+        let disk = match (&self.manual, self.disks.get(self.disk.selected().unwrap_or(0))) {
+            (Some(m), _) => Disk { path: m.devices(), bytes: 0, model: String::new(), transport: String::new() },
+            (None, Some(d)) => d.clone(),
+            (None, None) => return Err("choose a disk".into()),
+        };
         let v = |k| self.value(k).trim().to_string();
         if !target::valid_hostname(&v(Key::Hostname)) {
             return Err("Computer name: lower-case letters, digits and -, up to 63".into());
@@ -191,17 +208,21 @@ impl<'a> Wizard<'a> {
         if self.value(Key::Password).is_empty() || self.value(Key::Password) != self.value(Key::Confirm) {
             return Err("The two passwords must match and can't be empty".into());
         }
-        if self.encrypt && self.value(Key::DiskPassphrase).len() < 8 {
+        if self.encrypting() && self.value(Key::DiskPassphrase).len() < 8 {
             return Err("Disk passphrase: at least 8 characters".into());
         }
         if !livesys::valid_timezone(&v(Key::Timezone)) {
             return Err(format!("Timezone `{}` isn't known; use Area/City, e.g. Europe/London", v(Key::Timezone)));
         }
         Ok(Answers {
-            disk: disk.path.clone(),
+            disk: disk.path,
             disk_bytes: disk.bytes,
             filesystem: self.filesystem,
-            encryption: self.encrypt.then(|| self.value(Key::DiskPassphrase).to_string()),
+            encryption: match &self.manual {
+                Some(m) => m.passphrase.clone(),
+                None => self.encrypt.then(|| self.value(Key::DiskPassphrase).to_string()),
+            },
+            manual_disk: self.manual.as_ref().map(|m| m.config.clone()),
             uefi: self.uefi,
             hostname: v(Key::Hostname),
             username: v(Key::Username),
@@ -237,6 +258,7 @@ impl<'a> Wizard<'a> {
             }
             Step::Hardware => Step::Disk,
             Step::Disk => match self.disks.get(self.disk.selected().unwrap_or(0)) {
+                _ if self.manual.is_some() => Step::You,
                 None => {
                     self.message = Some("No disk to install to.".into());
                     return;
@@ -333,16 +355,6 @@ impl<'a> Wizard<'a> {
                 l.select(Some((l.selected().unwrap_or(0) + 1).min(max)));
                 self.reset_choices();
             }
-            (Step::Disk, KeyCode::Up) => self.disk.select_previous(),
-            (Step::Disk, KeyCode::Down) => {
-                let max = self.disks.len().saturating_sub(1);
-                self.disk.select(Some((self.disk.selected().unwrap_or(0) + 1).min(max)));
-            }
-            (Step::Disk, KeyCode::Char('f')) => {
-                self.filesystem =
-                    if self.filesystem == Filesystem::Btrfs { Filesystem::Ext4 } else { Filesystem::Btrfs };
-            }
-            (Step::Disk, KeyCode::Char('e')) => self.encrypt = !self.encrypt,
             (Step::Review, KeyCode::Char('m')) => return Action::Apps,
             (Step::Review, KeyCode::Char('i') | KeyCode::Enter) => self.confirm = true,
             (_, KeyCode::Enter | KeyCode::Right) => self.next(),

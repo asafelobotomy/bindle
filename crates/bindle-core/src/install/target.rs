@@ -22,8 +22,12 @@ pub struct Answers {
     pub disk: String,
     pub disk_bytes: u64,
     pub filesystem: Filesystem,
-    /// Encrypt the root partition with this passphrase (LUKS).
+    /// Encrypt the root partition with this passphrase (LUKS). With a manual
+    /// layout: the passphrase archinstall's editor asked for, if any.
     pub encryption: Option<String>,
+    /// A layout made in archinstall's disk editor (its own `disk_config`),
+    /// used as it is instead of the whole-disk layout.
+    pub manual_disk: Option<Value>,
     pub uefi: bool,
     pub hostname: String,
     pub username: String,
@@ -101,7 +105,7 @@ pub fn config(facts: &Facts, desktops: &[Desktop], choice: &IsoChoice, a: &Answe
         "hostname": a.hostname,
         "timezone": a.timezone,
         "locale_config": { "kb_layout": a.keyboard, "sys_enc": "UTF-8", "sys_lang": a.locale },
-        "disk_config": disk_config(a),
+        "disk_config": a.manual_disk.clone().unwrap_or_else(|| disk_config(a)),
     });
     preset::merge(&mut cfg, extra);
     a.hardware.apply(&mut cfg);
@@ -148,6 +152,7 @@ mod tests {
             disk_bytes: 512 * 1024 * MIB,
             filesystem: Filesystem::Btrfs,
             encryption: None,
+            manual_disk: None,
             uefi: true,
             hostname: "laptop".into(),
             username: "solon".into(),
@@ -204,6 +209,17 @@ mod tests {
         let c = creds(&a);
         assert_eq!(c["users"][0], json!({ "username": "solon", "!password": "pw", "sudo": true }));
         assert!(c.get("encryption_password").is_none());
+    }
+
+    #[test]
+    fn manual_layout_is_passed_through() {
+        let data = desktops::all().unwrap();
+        let choice = IsoChoice { desktop: None, profile: "minimal".into() };
+        let layout =
+            json!({ "config_type": "manual_partitioning", "device_modifications": [{ "device": "/dev/sdb" }] });
+        let a = Answers { manual_disk: Some(layout.clone()), encryption: Some("from-editor".into()), ..answers() };
+        assert_eq!(config(&Facts::default(), &data, &choice, &a)["disk_config"], layout);
+        assert_eq!(creds(&a)["encryption_password"], "from-editor");
     }
 
     #[test]

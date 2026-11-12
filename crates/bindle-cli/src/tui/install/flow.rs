@@ -80,6 +80,17 @@ fn event_loop(w: &mut Wizard, terminal: &mut DefaultTerminal) -> Result<Option<O
                     Err(e) => w.message = Some(format!("{e:#}")),
                 }
             }
+            Action::Partition => {
+                // archinstall's own screen, for this one step.
+                ratatui::restore();
+                let edited = super::manual::edit();
+                *terminal = ratatui::init();
+                match edited {
+                    Ok(Some(layout)) => w.manual = Some(layout),
+                    Ok(None) => w.message = Some("No layout chosen in the editor; nothing changed.".into()),
+                    Err(e) => w.message = Some(format!("{e:#}")),
+                }
+            }
             Action::Install => match w.answers() {
                 Ok(answers) => return Ok(Some(Outcome { choice: w.choice(), answers, selection: w.selection() })),
                 Err(e) => w.message = Some(e),
