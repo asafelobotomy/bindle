@@ -35,7 +35,9 @@ apps = ["scdr", "crumbs", "noti-fi"]
 # archinstall can't install uQ's own login screen (greetd + uq), so the install
 # boots into sddm once; the uq module then switches to uQ's (`uqctl greeter enable`).
 greeter = "sddm"
-essentials = ["kitty", "papirus-icon-theme", "ttf-jetbrains-mono", "inter-font", "wireplumber", "playerctl", "networkmanager"]
+# kate brings KWrite (the plain text editor); grim, satty, slurp and wl-clipboard are uQ's
+# screenshot tool (Print); gnome-keyring keeps saved passwords, unlocked at login.
+essentials = ["kitty", "papirus-icon-theme", "ttf-jetbrains-mono", "inter-font", "wireplumber", "playerctl", "networkmanager", "kate", "grim", "satty", "slurp", "wl-clipboard", "gnome-keyring"]
 bt = ["bluez"]
 notes = ["uQ comes from the AUR; Bindle then runs `uqctl setup --apps` as you and turns on uQ's login screen. Restart to log in to uQ."]
 
