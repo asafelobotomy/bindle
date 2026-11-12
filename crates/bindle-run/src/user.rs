@@ -62,15 +62,13 @@ pub fn build_aur(package: &str, fake: bool, note: &mut dyn FnMut(&str)) -> Resul
         .context("no cache directory")?
         .join("bindle/aur");
     let dir = cache.join(package);
-    let url = format!("https://aur.archlinux.org/{package}.git");
     if fake {
-        note(&format!("would build {package} from {url}"));
+        note(&format!("would build {package} from https://aur.archlinux.org/{package}.git"));
         return Ok(Vec::new());
     }
-    let _ = fs::remove_dir_all(&dir);
     fs::create_dir_all(&cache)?;
     let d = dir.to_string_lossy().to_string();
-    run(&["git".into(), "clone".into(), "--quiet".into(), url, d.clone()], false, &mut |_| {})?;
+    clone_aur(package, &dir, note)?;
     run(
         &[
             "git".into(),
@@ -99,6 +97,45 @@ pub fn build_aur(package: &str, fake: bool, note: &mut dyn FnMut(&str)) -> Resul
         bail!("makepkg produced no package for {package}");
     }
     Ok(files)
+}
+
+/// Where a package's AUR git history can be cloned from, in order: the AUR,
+/// then Arch's GitHub copy of it (one branch per package), which carries the
+/// same commits, so the pinned commit and PKGBUILD checksum still decide what
+/// gets built.
+fn aur_sources(package: &str) -> Vec<Vec<String>> {
+    let aur = vec![format!("https://aur.archlinux.org/{package}.git")];
+    let github = vec![
+        "--branch".into(),
+        package.to_string(),
+        "--single-branch".into(),
+        "https://github.com/archlinux/aur.git".into(),
+    ];
+    vec![aur.clone(), aur, github]
+}
+
+/// Clone with retries: the AUR often drops connections when it is busy.
+fn clone_aur(package: &str, dir: &Path, note: &mut dyn FnMut(&str)) -> Result<()> {
+    let sources = aur_sources(package);
+    let mut last = None;
+    for (i, src) in sources.iter().enumerate() {
+        if i > 0 {
+            let to = if i + 1 == sources.len() { "Arch's GitHub copy of the AUR" } else { "the AUR again" };
+            note(&format!("couldn't download {package} from the AUR; trying {to}"));
+            std::thread::sleep(std::time::Duration::from_secs(3 * i as u64));
+        }
+        let _ = fs::remove_dir_all(dir);
+        let mut argv: Vec<String> = vec!["git".into(), "clone".into(), "--quiet".into()];
+        argv.extend(src.iter().cloned());
+        argv.push(dir.to_string_lossy().into_owned());
+        match run(&argv, false, &mut |_| {}) {
+            Ok(()) => return Ok(()),
+            Err(e) => last = Some(e),
+        }
+    }
+    Err(last.unwrap_or_else(|| anyhow::anyhow!("no source to clone {package} from"))).context(format!(
+        "couldn't download {package} from the AUR or its GitHub copy; check the network and run Bindle again"
+    ))
 }
 
 /// Built package files from `makepkg --packagelist`, without `-debug` splits.
@@ -133,7 +170,16 @@ pub fn install_aur(
     let mut argv = aur_argv(helper, unattended);
     argv.push("--".into());
     argv.extend(packages.iter().cloned());
-    run(&argv, fake, note)
+    // The helper downloads from the AUR, which drops connections when busy.
+    // `--needed` makes a second try pick up where the first stopped.
+    match run(&argv, fake, note) {
+        Ok(()) => Ok(()),
+        Err(e) => {
+            note(&format!("{e}; trying the AUR install once more"));
+            std::thread::sleep(std::time::Duration::from_secs(5));
+            run(&argv, fake, note)
+        }
+    }
 }
 
 fn aur_argv(helper: &str, unattended: bool) -> Vec<String> {
@@ -176,6 +222,15 @@ mod tests {
         assert!(!aur_argv("paru", false).iter().any(|a| a == "--skipreview" || a == "--noconfirm"));
         assert!(aur_argv("paru", true).contains(&"--skipreview".to_string()));
         assert!(!aur_argv("yay", false).iter().any(|a| a == "--answerdiff"));
+    }
+
+    #[test]
+    fn aur_clone_falls_back_to_the_github_copy() {
+        let s = aur_sources("paru-bin");
+        assert_eq!(s.len(), 3);
+        assert_eq!(s[0], ["https://aur.archlinux.org/paru-bin.git"]);
+        assert_eq!(s[1], s[0]);
+        assert_eq!(s[2], ["--branch", "paru-bin", "--single-branch", "https://github.com/archlinux/aur.git"]);
     }
 
     #[test]

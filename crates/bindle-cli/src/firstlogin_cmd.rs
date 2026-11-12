@@ -192,17 +192,60 @@ pub fn run(catalog: &Catalog, facts: &Facts, in_terminal: bool, lock: Option<Str
     // Held (taken over from the launcher above, or begun here) while the
     // wizard runs; dropped at the end of this function, opening uQ's Welcome.
     let _handoff = inherited.or_else(hold_handoff);
-    let result = wizard_once(catalog, facts);
-    if in_terminal {
-        // The window closes with this process: show any error and wait.
-        if let Err(e) = &result {
-            eprintln!("\nBindle stopped with an error: {e:#}");
-            eprintln!("It will open again at your next login; or run `bindle` any time.");
+    let mut result = wizard_once(catalog, facts);
+    // The window closes with this process, and a fresh desktop may have no
+    // other way to open a terminal: offer a retry and a shell right here.
+    while in_terminal && let Err(e) = &result {
+        eprintln!("\nBindle stopped with an error: {e:#}");
+        match after_error() {
+            AfterError::Retry => result = wizard_once(catalog, facts),
+            AfterError::Close => {
+                eprintln!("It will open again at your next login; or run `bindle` any time.");
+                break;
+            }
         }
+    }
+    if in_terminal {
         session::release_launch(lock.as_deref());
-        apply::confirm("Press Enter to close.", true);
+        if result.is_ok() {
+            apply::confirm("Press Enter to close.", true);
+        }
     }
     result
+}
+
+enum AfterError {
+    Retry,
+    Close,
+}
+
+/// Ask what to do after a failed run: try again (finished steps are
+/// skipped), open a shell to fix the cause (e.g. join Wi-Fi), or close.
+fn after_error() -> AfterError {
+    use std::io::{BufRead, Write};
+    loop {
+        eprintln!("\nEnter: try again (finished steps are skipped)");
+        eprintln!(
+            "s:     open a shell here to fix it, e.g. `nmcli device wifi connect <name> --ask`; `exit` comes back"
+        );
+        eprint!("q:     close  > ");
+        let _ = std::io::stderr().flush();
+        let mut answer = String::new();
+        if std::io::stdin().lock().read_line(&mut answer).unwrap_or(0) == 0 {
+            return AfterError::Close;
+        }
+        match answer.trim().to_lowercase().as_str() {
+            "" | "r" | "y" => return AfterError::Retry,
+            "q" | "n" => return AfterError::Close,
+            "s" => {
+                let shell = std::env::var("SHELL").ok().filter(|s| !s.is_empty()).unwrap_or_else(|| "/bin/bash".into());
+                if let Err(e) = std::process::Command::new(&shell).status() {
+                    eprintln!("couldn't start {shell}: {e}");
+                }
+            }
+            _ => {}
+        }
+    }
 }
 
 /// Hold uQ's Welcome back while the wizard runs in this terminal, until this

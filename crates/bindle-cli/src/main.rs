@@ -240,7 +240,14 @@ fn main() -> Result<()> {
         Cmd::InTerminal { args } => {
             let exe = std::env::current_exe()?.to_string_lossy().into_owned();
             // Arguments travel as "$@", never through the script text.
-            let script = r#""$0" "$@"; echo; printf 'Press Enter to close. '; read -r _"#;
+            // On failure: try again, or a shell to fix the cause (a fresh
+            // desktop may have no other terminal), or close.
+            let script = r#"until "$0" "$@"; do
+  printf '\nEnter: try again   s: open a shell (exit comes back)   q: close  > '
+  read -r a || exit 1
+  case "$a" in q|Q) exit 1 ;; s|S) "${SHELL:-/bin/bash}" ;; esac
+done
+echo; printf 'Press Enter to close. '; read -r _"#;
             let mut argv = vec!["sh".to_string(), "-c".into(), script.into(), exe];
             argv.extend(args);
             return terminal::spawn(&argv);
