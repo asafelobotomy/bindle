@@ -37,7 +37,15 @@ for confirmation and your password in the terminal, then streams progress.
 5. **Stop on first failure** with the log path and the undo command. Every step is
    idempotent, so fixing the cause and re-running continues where it stopped.
 6. **Finish**: reboot hint (kernel, microcode, drivers, initramfs) or a relogin hint (groups),
-   and the selection saved to `~/.config/bindle/selection.toml` for replay.
+   and the selection saved to `~/.config/bindle/selection.toml` for replay. It is saved
+   after a failed step too, and both wizards start from it, so a retry continues with the
+   same choices rather than the profile picked before install.
+
+Choosing one of two modules that can't be combined (`conflicts` in the catalog) after the
+other was applied retires the other: its units are disabled and the files Bindle wrote for
+it are removed, once the new module's packages and files are in place. Hardware-computed
+modules (zram) are the exception: their files stay, since removing a swap setup is not safe
+to do unasked.
 
 | Step | Runs as | Command |
 |---|---|---|
@@ -45,6 +53,7 @@ for confirmation and your password in the terminal, then streams progress.
 | replace conflicts | root | `pacman -Rdd --noconfirm -- …` (only after you confirm; the next step installs the replacements) |
 | install packages | root | `pacman -Syu --needed --noconfirm -- …` (a full system upgrade) |
 | write file | root | atomic write: exclusive temp file created with the final mode, keeps the owner, refuses to replace a symlink |
+| retire a rival | root | `systemctl disable --now -- …` for units a conflicting module enabled, and removal of the files Bindle wrote for it (only unedited ones; the rest are reported) |
 | enable units | root | `systemctl enable --now -- …` |
 | groups | root | `usermod -aG … <you>` |
 | root command | root | as declared in the catalog |
@@ -56,7 +65,9 @@ for confirmation and your password in the terminal, then streams progress.
 
 Logs: `/var/log/bindle/apply-<id>.log` (and `undo-<id>.log`), root-only (`0600`).
 They record commands and their output; written files appear as path, mode and
-size, not their contents. Directories Bindle creates are `0755` whatever the
+size, not their contents. Steps that run as you (AUR builds, release downloads,
+user commands) are logged as a line each, with the error if one fails; their
+output stays in the terminal or window. Directories Bindle creates are `0755` whatever the
 umask, so `bindle undo` can list snapshots as you.
 
 ## Undo
@@ -71,11 +82,14 @@ are left installed: removing them automatically is too risky. Undo prints the
 commands (for example `ufw enable`, `systemctl mask`, `snapper create-config`)
 aren't reversible in general; undo lists them under "Not reverted", as are
 packages removed to make way for replacements (with the `pacman -S` to get
-them back).
+them back) and units disabled to retire a conflicting module (with the
+`systemctl enable` to get them back; the files removed with them are restored).
 
 Without an ID, undo reverts the latest apply **and** any failed applies it
 resumed (a failed apply's snapshot stays "incomplete"), newest first, so the
-system ends up as it was before the first attempt. A fully restored
+system ends up as it was before the first attempt. Only failed applies of the
+same selection count as resumed; one of a different selection is a run of its
+own, which the next plain `bindle undo` reverts. A fully restored
 snapshot is marked undone (`--list` shows it), so running `bindle undo` again
 steps back to the apply before; `bindle undo <id>` still reverts any snapshot.
 A file that can't be

@@ -99,7 +99,15 @@ fn json(v: &Value) -> QString {
 impl cxx_qt::Initialize for Backend {
     fn initialize(mut self: Pin<&mut Self>) {
         let catalog = Catalog::arch().expect("the built-in catalog is validated by the tests");
-        let wizard = Wizard::new(catalog, Facts::detect());
+        let mut wizard = Wizard::new(catalog, Facts::detect());
+        // Like the terminal wizard: carry on from the last selection (not in
+        // screenshot or sandbox runs, which must not depend on this machine).
+        let real = crate::arg("--screenshots").is_none() && crate::arg("--sandbox").is_none();
+        if real
+            && let Some(sel) = bindle_run::selection::default_path().and_then(|p| bindle_run::selection::load(&p).ok())
+        {
+            wizard.seed(&sel);
+        }
         self.as_mut().set_header(QString::from(&wizard.header()));
         self.as_mut().set_welcome_json(json(&wizard.welcome()));
         self.as_mut().set_profiles_json(json(&wizard.profiles()));

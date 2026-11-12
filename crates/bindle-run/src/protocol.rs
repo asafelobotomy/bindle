@@ -24,6 +24,11 @@ pub enum Request {
     Restore {
         id: String,
     },
+    /// A line for the log from the user side: steps that run as the user
+    /// (AUR builds, release downloads, user commands) and how they ended.
+    Log {
+        line: String,
+    },
     /// The apply that took this snapshot finished every step.
     Complete {
         id: String,

@@ -127,6 +127,13 @@ pub fn run(
             r.state.log_path = report.log.display().to_string();
             r.state.needs_reboot = report.needs_reboot;
             r.state.relogin = report.relogin;
+            // Like `bindle apply`: remember the selection once changes were
+            // made, also after a failed step, so a retry starts from it.
+            if sandbox.is_none()
+                && let Some(path) = selection::default_path()
+            {
+                let _ = selection::save(sel, &path);
+            }
             match report.failed {
                 Some((i, e)) => {
                     r.state.state = "failed".into();
@@ -146,12 +153,6 @@ pub fn run(
                     r.state.state = "done".into();
                     APPLIED.store(true, std::sync::atomic::Ordering::SeqCst);
                     r.state.steps.iter_mut().for_each(|s| s.status = "done".into());
-                    // Like `bindle apply`: remember the selection for next time.
-                    if sandbox.is_none()
-                        && let Some(path) = selection::default_path()
-                    {
-                        let _ = selection::save(sel, &path);
-                    }
                 }
             }
         }

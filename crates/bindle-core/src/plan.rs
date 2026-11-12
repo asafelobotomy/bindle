@@ -68,6 +68,14 @@ pub enum Step {
     EnableUnits {
         units: Vec<String>,
     },
+    /// Units a conflicting module enabled earlier (see `plan::retire`).
+    DisableUnits {
+        units: Vec<String>,
+    },
+    /// Unmodified files Bindle wrote for a conflicting module.
+    RemoveFiles {
+        paths: Vec<String>,
+    },
     AddToGroups {
         user: String,
         groups: Vec<String>,
@@ -269,6 +277,11 @@ pub fn resolve(
         }
     }
 
+    let wanted_units = units.iter().chain(&late_units).map(String::as_str).collect();
+    let wanted_files = files.iter().map(|(_, f)| f.path.as_str()).collect();
+    let retired = retire::rivals(catalog, &ordered, facts, current_file, &wanted_units, &wanted_files);
+    plan.notes.extend(retired.notes);
+
     // Keep only pacman.conf edits that would change something.
     if let Some(current) = current_file("/etc/pacman.conf") {
         options.retain(|k, v| crate::pacman_conf::set_option(&current, k, v) != current);
@@ -292,6 +305,8 @@ pub fn resolve(
             plan.steps.push(Step::WriteFile { module, file });
         }
     }
+    // A replaced rival goes once its replacement's packages and files are in.
+    plan.steps.extend(retired.steps);
     let enabled = |u: &String| !facts.enabled_units.contains(u);
     let late_units = dedup(late_units.into_iter().filter(enabled));
     let units = dedup(units.into_iter().filter(enabled).filter(|u| !late_units.contains(u)));
@@ -379,5 +394,6 @@ fn dedup(items: impl IntoIterator<Item = String>) -> Vec<String> {
     items.into_iter().filter(|i| seen.insert(i.clone())).collect()
 }
 
+pub mod retire;
 #[cfg(test)]
 mod tests;

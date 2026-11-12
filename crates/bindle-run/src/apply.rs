@@ -112,6 +112,12 @@ pub fn run(plan: &Plan, facts: &Facts, opts: &Options, progress: &mut dyn Progre
     let mut manual = Vec::new();
     for (i, step) in plan.steps.iter().enumerate() {
         progress.step(i, total, step);
+        if !step.privileged() {
+            log_line(
+                helper.as_mut(),
+                format!("== (as {}) {}", facts.user, serde_json::to_string(step).unwrap_or_default()),
+            );
+        }
         match run_step(step, helper.as_mut(), &aur_helper, opts.yes, fake, progress) {
             Err(e) if matches!(step, Step::RunAsUser { .. }) && opts.defer_user.is_some() => {
                 let file = opts.defer_user.as_deref().unwrap_or(std::path::Path::new(""));
@@ -119,6 +125,7 @@ pub fn run(plan: &Plan, facts: &Facts, opts: &Options, progress: &mut dyn Progre
                     failed = Some((i, e.context(format!("and it couldn't be saved for first login: {save:#}"))));
                     break;
                 }
+                log_line(helper.as_mut(), format!("deferred to first login: {e:#}"));
                 progress.note(&format!("{e:#}; it runs again at first login"));
             }
             Ok(None) => {}
@@ -131,6 +138,11 @@ pub fn run(plan: &Plan, facts: &Facts, opts: &Options, progress: &mut dyn Progre
                 manual.push((module, todo));
             }
             Err(e) => {
+                // The helper logs its own failures; these never reach it.
+                if !step.privileged() {
+                    log_line(helper.as_mut(), format!("ERROR: {e:#}"));
+                }
+                log_line(helper.as_mut(), format!("stopped at step {}/{total}", i + 1));
                 failed = Some((i, e));
                 break;
             }
@@ -153,6 +165,13 @@ pub fn run(plan: &Plan, facts: &Facts, opts: &Options, progress: &mut dyn Progre
         relogin: plan.steps.iter().any(|s| matches!(s, Step::AddToGroups { .. })),
         manual,
     })
+}
+
+/// Best effort: a line in the root-only apply log.
+fn log_line(helper: Option<&mut HelperClient>, line: String) {
+    if let Some(h) = helper {
+        let _ = root_request(h, &Request::Log { line }, &mut |_| {});
+    }
 }
 
 fn run_step(
@@ -225,6 +244,10 @@ pub fn snapshot_plan(plan: &Plan, facts: &Facts) -> SnapshotPlan {
             Step::EditPacmanConf { .. } => s.files.push("/etc/pacman.conf".into()),
             Step::WriteFile { file, .. } => s.files.push(file.path.clone()),
             Step::EnableUnits { units } => s.units.extend(units.iter().cloned()),
+            Step::RemoveFiles { paths } => s.files.extend(paths.iter().cloned()),
+            Step::DisableUnits { units } => {
+                s.manual.push(format!("disabled {} (to restore: systemctl enable --now {0})", units.join(" ")))
+            }
             Step::InstallPackages { packages } => s.packages.extend(packages.iter().cloned()),
             Step::RemovePackages { packages } => {
                 s.manual.push(format!("removed {} (to restore: pacman -S {0})", packages.join(" ")))

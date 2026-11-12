@@ -42,8 +42,8 @@ pub struct Manifest {
     #[serde(default)]
     pub created_dirs: Vec<String>,
     /// The apply that took this snapshot finished. A failed apply that was
-    /// re-run leaves an incomplete snapshot that `undo` reverts together with
-    /// the re-run's. Snapshots from before this field count as complete.
+    /// re-run with the same selection leaves an incomplete snapshot that
+    /// `undo` reverts together with the re-run's. Snapshots from before this field count as complete.
     #[serde(default = "complete_default")]
     pub complete: bool,
     /// `bindle undo` restored it; plain `undo` moves on to the run before.
@@ -197,12 +197,15 @@ pub fn mark_undone(root: &Path, id: &str) -> Result<()> {
 }
 
 /// What plain `bindle undo` reverts, newest first: the latest snapshot not
-/// yet undone, plus the incomplete ones (failed applies it resumed) right
-/// before it. `snaps` is newest first, as `list` returns it.
+/// yet undone, plus the incomplete ones right before it that it resumed:
+/// failed applies of the same selection (the label is its module list). A
+/// failed apply of a different selection is a run of its own, undone by the
+/// next plain `undo`. `snaps` is newest first, as `list` returns it.
 pub fn latest_session(snaps: &[Manifest]) -> Vec<Manifest> {
     let mut live = snaps.iter().filter(|m| !m.undone);
-    let mut out: Vec<Manifest> = live.next().into_iter().cloned().collect();
-    out.extend(live.take_while(|m| !m.complete).cloned());
+    let Some(latest) = live.next() else { return Vec::new() };
+    let mut out = vec![latest.clone()];
+    out.extend(live.take_while(|m| !m.complete && m.label == latest.label).cloned());
     out
 }
 
@@ -352,5 +355,19 @@ mod tests {
             mark_undone(&root, id).unwrap();
         }
         assert!(latest_session(&list(&root)).is_empty());
+    }
+
+    #[test]
+    fn a_failed_apply_of_another_selection_is_not_chained() {
+        let root = crate::sys::test_dir("snapshot-labels");
+        let with = |label: &str| create(&root, &SnapshotPlan { label: label.into(), ..Default::default() }).unwrap().id;
+        // Two failed tries of one selection, a failed try of another, then its resume.
+        let ids = [with("a, b"), with("a, b"), with("a, c"), with("a, c")];
+        mark_complete(&root, &ids[3]).unwrap();
+        let session = |root: &Path| latest_session(&list(root)).into_iter().map(|m| m.id).collect::<Vec<_>>();
+        assert_eq!(session(&root), [ids[3].clone(), ids[2].clone()]);
+        mark_undone(&root, &ids[3]).unwrap();
+        mark_undone(&root, &ids[2]).unwrap();
+        assert_eq!(session(&root), [ids[1].clone(), ids[0].clone()], "the next undo takes the earlier tries");
     }
 }

@@ -25,6 +25,17 @@ impl Wizard {
         w
     }
 
+    /// Start from a saved selection (the one last applied or tried) instead
+    /// of the suggested profile. Modules the catalog no longer has are dropped.
+    pub fn seed(&mut self, sel: &Selection) {
+        if let Some(p) = &sel.profile {
+            self.set_profile(p);
+        }
+        let known: Vec<String> = sel.include.iter().filter(|id| self.catalog.module(id).is_some()).cloned().collect();
+        self.selected.extend(known);
+        self.selected.retain(|id| !sel.exclude.contains(id));
+    }
+
     fn base(&self) -> BTreeSet<String> {
         let sel = Selection { profile: Some(self.profile.clone()), ..Default::default() };
         sel.initial(&self.catalog).unwrap_or_default()

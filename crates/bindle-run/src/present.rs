@@ -104,6 +104,10 @@ pub fn describe(step: &Step) -> String {
         Step::WriteFile { module, file } if file.mode == 0o644 => format!("write {} [{module}]", file.path),
         Step::WriteFile { module, file } => format!("write {} (mode {:o}) [{module}]", file.path, file.mode),
         Step::EnableUnits { units } => format!("systemctl enable {}", units.join(" ")),
+        Step::DisableUnits { units } => {
+            format!("systemctl disable {} (replaced by the modules above)", units.join(" "))
+        }
+        Step::RemoveFiles { paths } => format!("remove {} (written for a module you replaced)", paths.join(" ")),
         Step::AddToGroups { user, groups } => format!("usermod -aG {} {user}", groups.join(",")),
         Step::RunAsRoot { module, argv } | Step::RunAsUser { module, argv, .. } => {
             format!("{} [{module}]", argv.join(" "))

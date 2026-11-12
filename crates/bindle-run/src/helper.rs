@@ -222,6 +222,11 @@ impl Helper {
                 }
                 snapshot::mark_undone(self.root(), &id).map(|()| None)
             }
+            Request::Log { line } => {
+                // One line per request, whatever it contains.
+                self.log_line(&line.replace(['\n', '\r'], " "));
+                Ok(None)
+            }
             Request::Complete { id } => snapshot::mark_complete(self.root(), &id).map(|()| None),
             Request::Quit => Ok(None),
         }
@@ -302,6 +307,30 @@ impl Helper {
                     ["systemctl", "enable"].into_iter().chain(now).chain(["--"]).map(String::from).collect();
                 argv.extend(units);
                 self.cmd_owned(&argv)
+            }
+            Step::DisableUnits { units } => {
+                check_names(&units)?;
+                let now = if crate::sys::in_chroot() { None } else { Some("--now") };
+                let mut argv: Vec<String> =
+                    ["systemctl", "disable"].into_iter().chain(now).chain(["--"]).map(String::from).collect();
+                argv.extend(units);
+                self.cmd_owned(&argv)
+            }
+            Step::RemoveFiles { paths } => {
+                for p in &paths {
+                    check_system_path(p)?;
+                    let target = host(self.root(), p);
+                    // Only what Bindle wrote, and never through a symlink.
+                    let ours = fs::symlink_metadata(&target).is_ok_and(|m| m.is_file())
+                        && fs::read_to_string(&target).is_ok_and(|t| t.starts_with(bindle_core::plan::retire::MARKER));
+                    if !ours {
+                        self.output(&format!("kept {p}: not a file Bindle wrote"));
+                        continue;
+                    }
+                    fs::remove_file(&target).with_context(|| format!("remove {p}"))?;
+                    self.output(&format!("removed {p}"));
+                }
+                Ok(())
             }
             Step::AddToGroups { user, groups } => {
                 if user == "root" || !valid_name(&user) || !groups.iter().all(|g| valid_name(g)) {

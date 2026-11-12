@@ -21,6 +21,8 @@ pub enum Outcome {
     NothingToDo,
     Cancelled,
     Applied,
+    /// A step failed after changes began; the cause has been printed.
+    Failed,
 }
 
 pub fn confirm(question: &str, default_yes: bool) -> bool {
@@ -81,7 +83,7 @@ pub fn apply(plan: &Plan, facts: &Facts, opts: &Options) -> Result<Outcome> {
             println!("Undo the changes so far: bindle undo");
         }
         println!("Steps are idempotent: fix the cause and run Bindle again to continue.");
-        bail!("apply failed");
+        return Ok(Outcome::Failed);
     }
     println!("\nAll {total} steps applied. Log: {}", report.log.display());
     if report.snapshot.is_some() {
@@ -195,7 +197,9 @@ pub fn read_current(path: &str) -> Option<String> {
     std::fs::read_to_string(path).ok()
 }
 
-/// Resolve, apply, and remember the selection on success.
+/// Resolve, apply, and remember the selection once changes were made: also
+/// when a step failed, so that running Bindle again (from any frontend)
+/// continues with the same choices instead of an older selection.
 pub fn apply_selection(catalog: &Catalog, facts: &Facts, sel: &Selection, opts: Options) -> Result<bool> {
     let current = |p: &str| match &opts.sandbox {
         Some(root) => std::fs::read_to_string(sys::host(root, p)).ok(),
@@ -203,21 +207,30 @@ pub fn apply_selection(catalog: &Catalog, facts: &Facts, sel: &Selection, opts: 
     };
     let p = plan::resolve(catalog, facts, sel, &current)?;
     let outcome = apply(&p, facts, &opts)?;
-    if outcome == Outcome::Applied
+    if matches!(outcome, Outcome::Applied | Outcome::Failed)
         && opts.sandbox.is_none()
         && let Some(path) = selection::default_path()
     {
         selection::save(sel, &path)?;
         println!("Selection saved to {} (replay with `bindle apply --from`).", path.display());
     }
+    if outcome == Outcome::Failed {
+        bail!("apply failed");
+    }
     Ok(outcome != Outcome::Cancelled)
+}
+
+/// What the wizard starts from: the selection this user last applied (or
+/// tried to), else the profile chosen before install (`bindle iso`).
+pub fn seed_selection() -> Option<Selection> {
+    let own = selection::default_path().and_then(|p| selection::load(&p).ok());
+    own.or_else(|| selection::load(Path::new(SYSTEM_SELECTION)).ok())
 }
 
 /// Run the wizard; if the user chose to apply, apply. Returns whether the
 /// user went through with it (applied, or nothing was left to do).
 pub fn wizard(catalog: &Catalog, facts: &Facts, sandbox: Option<PathBuf>) -> Result<bool> {
-    // A profile chosen before install (`bindle iso`) seeds the wizard.
-    let seed = selection::load(std::path::Path::new(SYSTEM_SELECTION)).ok();
+    let seed = seed_selection();
     match tui::run(catalog, facts, seed)? {
         Some(sel) => apply_selection(catalog, facts, &sel, Options { yes: false, sandbox, ..Default::default() }),
         None => Ok(false),
