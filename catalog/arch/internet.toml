@@ -97,6 +97,15 @@ requires = ["aur-helper"]
 aur = ["proton-pass-bin"]
 
 [[module]]
+id = "proton-pass-cli"
+name = "Proton Pass (CLI)"
+description = "Proton Pass on the command line (`pass-cli`), from Proton's own releases."
+requires = ["aur-helper"]
+package_conflicts = ["pass-cli"]
+aur = ["proton-pass-cli-bin"]
+notes = ["Sign in with `pass-cli login`.", "The AUR package named `pass-cli` is a different password manager that installs the same command; it has to go first."]
+
+[[module]]
 id = "proton-vpn"
 name = "Proton VPN"
 description = "Proton VPN app."
