@@ -174,7 +174,7 @@ their own, recommended or not.
 |---|---|
 | System | pacman-qol, mirrors, multilib, build-tools, aur-helper, microcode, firmware-updates, fstrim, man-pages |
 | Hardware | gpu-driver, audio-firmware, audio-pipewire, bluetooth, power-profiles, tlp, tlp-rdw, thermald, fingerprint, printing, scanning-qt, scanning-gtk, solaar, piper, openrgb, android-tools |
-| Performance | zram, xzram, oomd, earlyoom, io-schedulers, scdr, scdr-sched-ext, scx-schedulers, kernel-zen, makepkg-parallel, makepkg-native |
+| Performance | zram, xzram, oomd, earlyoom, io-schedulers, scdr, scdr-sched-ext, scdr-devbox, scx-schedulers, kernel-zen, makepkg-parallel, makepkg-native |
 | Desktop & apps | desktop-essentials, uq, noti-fi, crumbs, uq-dev, fonts, nerd-fonts, codecs, archives, user-dirs, flatpak, flatpak-discover, flatpak-gnome-software, media-players, spotify, libreoffice, obsidian, keepassxc, bitwarden, backup-gtk, backup-deja-dup, yakuake, emobie |
 | Internet | firefox, chromium, brave, brave-origin, vivaldi, zen-browser, google-chrome, thunderbird, signal, telegram, element, proton-mail, proton-mail-bridge, proton-pass, proton-vpn, proton-authenticator, proton-drive-cli, syncthing, nextcloud-client, tailscale, qbittorrent, qbittorrent-enhanced, qbit-plugin-dl, hauler, av-morning-star |
 | Creative | gimp, krita, inkscape, darktable, rawtherapee, digikam, kdenlive, handbrake, obs-studio, audacity, blender, photocraft, lightcraft, filmcraft, vectorcraft, effectcraft, designcraft, pdfcraft, wordcraft, deckcraft, gridcraft |

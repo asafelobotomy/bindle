@@ -108,7 +108,7 @@ notes = ["Edit /etc/scdr/rules.d/40-bindle-sched-ext.toml to change the picks; s
 risk = "moderate"
 when = ["distro:arch", "!virt"]
 requires = ["scdr"]
-conflicts = ["scx-schedulers"]
+conflicts = ["scx-schedulers", "scdr-devbox"]
 packages = ["scx-scheds", "scx-tools"]
 # No default_sched in scx_loader's config: scdr starts and switches schedulers.
 enable = ["scx_loader.service"]
@@ -127,12 +127,28 @@ power-saver = "lavd:powersave"
 '''
 
 [[module]]
+id = "scdr-devbox"
+name = "Scheduler for coding with AI agents (scx_devbox)"
+description = "scdr's own sched_ext scheduler for low-end machines doing development with LLM agent apps such as Claude Desktop: the focused window and short tool calls go first, builds and indexers wait. scdr hands it the focused app."
+notes = [
+  "Runs all the time instead of switching per game or power profile; for that, pick the scx_loader schedulers instead.",
+  "Back to the kernel's own scheduler: `systemctl disable --now scx_devbox`.",
+]
+risk = "moderate"
+when = ["distro:arch", "!virt"]
+requires = ["scdr", "aur-helper"]
+conflicts = ["scdr-sched-ext", "scx-schedulers"]
+# Split from scdr's AUR package; builds against the running kernel's sched_ext.
+aur = ["scx-devbox"]
+enable = ["scx_devbox.service"]
+
+[[module]]
 id = "scx-schedulers"
 name = "Low-latency CPU scheduler (sched_ext)"
 description = "scx_bpfland via scx_loader: lower latency for desktops and games under load."
 risk = "moderate"
 when = ["distro:arch", "!virt"]
-conflicts = ["scdr-sched-ext"]
+conflicts = ["scdr-sched-ext", "scdr-devbox"]
 packages = ["scx-scheds", "scx-tools"]
 enable = ["scx_loader.service"]
 notes = ["Switch schedulers with `scxctl`; stop scx_loader.service to return to the kernel's own scheduler."]

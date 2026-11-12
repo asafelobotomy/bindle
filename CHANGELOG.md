@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- New module `scdr-devbox`: scx_devbox, scdr's own sched_ext scheduler for development with LLM agent apps (the focused window and short tool calls first, builds wait; scdr hands it the focused app). From the AUR's `scx-devbox`, split from `scdr` from its next release. Conflicts with `scdr-sched-ext` and `scx-schedulers`, so only one thing starts a scheduler.
+
 ## 0.1.8 — 2026-11-11
 
 - uQ hand-off (uQ Phase 5): while the first-login wizard is open in a uQ session, Bindle holds `$XDG_RUNTIME_DIR/uq/welcome.defer` so uQ's Welcome waits; when the wizard ends it removes the file and runs `uqctl welcome`. A crash still lets Welcome open (uQ ignores a defer file older than 30 minutes).
