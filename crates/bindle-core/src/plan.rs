@@ -306,6 +306,14 @@ pub fn resolve(
     if initramfs {
         plan.steps.push(Step::RebuildInitramfs);
     }
+    // User commands the AUR builds need (rustup's default toolchain: without
+    // it every Rust PKGBUILD fails with "no default is configured").
+    let (early_cmds, user_cmds): (Vec<_>, Vec<_>) = user_cmds.into_iter().partition(|(_, c)| c.before_aur);
+    plan.steps.extend(early_cmds.into_iter().map(|(module, c)| Step::RunAsUser {
+        module,
+        argv: c.argv,
+        manual: c.manual,
+    }));
     if bootstrap {
         plan.steps.push(Step::BootstrapAurHelper { package: builtins::AUR_HELPER.into() });
     }
