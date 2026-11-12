@@ -2,6 +2,8 @@
 
 mod gpu;
 
+pub use gpu::nvidia_open_supported;
+
 use std::collections::BTreeSet;
 
 use crate::catalog::FileSpec;
