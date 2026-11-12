@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- The uQ desktop also installs KWrite (`kate`), the screenshot tools uQ binds to Print (`grim`, `satty`, `slurp`, `wl-clipboard`) and `gnome-keyring`, which uQ's login screen now unlocks with your password.
 - The uQ module runs `uqctl setup --apps`, so GTK, Qt (qt6ct and Kvantum) and the terminals follow uQ's theme from the first login. Before, uQ's own Settings and every Qt app stayed in the default light style under a dark uQ theme. Existing files are never overwritten; the step re-runs until `qt6ct.conf` loads uQ's colours, so installs from earlier releases pick it up at the next apply.
 - PipeWire audio installs `rtkit`, so PipeWire and WirePlumber get realtime audio threads instead of logging "RTKit error: ServiceUnknown" at every login.
 - Pre-Turing NVIDIA GPUs (GTX 10xx and older) no longer get nvidia-open from the live-ISO install, which left the card without a driver: the preset picks nouveau ("All open-source" on hybrid laptops). On a system that already has nvidia-open on such a card, the wizard now says to replace it with nvidia-580xx-dkms instead of keeping it.
