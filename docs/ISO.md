@@ -19,10 +19,12 @@ One wizard, in the same look and keys as the `bindle` wizard on the desktop
 | Step | What you choose |
 |---|---|
 | Network | Connected already, or a Wi-Fi network and its password (`iwctl` underneath). Saved into the new system. |
-| Desktop | Desktop (uQ is recommended) and profile; the right pane shows what this hardware gets: graphics driver, audio, power, Bluetooth, firewall, fonts |
-| Disk | The disk (erased), Btrfs with Snapper snapshots or ext4, optional encryption (LUKS). systemd-boot on UEFI, GRUB on BIOS |
+| Desktop | Desktop (uQ is recommended) and profile; the right pane shows what this hardware gets |
+| Hardware | What Bindle recommends for the detected hardware, one row each: graphics driver, kernel (linux, linux-lts, linux-zen), boot loader (systemd-boot on UEFI, GRUB on BIOS; Limine on either), zram swap, power profiles, Bluetooth, audio. ←/→ changes a row, `r` goes back to the recommendation. CPU microcode is shown but set by archinstall |
+| Disk | The disk (erased), Btrfs with Snapper snapshots or ext4, optional encryption (LUKS) |
 | You | Computer name, user and password (with sudo), timezone, keyboard, language |
-| Review | Everything above; `m` opens the bindle wizard to change the apps, `i` installs after a y/N confirmation |
+| Apps | Every app and setup step the profile and desktop bring, ticked; Space unticks one, `m` opens the bindle wizard to add more |
+| Review | Everything above; `i` installs after a y/N confirmation |
 
 Bindle then writes a complete archinstall config and credentials file to a private
 directory and runs the ISO's own archinstall unattended (`--silent`) with Bindle's

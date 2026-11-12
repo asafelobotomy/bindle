@@ -1,13 +1,15 @@
 //! `bindle install`: the whole install on the live ISO in one wizard, in the
-//! same look and keys as the `bindle` wizard. Network → Desktop → Disk → You
-//! → Review. Nothing is written until Install is confirmed on Review.
+//! same look and keys as the `bindle` wizard. Network → Desktop → Hardware →
+//! Disk → You → Apps → Review. Nothing is written until Install is confirmed on Review.
 
 mod draw;
 mod flow;
+mod pages;
 
 use anyhow::Result;
 use bindle_core::catalog::Profile;
 use bindle_core::desktops::Desktop;
+use bindle_core::install::hardware::Hardware;
 use bindle_core::install::preset::{self, IsoChoice};
 use bindle_core::install::target::{self, Answers, Filesystem, MIN_DISK_BYTES};
 use bindle_core::{Catalog, Facts, Selection};
@@ -27,16 +29,20 @@ pub struct Outcome {
 pub(crate) enum Step {
     Network,
     Desktop,
+    Hardware,
     Disk,
     You,
+    Apps,
     Review,
 }
 
-pub(crate) const STEPS: [(Step, &str); 5] = [
+pub(crate) const STEPS: [(Step, &str); 7] = [
     (Step::Network, "Network"),
     (Step::Desktop, "Desktop"),
+    (Step::Hardware, "Hardware"),
     (Step::Disk, "Disk"),
     (Step::You, "You"),
+    (Step::Apps, "Apps"),
     (Step::Review, "Review"),
 ];
 
@@ -84,13 +90,18 @@ pub(crate) struct Wizard<'a> {
     pub desktop: ListState,
     pub profile: ListState,
     pub focus_profile: bool,
+    /// Hardware rows the user changed; None: the recommendation.
+    pub hw: Option<Hardware>,
+    pub hw_row: ListState,
+    pub app: ListState,
     pub disks: Vec<Disk>,
     pub disk: ListState,
     pub filesystem: Filesystem,
     pub encrypt: bool,
     pub fields: Vec<Field>,
     pub field: usize,
-    /// Apps chosen in the bindle wizard (`m` on Review), else the profile's.
+    /// Apps unticked on the Apps page or chosen in the bindle wizard (`m`
+    /// there), else the profile's.
     pub apps: Option<Selection>,
     pub confirm: bool,
     pub message: Option<String>,
@@ -117,6 +128,9 @@ impl<'a> Wizard<'a> {
             desktop: ListState::default().with_selected(Some(super::iso::desktop_row(desktops, None))),
             profile: ListState::default().with_selected(Some(super::iso::profile_index(profiles, None))),
             focus_profile: false,
+            hw: None,
+            hw_row: ListState::default().with_selected(Some(0)),
+            app: ListState::default().with_selected(Some(0)),
             disks: Vec::new(),
             disk: ListState::default().with_selected(Some(0)),
             filesystem: Filesystem::Btrfs,
@@ -195,6 +209,7 @@ impl<'a> Wizard<'a> {
             timezone: v(Key::Timezone),
             keyboard: v(Key::Keyboard),
             locale: v(Key::Language),
+            hardware: self.hardware(),
         })
     }
 
@@ -218,8 +233,9 @@ impl<'a> Wizard<'a> {
                     self.message = Some(why);
                     return;
                 }
-                Step::Disk
+                Step::Hardware
             }
+            Step::Hardware => Step::Disk,
             Step::Disk => match self.disks.get(self.disk.selected().unwrap_or(0)) {
                 None => {
                     self.message = Some("No disk to install to.".into());
@@ -232,12 +248,13 @@ impl<'a> Wizard<'a> {
                 Some(_) => Step::You,
             },
             Step::You => match self.answers() {
-                Ok(_) => Step::Review,
+                Ok(_) => Step::Apps,
                 Err(e) => {
                     self.message = Some(e);
                     return;
                 }
             },
+            Step::Apps => Step::Review,
             Step::Review => return,
         };
         self.go(next);
@@ -286,6 +303,9 @@ impl<'a> Wizard<'a> {
             return if matches!(key, KeyCode::Char('y' | 'Y')) { Action::Install } else { Action::None };
         }
         self.message = None;
+        if let Some(action) = self.on_page_key(key) {
+            return action;
+        }
         match (self.step, key) {
             (_, KeyCode::Char('q')) => return Action::Quit,
             (_, KeyCode::Esc | KeyCode::Left) if self.step != Step::Desktop => self.back(),
@@ -303,12 +323,15 @@ impl<'a> Wizard<'a> {
                 None => {}
             },
             (Step::Desktop, KeyCode::Tab | KeyCode::Left | KeyCode::Right) => self.focus_profile = !self.focus_profile,
-            (Step::Desktop, KeyCode::Up) => self.desk_list().select_previous(),
+            (Step::Desktop, KeyCode::Up) => {
+                self.desk_list().select_previous();
+                self.reset_choices();
+            }
             (Step::Desktop, KeyCode::Down) => {
                 let max = if self.focus_profile { self.profiles().len() - 1 } else { self.desktops.len() };
                 let l = self.desk_list();
                 l.select(Some((l.selected().unwrap_or(0) + 1).min(max)));
-                self.apps = None;
+                self.reset_choices();
             }
             (Step::Disk, KeyCode::Up) => self.disk.select_previous(),
             (Step::Disk, KeyCode::Down) => {
@@ -326,6 +349,14 @@ impl<'a> Wizard<'a> {
             _ => {}
         }
         Action::None
+    }
+
+    /// Another desktop or profile: its own recommendations and apps.
+    fn reset_choices(&mut self) {
+        self.apps = None;
+        self.hw = None;
+        self.hw_row.select(Some(0));
+        self.app.select(Some(0));
     }
 
     fn desk_list(&mut self) -> &mut ListState {

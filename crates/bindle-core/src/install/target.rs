@@ -5,6 +5,7 @@
 
 use serde_json::{Value, json};
 
+use super::hardware::Hardware;
 use super::preset::{self, IsoChoice};
 use crate::desktops::Desktop;
 use crate::detect::Facts;
@@ -30,6 +31,8 @@ pub struct Answers {
     pub timezone: String,
     pub keyboard: String,
     pub locale: String,
+    /// The Hardware page's rows (kernel, boot loader, drivers, swap…).
+    pub hardware: Hardware,
 }
 
 const MIB: u64 = 1024 * 1024;
@@ -94,16 +97,14 @@ pub fn disk_config(a: &Answers) -> Value {
 /// would ask in its menu.
 pub fn config(facts: &Facts, desktops: &[Desktop], choice: &IsoChoice, a: &Answers) -> Value {
     let mut cfg = preset::build(facts, desktops, choice, None);
-    let bootloader = if a.uefi { "Systemd-boot" } else { "Grub" };
     let extra = json!({
         "hostname": a.hostname,
         "timezone": a.timezone,
-        "kernels": ["linux"],
         "locale_config": { "kb_layout": a.keyboard, "sys_enc": "UTF-8", "sys_lang": a.locale },
-        "bootloader_config": { "bootloader": bootloader, "uki": false, "removable": false },
         "disk_config": disk_config(a),
     });
     preset::merge(&mut cfg, extra);
+    a.hardware.apply(&mut cfg);
     cfg
 }
 
@@ -154,6 +155,7 @@ mod tests {
             timezone: "Europe/London".into(),
             keyboard: "uk".into(),
             locale: "en_GB".into(),
+            hardware: Hardware::recommended(&Facts::default(), true, true),
         }
     }
 
@@ -197,6 +199,7 @@ mod tests {
         assert_eq!(cfg["bootloader_config"]["bootloader"], "Systemd-boot");
         assert_eq!(cfg["locale_config"]["kb_layout"], "uk");
         a.uefi = false;
+        a.hardware = Hardware::recommended(&Facts::default(), false, true);
         assert_eq!(config(&Facts::default(), &data, &choice, &a)["bootloader_config"]["bootloader"], "Grub");
         let c = creds(&a);
         assert_eq!(c["users"][0], json!({ "username": "solon", "!password": "pw", "sudo": true }));
