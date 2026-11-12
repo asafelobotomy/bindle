@@ -37,6 +37,16 @@ fn walks_every_step_to_install() {
     assert_eq!(w.choice().desktop.as_deref(), Some("uq"));
     assert!(w.selection().include.contains(&"uq".to_string()));
     w.on_key(KeyCode::Enter);
+    assert_eq!(w.step, Step::Hardware);
+    // Second row down from the top is changeable: Right changes it, r undoes.
+    assert!(w.hw.is_none());
+    w.on_key(KeyCode::Down);
+    w.on_key(KeyCode::Down);
+    w.on_key(KeyCode::Right);
+    assert!(w.hardware().changed());
+    w.on_key(KeyCode::Char('r'));
+    assert!(!w.hardware().changed());
+    w.on_key(KeyCode::Enter);
     assert_eq!(w.step, Step::Disk);
     w.on_key(KeyCode::Char('e'));
     w.on_key(KeyCode::Enter);
@@ -59,6 +69,38 @@ fn walks_every_step_to_install() {
     assert!(err.contains("passphrase") || err.contains("Timezone"), "{err}");
     type_in(&mut w, "-enough");
     assert_eq!(w.answers().map(|a| a.encryption), Ok(Some("short-enough".to_string())).map_err(|e: String| e));
+
+    // Apps: every app of the profile is ticked; Space unticks the highlighted one.
+    w.step = Step::Apps;
+    let first = w.app_modules()[0].id.clone();
+    assert!(w.selection().initial(&catalog).unwrap().contains(&first));
+    w.on_key(KeyCode::Char(' '));
+    assert!(!w.selection().initial(&catalog).unwrap().contains(&first));
+    assert_eq!(w.app_modules()[0].id, first, "an unticked app stays listed");
+    w.on_key(KeyCode::Char(' '));
+    assert!(w.selection().initial(&catalog).unwrap().contains(&first));
+    assert_eq!(w.on_key(KeyCode::Char('m')), Action::Apps);
+    w.on_key(KeyCode::Enter);
+    assert_eq!(w.step, Step::Review);
+}
+
+#[test]
+fn hardware_changes_reach_the_answers_and_reset_with_the_desktop() {
+    let (facts, catalog) = (Facts::default(), Catalog::arch().unwrap());
+    let desktops = bindle_core::desktops::all().unwrap();
+    let mut w = Wizard::new(&facts, &catalog, &desktops);
+    w.step = Step::Hardware;
+    let kernel = w.hardware().rows.iter().position(|r| r.label == "Kernel").unwrap();
+    w.hw_row.select(Some(kernel));
+    w.on_key(KeyCode::Left);
+    assert_eq!(w.hardware().rows[kernel].choice().value, "linux-zen");
+    // Left changes the row; it doesn't go back a page.
+    assert_eq!(w.step, Step::Hardware);
+    w.on_key(KeyCode::Esc);
+    assert_eq!(w.step, Step::Desktop);
+    assert!(w.hw.is_some(), "going back keeps the changes");
+    w.on_key(KeyCode::Down);
+    assert!(w.hw.is_none(), "another desktop starts from its own recommendation");
 }
 
 #[test]
@@ -85,6 +127,8 @@ fn every_step_renders_on_an_80_column_console() {
     let expect = [
         (Step::Network, "Wi-Fi networks"),
         (Step::Desktop, "What gets installed"),
+        (Step::Hardware, "Recommended for this hardware"),
+        (Step::Apps, "will be installed"),
         (Step::Disk, "will be erased"),
         (Step::You, "Computer name"),
         (Step::Review, "nothing changes until"),

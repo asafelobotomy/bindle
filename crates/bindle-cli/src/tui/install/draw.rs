@@ -2,6 +2,7 @@
 //! title line with the steps, bordered panes, the highlighted row on dark
 //! grey with `▸`, and the keys on the bottom line.
 
+use bindle_core::install::hardware::Setting;
 use bindle_core::install::preset;
 use bindle_core::install::target::Filesystem;
 use ratatui::Frame;
@@ -16,7 +17,7 @@ fn focused(on: bool) -> Style {
     if on { Style::new().fg(Color::Yellow) } else { Style::new() }
 }
 
-fn list<'a>(items: Vec<ListItem<'a>>, title: &'a str, focus: bool) -> List<'a> {
+pub(super) fn list<'a>(items: Vec<ListItem<'a>>, title: &'a str, focus: bool) -> List<'a> {
     List::new(items)
         .block(Block::bordered().title(title).border_style(focused(focus)))
         .highlight_style(Style::new().bg(Color::DarkGray))
@@ -24,7 +25,7 @@ fn list<'a>(items: Vec<ListItem<'a>>, title: &'a str, focus: bool) -> List<'a> {
 }
 
 /// Two panes side by side, or stacked on an 80-column console.
-fn panes(body: Rect, left: u16) -> (Rect, Rect) {
+pub(super) fn panes(body: Rect, left: u16) -> (Rect, Rect) {
     if body.width >= 100 {
         let [l, r] = Layout::horizontal([Constraint::Length(left), Constraint::Min(30)]).areas(body);
         (l, r)
@@ -73,14 +74,18 @@ impl Wizard<'_> {
             _ if self.passphrase.is_some() => "type the Wi-Fi password · Enter join · Esc cancel",
             Step::Network => "↑↓ choose · c connect · r scan again · Enter next · q quit",
             Step::Desktop => "↑↓ choose · Tab switch list · Enter next · Esc back · q quit",
+            Step::Hardware => "↑↓ choose · ←→ change · r recommended again · Enter next · Esc back · q quit",
+            Step::Apps => "↑↓ choose · Space tick or untick · m more apps · Enter next · Esc back · q quit",
             Step::Disk => "↑↓ choose disk · f filesystem · e encryption · Enter next · Esc back · q quit",
             Step::You => "↑↓ field · type to edit · Enter next field · Esc back",
-            Step::Review => "i install · m change apps (the Bindle wizard; a keeps your choice) · Esc back · q quit",
+            Step::Review => "i install · Esc back · q quit",
         };
         f.render_widget(Line::from(format!(" {keys}")).dim(), foot);
         match self.step {
             Step::Network => self.draw_network(f, body),
             Step::Desktop => self.draw_desktop(f, body),
+            Step::Hardware => self.draw_hardware(f, body),
+            Step::Apps => self.draw_apps(f, body),
             Step::Disk => self.draw_disk(f, body),
             Step::You => self.draw_you(f, body),
             Step::Review => self.draw_review(f, body),
@@ -135,7 +140,7 @@ impl Wizard<'_> {
             lines.push(Line::from(format!("{}: {}", p.name, p.description)));
             lines.push(Line::from(""));
         }
-        lines.push(Line::from("Recommended for this hardware:").bold());
+        lines.push(Line::from("Recommended for this hardware (the next page changes it):").bold());
         let summary = preset::summary(&preset::build(self.facts, self.desktops, &choice, None));
         lines.extend(summary.into_iter().filter(|l| !l.contains("archinstall")).map(Line::from));
         let sel = self.selection();
@@ -155,7 +160,9 @@ impl Wizard<'_> {
             Filesystem::Ext4 => "ext4, no snapshots",
         };
         let enc = if self.encrypt { "on: asks for a passphrase at every boot" } else { "off" };
-        let boot = if self.uefi { "systemd-boot (UEFI)" } else { "GRUB (BIOS)" };
+        let hw = self.hardware();
+        let boot = hw.rows.iter().find(|r| r.setting == Setting::Bootloader).map_or("", |r| r.choice().label);
+        let boot = format!("{boot} ({})", if self.uefi { "UEFI" } else { "BIOS" });
         let mut lines = vec![
             Line::from(format!("f  Filesystem   {fs}")),
             Line::from(format!("e  Encryption   {enc}")),
@@ -194,9 +201,10 @@ impl Wizard<'_> {
         let mut lines: Vec<Line> = Vec::new();
         let desktop = choice.desktop.as_deref().unwrap_or("none");
         lines.push(Line::from(format!("Desktop      {desktop} · profile {}", choice.profile)));
-        let extra = if sel.include.is_empty() { "the profile's".into() } else { sel.include.join(", ") };
+        let mods = self.app_modules();
+        let on = mods.iter().filter(|m| !sel.exclude.contains(&m.id)).count();
         let custom = if self.apps.is_some() { " (your choice)" } else { "" };
-        lines.push(Line::from(format!("Apps         {extra}{custom}")));
+        lines.push(Line::from(format!("Apps         {on} of {}{custom}", mods.len())));
         match self.answers() {
             Ok(a) => {
                 let fs = if a.filesystem == Filesystem::Btrfs { "Btrfs + snapshots" } else { "ext4" };
@@ -207,9 +215,18 @@ impl Wizard<'_> {
             }
             Err(e) => lines.push(Line::from(e).fg(Color::Red)),
         }
-        lines.extend(
-            preset::summary(&preset::build(self.facts, self.desktops, &choice, None)).into_iter().map(Line::from),
-        );
+        for r in &self.hardware().rows {
+            let mark = if r.selected == r.recommended { "" } else { " (changed)" };
+            lines.push(Line::from(format!(
+                "{:<12} {}{mark}",
+                r.label.split(' ').next().unwrap_or(r.label),
+                r.choice().label
+            )));
+        }
+        // The rest of the preset: what no page changes.
+        let fixed = ["Network", "pacman", "Firewall", "Fonts", "Repos"];
+        let summary = preset::summary(&preset::build(self.facts, self.desktops, &choice, None));
+        lines.extend(summary.into_iter().filter(|l| fixed.iter().any(|p| l.starts_with(p))).map(Line::from));
         lines.push(Line::from(""));
         lines.push(Line::from("Bindle installs Arch with archinstall, then your desktop and apps, all before the"));
         lines.push(Line::from("first reboot. It can take a while; the screen shows each step."));
