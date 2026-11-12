@@ -5,6 +5,7 @@ mod gui;
 mod icons;
 mod iso;
 mod notify;
+mod polkit_agent;
 mod print;
 
 mod session;

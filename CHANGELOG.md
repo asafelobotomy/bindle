@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- The desktop window starts a polkit agent when it opens (polkit-kde, hyprpolkitagent, lxqt, polkit-gnome or mate, whichever is installed). archinstall's Hyprland installs one but never starts it, so on the first login Apply couldn't ask for the password and sent you to a terminal. On desktops that run their own agent the extra one fails to register and exits.
 - New module `scdr-devbox`: scx_devbox, scdr's own sched_ext scheduler for development with LLM agent apps (the focused window and short tool calls first, builds wait; scdr hands it the focused app). From the AUR's `scx-devbox`, split from `scdr` from its next release. Conflicts with `scdr-sched-ext` and `scx-schedulers`, so only one thing starts a scheduler.
 
 ## 0.1.8 — 2026-11-11
