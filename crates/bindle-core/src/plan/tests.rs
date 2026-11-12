@@ -261,7 +261,8 @@ fn uq_module_builds_from_the_aur_then_runs_setup_as_the_user() {
         .steps
         .iter()
         .position(|s| matches!(s, Step::InstallAur { packages } if packages == &["uq", "uq-hyprland-pin", "bibata-cursor-theme-bin"]));
-    let setup = p.steps.iter().position(|s| matches!(s, Step::RunAsUser { argv, .. } if argv == &["uqctl", "setup"]));
+    let setup =
+        p.steps.iter().position(|s| matches!(s, Step::RunAsUser { argv, .. } if argv == &["uqctl", "setup", "--apps"]));
     assert!(aur.unwrap() < setup.unwrap(), "{:?}", p.steps);
     // Exit 3 (the user's own hyprland.lua was kept) is a manual step, not a failure.
     let Step::RunAsUser { manual, .. } = &p.steps[setup.unwrap()] else { unreachable!() };
@@ -274,13 +275,23 @@ fn uq_module_builds_from_the_aur_then_runs_setup_as_the_user() {
     let pkgs = pkgs.unwrap();
     assert!(pkgs.contains(&"papirus-icon-theme".into()) && pkgs.contains(&"kitty".into()));
     assert!(!pkgs.contains(&"waybar".into()));
-    // Once uqctl has written its stub, setup isn't planned again.
+    // The stub alone (an install from before --apps): setup runs again to theme the apps.
     let stub = "require(\"/usr/share/uq/hypr/base.lua\")\nrequire(\"./uq/generated.lua\")\n";
-    let done = resolve(&Catalog::arch().unwrap(), &f, &sel, &|p| {
-        (p == "/home/tester/.config/hypr/hyprland.lua").then(|| stub.to_string())
-    })
-    .unwrap();
-    assert!(!done.steps.iter().any(|s| matches!(s, Step::RunAsUser { argv, .. } if argv[0] == "uqctl")));
+    let qt6ct = "[Appearance]\ncolor_scheme_path=/home/tester/.local/state/uq/theme/qt6ct/colors/uq.conf\n";
+    let uqctl_planned = |files: &[(&str, &str)]| {
+        let files: Vec<(String, String)> = files.iter().map(|(p, c)| (p.to_string(), c.to_string())).collect();
+        resolve(&Catalog::arch().unwrap(), &f, &sel, &|p| files.iter().find(|(f, _)| f == p).map(|(_, c)| c.clone()))
+            .unwrap()
+            .steps
+            .iter()
+            .any(|s| matches!(s, Step::RunAsUser { argv, .. } if argv[0] == "uqctl"))
+    };
+    assert!(uqctl_planned(&[("/home/tester/.config/hypr/hyprland.lua", stub)]));
+    // Once uqctl has written its stub and qt6ct loads uQ's colours, setup isn't planned again.
+    assert!(!uqctl_planned(&[
+        ("/home/tester/.config/hypr/hyprland.lua", stub),
+        ("/home/tester/.config/qt6ct/qt6ct.conf", qt6ct),
+    ]));
 }
 
 #[test]

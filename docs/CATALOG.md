@@ -139,8 +139,9 @@ A desktop's `apps` are modules `bindle iso` pre-selects with its `module` on
 first login; each stays an ordinary module the user can untick. uQ's are
 `scdr`, `crumbs` and `noti-fi`.
 uQ is the one such desktop: Hyprland plus the `uq` module (AUR `uq` and
-`uq-hyprland-pin`, then `uqctl setup` as the user, skipped once
-`~/.config/hypr/hyprland.lua` loads uQ). `uqctl setup` exit codes: 0 done, 1 error
+`uq-hyprland-pin`, then `uqctl setup --apps` as the user, skipped once
+`~/.config/hypr/hyprland.lua` loads uQ and `~/.config/qt6ct/qt6ct.conf` loads its colours;
+`--apps` themes GTK, Qt and the terminals, so uQ's own Settings isn't left unstyled). `uqctl setup` exit codes: 0 done, 1 error
 and 2 (ran as root) fail the step, 3 (the user's own `hyprland.lua` was kept) is
 listed as a manual step. The module also installs `greetd` and runs
 `uqctl greeter enable` as root (skipped once `display-manager.service` is
