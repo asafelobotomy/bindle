@@ -63,7 +63,7 @@ install.sh ──► bindle iso ──► pre-install screen ──► archinsta
    will be pre-filled with, based on the detected hardware. The recommended desktop
    is pre-selected; while uQ is a preview, nothing is. uQ has no archinstall profile:
    archinstall installs Hyprland with SDDM, and the first-login selection adds the
-   `uq` module, which builds uQ from the AUR and runs `uqctl setup` as you.
+   `uq` module, which builds uQ from the AUR and runs `uqctl setup --apps` as you.
 3. **archinstall** opens its normal menu with Bindle's preset loaded. You still set
    the disk layout, users, hostname, locale and timezone, and can change anything else.
 4. **Bindle's archinstall plugin** runs at archinstall's `on_install` hook (base system

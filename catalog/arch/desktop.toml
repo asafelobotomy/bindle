@@ -17,8 +17,8 @@ id = "uq"
 name = "uQ desktop"
 description = "uQ, a themeable Hyprland desktop: shell, theming daemon and base config. By asafelobotomy."
 notes = [
-  "Built from the AUR (uq, uq-hyprland-pin, the Bibata cursors), then `uqctl setup` writes ~/.config/hypr/hyprland.lua for you.",
-  "An existing hyprland.lua is kept: add the lines uqctl prints to it to start uQ.",
+  "Built from the AUR (uq, uq-hyprland-pin, the Bibata cursors), then `uqctl setup --apps` writes ~/.config/hypr/hyprland.lua and themes GTK, Qt and terminal apps to match.",
+  "An existing hyprland.lua (or GTK, qt6ct or terminal config) is kept: add the lines uqctl prints to it.",
   "uQ's login screen (greetd) replaces the current one from the next boot; `run0 uqctl greeter disable` switches back.",
 ]
 requires = ["aur-helper"]
@@ -33,9 +33,16 @@ root_commands = [
   { argv = ["uqctl", "greeter", "enable"], unless = [{ path = "/etc/systemd/system/display-manager.service", contains = "greetd" }] },
 ]
 # uqctl setup: 0 = uQ's hyprland.lua is in place, 1 = error, 2 = ran as root, 3 = the user's own file was kept.
+# --apps also points GTK, qt6ct, Kvantum and the terminals at uQ's theme: without it uQ's own
+# Settings and every Qt app stay in the default light style under a dark uQ theme. It only
+# creates files that don't exist (one it keeps is reported, never an error), so it is re-run
+# until qt6ct.conf loads uQ's colours; a qt6ct.conf of the user's own keeps it re-running harmlessly.
 [[module.user_commands]]
-argv = ["uqctl", "setup"]
-unless = [{ path = "~/.config/hypr/hyprland.lua", contains = "require(\"./uq/generated.lua\")" }]
+argv = ["uqctl", "setup", "--apps"]
+unless = [
+  { path = "~/.config/hypr/hyprland.lua", contains = "require(\"./uq/generated.lua\")" },
+  { path = "~/.config/qt6ct/qt6ct.conf", contains = "/uq/theme/qt6ct/colors/uq.conf" },
+]
 manual = { 3 = "your own ~/.config/hypr/hyprland.lua was kept. Add the lines `uqctl setup` printed above to the top of it, then log out and back in to start uQ." }
 
 [[module]]

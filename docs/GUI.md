@@ -49,7 +49,7 @@ terminal wizard does: `print::install_lines`, `print::module_details`,
    replaces), a `uq` profile, and a "uQ apps" category grouping the integrated
    apps (noti-fi, scale_tail, XZram, scdr, appOFholding, crumBS, hauler,
    emobie, oysterAV, romforge). The profile installs `uq-hyprland-pin` and
-   `uq` from pinned GitHub release packages and runs `uqctl setup` as the user.
+   `uq` from pinned GitHub release packages and runs `uqctl setup --apps` as the user.
    **Blocked on uQ publishing release packages**; apps that already ship
    releases can be added first.
 2. **Hand-off**: after a `uq` profile apply, Done offers to open uq-settings on

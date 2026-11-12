@@ -37,7 +37,7 @@ apps = ["scdr", "crumbs", "noti-fi"]
 greeter = "sddm"
 essentials = ["kitty", "papirus-icon-theme", "ttf-jetbrains-mono", "inter-font", "wireplumber", "playerctl", "networkmanager"]
 bt = ["bluez"]
-notes = ["uQ comes from the AUR; Bindle then runs `uqctl setup` as you and turns on uQ's login screen. Restart to log in to uQ."]
+notes = ["uQ comes from the AUR; Bindle then runs `uqctl setup --apps` as you and turns on uQ's login screen. Restart to log in to uQ."]
 
 [[desktop]]
 id = "plasma"
