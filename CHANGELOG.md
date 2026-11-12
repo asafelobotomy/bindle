@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- `bindle iso` now sets the new system up before the first reboot: at archinstall's last hook, Bindle applies the chosen profile inside the new system (`arch-chroot`, as its user, while the ISO is online), including the AUR helper and uQ. User commands that need a running session are saved and run once at first login. The first login lands in a finished desktop; Bindle only opens if a step didn't finish. `--setup-at-first-login` keeps the old behaviour.
+- The root helper starts through `sudo -n` without a terminal when sudo needs no password, and enables services without starting them inside a chroot.
 - Downloading the pinned AUR helper (paru-bin) retries twice and then falls back to Arch's GitHub copy of the AUR (same commits, so the pinned commit and checksum still apply). AUR installs through the helper get one more try, since the AUR often drops connections when busy.
 - When Bindle fails in the terminal it opened (first login, or the window's "Continue in a terminal"), it no longer just closes: Enter tries again (finished steps are skipped), `s` opens a shell to fix the cause (e.g. `nmcli device wifi connect <name> --ask`), `q` closes. A fresh desktop may have no other way to open a terminal.
 - `bindle iso` carries the ISO's Wi-Fi over: the networks you joined with `iwctl` are saved in the new system as NetworkManager connections (root-only keyfiles), so the first boot is online instead of failing at the first pacman step. Open and WPA2/WPA3-transition networks; 802.1X ones aren't carried.

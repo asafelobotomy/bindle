@@ -10,6 +10,8 @@ Inputs come from the environment set by `bindle iso`:
   BINDLE_BIN        path to the bindle binary on the live ISO
   BINDLE_SELECTION  optional selection.toml chosen before install
   BINDLE_KEEP_WELCOME=1  leave the desktops' own welcome apps enabled
+  BINDLE_SETUP_TARGET=1  apply the profile inside the new system before reboot
+  BINDLE_USER       optional: the user to set up for (default: the first one)
 
 Unless asked not to, it also turns off the desktops' welcome apps (GNOME tour,
 KDE Welcome Center, Hyprland welcome) so Bindle is the first-login welcome:
@@ -78,7 +80,23 @@ class Plugin:
         if os.environ.get('BINDLE_KEEP_WELCOME') != '1' and (target / 'usr/bin/glib-compile-schemas').exists():
             _run(['arch-chroot', str(target), 'glib-compile-schemas', '/usr/share/glib-2.0/schemas'],
                  'compiling GSettings schemas')
+        self._setup_target(target)
         return None  # let archinstall write fstab as usual
+
+    def _setup_target(self, target: Path) -> None:
+        # Apply the chosen profile in the new system now, while the ISO has a
+        # network, so the first boot lands in a finished desktop. A failure
+        # leaves Bindle to open at first login and finish, as before.
+        if os.environ.get('BINDLE_SETUP_TARGET') != '1':
+            return
+        binary = os.environ.get('BINDLE_BIN')
+        if not binary or not Path(binary).is_file() or not (target / 'usr/local/bin/bindle').is_file():
+            return
+        args = [binary, 'install-target', '--root', str(target)]
+        user = os.environ.get('BINDLE_USER')
+        if user:
+            args += ['--user', user]
+        _run(args, 'setting up the new system')
 
     def on_install(self, installation) -> None:
         target = Path(installation.target)

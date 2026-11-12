@@ -208,7 +208,7 @@ pub fn status(root: &Path) -> Vec<String> {
 /// `~/.local/state`. Both are written, so the systemd unit (which can only
 /// check `%h/.local/state`) and shells with a different `XDG_STATE_HOME`
 /// agree on whether setup is finished.
-fn state_dirs() -> Vec<PathBuf> {
+pub fn state_dirs() -> Vec<PathBuf> {
     let mut dirs: Vec<PathBuf> = env::var_os("XDG_STATE_HOME")
         .filter(|s| !s.is_empty())
         .map(PathBuf::from)

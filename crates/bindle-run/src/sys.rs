@@ -239,6 +239,16 @@ pub fn test_dir(name: &str) -> PathBuf {
     dir
 }
 
+/// Running inside a chroot (`arch-chroot` from the live ISO): `/` isn't
+/// PID 1's root. Needs root to read `/proc/1/root`; false when unknown.
+pub fn in_chroot() -> bool {
+    use std::os::unix::fs::MetadataExt;
+    match (std::fs::metadata("/"), std::fs::metadata("/proc/1/root")) {
+        (Ok(a), Ok(b)) => (a.dev(), a.ino()) != (b.dev(), b.ino()),
+        _ => false,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -1,9 +1,11 @@
 mod apply;
+mod archinstall_version;
 mod carry_network;
 mod firstlogin;
 mod firstlogin_cmd;
 mod gui;
 mod icons;
+mod install_target;
 mod iso;
 mod notify;
 mod polkit_agent;
@@ -77,6 +79,9 @@ enum Cmd {
         /// Run against a scratch directory without root, recording commands only.
         #[arg(long, hide = true)]
         sandbox: Option<PathBuf>,
+        /// Save user commands that fail here for first login (install from the ISO).
+        #[arg(long, hide = true, value_name = "FILE")]
+        defer_user: Option<PathBuf>,
     },
     /// Restore files from a pre-apply snapshot (latest by default).
     Undo {
@@ -124,6 +129,9 @@ enum Cmd {
         /// Keep the desktops' own welcome apps (by default Bindle replaces them).
         #[arg(long)]
         keep_welcome: bool,
+        /// Apply the profile at first login instead of before the first reboot.
+        #[arg(long)]
+        setup_at_first_login: bool,
         #[arg(long, hide = true)]
         workdir: Option<PathBuf>,
     },
@@ -153,6 +161,16 @@ enum Cmd {
         /// Where iwd keeps its networks.
         #[arg(long, default_value = carry_network::IWD_DIR)]
         from: PathBuf,
+    },
+    /// From the live ISO: apply the chosen profile inside the new system
+    /// before its first boot (run by the archinstall plugin).
+    #[command(hide = true)]
+    InstallTarget {
+        #[arg(long)]
+        root: PathBuf,
+        /// The new system's user (default: its first regular user).
+        #[arg(long)]
+        user: Option<String>,
     },
     /// Root helper used by `apply` (internal).
     #[command(hide = true)]
@@ -200,12 +218,8 @@ impl SelArgs {
     }
 }
 
-/// Written into the new system by the archinstall plugin.
-const SYSTEM_SELECTION: &str = "/etc/bindle/selection.toml";
-
-fn read_current(path: &str) -> Option<String> {
-    std::fs::read_to_string(path).ok()
-}
+pub(crate) use apply::wizard;
+use apply::{SYSTEM_SELECTION, apply_selection, read_current};
 
 /// `bindle list | head` closes stdout early; `println!` then panics (and the
 /// release build aborts). Treat that like SIGPIPE would: quietly stop.
@@ -235,6 +249,7 @@ fn main() -> Result<()> {
             return apply::helper::serve(apply::helper::HelperOpts { root, fake_commands, log });
         }
         Cmd::CarryNetwork { root, from } => return carry_network::run(&from, &root),
+        Cmd::InstallTarget { root, user } => return install_target::run(&root, user.as_deref()),
         Cmd::Open { detach: false } => return gui::open(),
         Cmd::Open { detach: true } => return gui::open_detached(),
         Cmd::InTerminal { args } => {
@@ -256,7 +271,7 @@ echo; printf 'Press Enter to close. '; read -r _"#;
             return firstlogin_cmd::dispatch(action);
         }
         Cmd::Undo { id, list, yes, sandbox } => {
-            return apply::undo(id, list, &apply::Options { yes, sandbox, launch: Default::default() });
+            return apply::undo(id, list, &apply::Options { yes, sandbox, ..Default::default() });
         }
         _ => {}
     }
@@ -271,10 +286,32 @@ echo; printf 'Press Enter to close. '; read -r _"#;
             warn_distro(&facts);
             wizard(&catalog, &facts, sandbox).map(drop)
         }
-        Cmd::Iso { desktop, profile, yes, dry_run, config, creds, silent, keep_welcome, workdir } => iso::run(
+        Cmd::Iso {
+            desktop,
+            profile,
+            yes,
+            dry_run,
+            config,
+            creds,
+            silent,
+            keep_welcome,
+            setup_at_first_login,
+            workdir,
+        } => iso::run(
             &catalog,
             &facts,
-            iso::IsoOpts { desktop, profile, yes, dry_run, config, creds, silent, keep_welcome, workdir },
+            iso::IsoOpts {
+                desktop,
+                profile,
+                yes,
+                dry_run,
+                config,
+                creds,
+                silent,
+                keep_welcome,
+                setup_at_first_login,
+                workdir,
+            },
         ),
         Cmd::FirstLogin { action: FirstLoginCmd::Run { in_terminal, lock } } => {
             firstlogin_cmd::run(&catalog, &facts, in_terminal, lock)
@@ -312,53 +349,23 @@ echo; printf 'Press Enter to close. '; read -r _"#;
             }
             Ok(())
         }
-        Cmd::Apply { sel, yes, sandbox } => {
+        Cmd::Apply { sel, yes, sandbox, defer_user } => {
             warn_distro(&facts);
             let mut sel = sel.resolve()?;
             // Interactive: the confirmation shows what gets replaced.
             sel.replace_conflicts |= !yes;
-            apply_selection(&catalog, &facts, &sel, apply::Options { yes, sandbox, launch: Default::default() })
+            apply_selection(&catalog, &facts, &sel, apply::Options { yes, sandbox, defer_user, ..Default::default() })
                 .map(drop)
         }
         Cmd::Helper { .. }
         | Cmd::CarryNetwork { .. }
+        | Cmd::InstallTarget { .. }
         | Cmd::Open { .. }
         | Cmd::InTerminal { .. }
         | Cmd::Undo { .. }
         | Cmd::FirstLogin { .. } => {
             unreachable!("handled above")
         }
-    }
-}
-
-/// Resolve, apply, and remember the selection on success.
-fn apply_selection(catalog: &Catalog, facts: &Facts, sel: &Selection, opts: apply::Options) -> Result<bool> {
-    let current = |p: &str| match &opts.sandbox {
-        Some(root) => std::fs::read_to_string(apply::sys::host(root, p)).ok(),
-        None => read_current(p),
-    };
-    let p = plan::resolve(catalog, facts, sel, &current)?;
-    let outcome = apply::apply(&p, facts, &opts)?;
-    if outcome == apply::Outcome::Applied
-        && opts.sandbox.is_none()
-        && let Some(path) = selection::default_path()
-    {
-        selection::save(sel, &path)?;
-        println!("Selection saved to {} (replay with `bindle apply --from`).", path.display());
-    }
-    Ok(outcome != apply::Outcome::Cancelled)
-}
-
-/// Run the wizard; if the user chose to apply, apply. Returns whether the
-/// user went through with it (applied, or nothing was left to do).
-fn wizard(catalog: &Catalog, facts: &Facts, sandbox: Option<PathBuf>) -> Result<bool> {
-    // A profile chosen before install (`bindle iso`) seeds the wizard.
-    let seed = selection::load(std::path::Path::new(SYSTEM_SELECTION)).ok();
-    match tui::run(catalog, facts, seed)? {
-        Some(sel) => {
-            apply_selection(catalog, facts, &sel, apply::Options { yes: false, sandbox, launch: Default::default() })
-        }
-        None => Ok(false),
     }
 }
 

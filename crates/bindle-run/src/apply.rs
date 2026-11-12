@@ -16,6 +16,7 @@ use crate::client::{HelperClient, Launch};
 use crate::protocol::{Request, SnapshotPlan};
 use crate::{release, sys, user};
 
+#[derive(Default)]
 pub struct Options {
     /// Unattended: AUR helpers skip their review prompts.
     pub yes: bool,
@@ -23,6 +24,10 @@ pub struct Options {
     pub sandbox: Option<PathBuf>,
     /// How to start the root helper (the CLI's defaults: itself, sudo on a terminal).
     pub launch: Launch,
+    /// Installing from the live ISO into the new system (`arch-chroot`): a
+    /// user command that fails there (it may need a running session) is
+    /// saved to this file and run at first login instead of failing the apply.
+    pub defer_user: Option<PathBuf>,
 }
 
 impl Options {
@@ -108,6 +113,14 @@ pub fn run(plan: &Plan, facts: &Facts, opts: &Options, progress: &mut dyn Progre
     for (i, step) in plan.steps.iter().enumerate() {
         progress.step(i, total, step);
         match run_step(step, helper.as_mut(), &aur_helper, opts.yes, fake, progress) {
+            Err(e) if matches!(step, Step::RunAsUser { .. }) && opts.defer_user.is_some() => {
+                let file = opts.defer_user.as_deref().unwrap_or(std::path::Path::new(""));
+                if let Err(save) = defer(file, step) {
+                    failed = Some((i, e.context(format!("and it couldn't be saved for first login: {save:#}"))));
+                    break;
+                }
+                progress.note(&format!("{e:#}; it runs again at first login"));
+            }
             Ok(None) => {}
             Ok(Some(todo)) => {
                 progress.note(&format!("needs a manual step: {todo}"));
@@ -176,6 +189,17 @@ fn run_step(
     .map(|()| None)
 }
 
+/// Append a user step to the first-login file (one JSON step per line).
+fn defer(file: &std::path::Path, step: &Step) -> Result<()> {
+    use std::io::Write;
+    if let Some(dir) = file.parent() {
+        std::fs::create_dir_all(dir)?;
+    }
+    let mut f = std::fs::OpenOptions::new().create(true).append(true).open(file)?;
+    writeln!(f, "{}", serde_json::to_string(step)?)?;
+    Ok(())
+}
+
 fn install_files(h: &mut HelperClient, files: Vec<String>, progress: &mut dyn Progress) -> Result<()> {
     if files.is_empty() {
         return Ok(());
@@ -236,4 +260,21 @@ pub fn root_request(h: &mut HelperClient, req: &Request, out: &mut dyn FnMut(&st
     let result = h.request(req, out);
     sys::ignore_interrupts(false);
     result
+}
+
+#[cfg(test)]
+mod defer_tests {
+    use super::*;
+
+    #[test]
+    fn deferred_user_steps_append_as_json_lines() {
+        let dir = crate::sys::test_dir("defer");
+        let file = dir.join("state/finish-at-login.jsonl");
+        let step = |a: &str| Step::RunAsUser { module: "m".into(), argv: vec![a.into()], manual: Default::default() };
+        defer(&file, &step("one")).unwrap();
+        defer(&file, &step("two")).unwrap();
+        let text = std::fs::read_to_string(&file).unwrap();
+        let back: Vec<Step> = text.lines().map(|l| serde_json::from_str(l).unwrap()).collect();
+        assert_eq!(back, [step("one"), step("two")]);
+    }
 }

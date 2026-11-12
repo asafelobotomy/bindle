@@ -296,7 +296,10 @@ impl Helper {
             }
             Step::EnableUnits { units } => {
                 check_names(&units)?;
-                let mut argv: Vec<String> = ["systemctl", "enable", "--now", "--"].map(String::from).into();
+                // In the new system from the ISO nothing can start yet: enable only.
+                let now = if crate::sys::in_chroot() { None } else { Some("--now") };
+                let mut argv: Vec<String> =
+                    ["systemctl", "enable"].into_iter().chain(now).chain(["--"]).map(String::from).collect();
                 argv.extend(units);
                 self.cmd_owned(&argv)
             }

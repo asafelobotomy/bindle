@@ -114,6 +114,10 @@ pub fn run(catalog: &Catalog, facts: &Facts, in_terminal: bool, lock: Option<Str
     // process. Take it over before anything can return, so that every way out
     // finishes it: a return, an error, or the window closing (SIGHUP).
     let inherited = if in_terminal { hold_handoff() } else { None };
+    if !in_terminal && session::regular_user_session() {
+        // Steps the install from the ISO left for a running session.
+        crate::install_target::finish_pending();
+    }
     if firstlogin::is_done() || !session::regular_user_session() {
         return Ok(());
     }
