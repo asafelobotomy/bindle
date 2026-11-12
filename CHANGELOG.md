@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Apply checks the internet connection before it changes anything, and stops with a plain message saying what's wrong (no connection, no DNS, or archlinux.org unreachable) and how to connect, instead of failing at step 1 with pacman's mirror errors. On a fresh install the live ISO's Wi-Fi doesn't carry over, so this was the first thing to go wrong.
+- `makepkg-parallel` builds on half the cores (`MAKEFLAGS` and `CARGO_BUILD_JOBS`), not all of them: a full-core Rust build can run a laptop out of memory and get killed by earlyoom.
 - The desktop window starts a polkit agent when it opens (polkit-kde, hyprpolkitagent, lxqt, polkit-gnome or mate, whichever is installed). archinstall's Hyprland installs one but never starts it, so on the first login Apply couldn't ask for the password and sent you to a terminal. On desktops that run their own agent the extra one fails to register and exits.
 - New module `scdr-devbox`: scx_devbox, scdr's own sched_ext scheduler for development with LLM agent apps (the focused window and short tool calls first, builds wait; scdr hands it the focused app). From the AUR's `scx-devbox`, split from `scdr` from its next release. Conflicts with `scdr-sched-ext` and `scx-schedulers`, so only one thing starts a scheduler.
 
