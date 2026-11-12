@@ -1,4 +1,5 @@
 mod apply;
+mod carry_network;
 mod firstlogin;
 mod firstlogin_cmd;
 mod gui;
@@ -141,6 +142,17 @@ enum Cmd {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true, required = true)]
         args: Vec<String>,
     },
+    /// Save the live ISO's Wi-Fi (iwd) as NetworkManager connections in the
+    /// installed system (run by the archinstall plugin).
+    #[command(hide = true)]
+    CarryNetwork {
+        /// The mounted new system.
+        #[arg(long)]
+        root: PathBuf,
+        /// Where iwd keeps its networks.
+        #[arg(long, default_value = carry_network::IWD_DIR)]
+        from: PathBuf,
+    },
     /// Root helper used by `apply` (internal).
     #[command(hide = true)]
     Helper {
@@ -276,6 +288,7 @@ fn main() -> Result<()> {
         Cmd::Helper { log, root, fake_commands } => {
             return apply::helper::serve(apply::helper::HelperOpts { root, fake_commands, log });
         }
+        Cmd::CarryNetwork { root, from } => return carry_network::run(&from, &root),
         Cmd::Open { detach: false } => return gui::open(),
         Cmd::Open { detach: true } => return gui::open_detached(),
         Cmd::InTerminal { args } => {
@@ -354,7 +367,12 @@ fn main() -> Result<()> {
             apply_selection(&catalog, &facts, &sel, apply::Options { yes, sandbox, launch: Default::default() })
                 .map(drop)
         }
-        Cmd::Helper { .. } | Cmd::Open { .. } | Cmd::InTerminal { .. } | Cmd::Undo { .. } | Cmd::FirstLogin { .. } => {
+        Cmd::Helper { .. }
+        | Cmd::CarryNetwork { .. }
+        | Cmd::Open { .. }
+        | Cmd::InTerminal { .. }
+        | Cmd::Undo { .. }
+        | Cmd::FirstLogin { .. } => {
             unreachable!("handled above")
         }
     }

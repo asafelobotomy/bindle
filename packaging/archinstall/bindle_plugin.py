@@ -3,7 +3,8 @@
 Loaded by `bindle iso` via `archinstall --plugin`. When archinstall reaches
 its on_install hook (base system installed, target mounted), this copies the
 Bindle binary into the new system, registers it to open on first login, and
-leaves the profile chosen before install for the first-login wizard.
+leaves the profile chosen before install for the first-login wizard. It
+also saves the Wi-Fi joined on the ISO into the new system (NetworkManager).
 
 Inputs come from the environment set by `bindle iso`:
   BINDLE_BIN        path to the bindle binary on the live ISO
@@ -85,6 +86,10 @@ class Plugin:
         if not binary or not Path(binary).is_file():
             _log('BINDLE_BIN not set; skipping first-login setup', warning=True)
             return
+
+        # The Wi-Fi joined on the ISO (iwctl) becomes a NetworkManager
+        # connection in the new system, so the first boot is online.
+        _run([binary, 'carry-network', '--root', str(target)], 'saving the Wi-Fi for the new system')
 
         if not _run([binary, 'first-login', 'install', '--root', str(target)], 'installing Bindle for first login'):
             return

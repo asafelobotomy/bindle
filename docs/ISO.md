@@ -38,7 +38,11 @@ install.sh ──► bindle iso ──► pre-install screen ──► archinsta
 4. **Bindle's archinstall plugin** runs at archinstall's `on_install` hook (base system
    installed, target mounted). It copies Bindle into the new system and runs
    `bindle first-login install --root <target>`. It also writes the chosen profile to
-   `/etc/bindle/selection.toml` and a marker to `/etc/bindle/installed-by`. Choosing
+   `/etc/bindle/selection.toml` and a marker to `/etc/bindle/installed-by`. The
+   Wi-Fi you joined on the ISO with `iwctl` is saved into the new system as a
+   NetworkManager connection (`/etc/NetworkManager/system-connections/bindle-<name>.nmconnection`,
+   root-only), so the first boot is online without asking again (`bindle carry-network`;
+   WPA2/WPA3-transition and open networks; enterprise 802.1X ones aren't carried). Choosing
    "Reboot" in archinstall's final menu is fine; the plugin has already run.
    A failure in the plugin never aborts archinstall: it is logged (`[bindle] …`,
    also in `/var/log/archinstall/install.log`) and the install carries on;

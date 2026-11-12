@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- `bindle iso` carries the ISO's Wi-Fi over: the networks you joined with `iwctl` are saved in the new system as NetworkManager connections (root-only keyfiles), so the first boot is online instead of failing at the first pacman step. Open and WPA2/WPA3-transition networks; 802.1X ones aren't carried.
 - The desktop window starts a polkit agent when it opens (polkit-kde, hyprpolkitagent, lxqt, polkit-gnome or mate, whichever is installed). archinstall's Hyprland installs one but never starts it, so on the first login Apply couldn't ask for the password and sent you to a terminal. On desktops that run their own agent the extra one fails to register and exits.
 - New module `scdr-devbox`: scx_devbox, scdr's own sched_ext scheduler for development with LLM agent apps (the focused window and short tool calls first, builds wait; scdr hands it the focused app). From the AUR's `scx-devbox`, split from `scdr` from its next release. Conflicts with `scdr-sched-ext` and `scx-schedulers`, so only one thing starts a scheduler.
 
