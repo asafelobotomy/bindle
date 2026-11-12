@@ -24,7 +24,7 @@ use crate::archinstall_version::{archinstall_version, version_note};
 use crate::firstlogin;
 use crate::{selection, tui};
 
-const PLUGIN: &str = include_str!("../../../packaging/archinstall/bindle_plugin.py");
+pub(crate) const PLUGIN: &str = include_str!("../../../packaging/archinstall/bindle_plugin.py");
 
 pub struct IsoOpts {
     pub desktop: Option<String>,
@@ -41,7 +41,7 @@ pub struct IsoOpts {
     pub workdir: Option<PathBuf>,
 }
 
-fn online() -> bool {
+pub(crate) fn online() -> bool {
     ("archlinux.org", 443)
         .to_socket_addrs()
         .ok()
@@ -71,7 +71,7 @@ fn not_live_iso(run_archiso: bool, cmdline: &str, mounts: &str) -> Option<&'stat
     }
 }
 
-fn is_live_iso() -> Result<()> {
+pub(crate) fn is_live_iso() -> Result<()> {
     let read = |p: &str| fs::read_to_string(p).unwrap_or_default();
     match not_live_iso(Path::new("/run/archiso").is_dir(), &read("/proc/cmdline"), &read("/proc/self/mounts")) {
         None => Ok(()),
@@ -150,7 +150,7 @@ fn validate(catalog: &Catalog, data: &[desktops::Desktop], opts: &IsoOpts) -> Re
 
 /// A fresh private directory for the preset (it can hold a merged config with
 /// disk layout and more): never a predictable, pre-creatable /tmp path.
-fn private_workdir() -> Result<PathBuf> {
+pub(crate) fn private_workdir() -> Result<PathBuf> {
     let base = if is_root() && Path::new("/run").is_dir() { PathBuf::from("/run") } else { std::env::temp_dir() };
     for attempt in 0..16u32 {
         let nonce = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.subsec_nanos());
@@ -299,10 +299,10 @@ pub fn run(catalog: &Catalog, facts: &Facts, opts: IsoOpts) -> Result<()> {
 }
 
 /// What `bindle-gui` needs on the installed system (breeze-icons: its icons).
-const WINDOW_RUNTIME: &[&str] = &["qt6-declarative", "kirigami", "breeze-icons"];
+pub(crate) const WINDOW_RUNTIME: &[&str] = &["qt6-declarative", "kirigami", "breeze-icons"];
 
 /// Append to archinstall's extra `packages`, keeping any from `--config`.
-fn add_packages(preset: &mut Value, pkgs: &[&str]) {
+pub(crate) fn add_packages(preset: &mut Value, pkgs: &[&str]) {
     let list = preset["packages"].as_array().cloned().unwrap_or_default();
     let mut out: Vec<Value> = list;
     for p in pkgs {

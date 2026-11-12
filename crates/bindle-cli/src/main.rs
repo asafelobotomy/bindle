@@ -5,8 +5,10 @@ mod firstlogin;
 mod firstlogin_cmd;
 mod gui;
 mod icons;
+mod install_cmd;
 mod install_target;
 mod iso;
+mod livesys;
 mod notify;
 mod polkit_agent;
 mod print;
@@ -100,6 +102,16 @@ enum Cmd {
     FirstLogin {
         #[command(subcommand)]
         action: FirstLoginCmd,
+    },
+    /// Install Arch from the live ISO in one wizard: network, desktop, disk,
+    /// user; then archinstall runs unattended and Bindle sets up the rest.
+    #[command(visible_alias = "bindleinstall")]
+    Install {
+        /// Write the archinstall config and plugin, print the command, run nothing.
+        #[arg(long)]
+        dry_run: bool,
+        #[arg(long, hide = true)]
+        workdir: Option<PathBuf>,
     },
     /// Install Arch from the live ISO: archinstall with Bindle's presets, and
     /// Bindle opening on first login.
@@ -285,6 +297,9 @@ echo; printf 'Press Enter to close. '; read -r _"#;
             }
             warn_distro(&facts);
             wizard(&catalog, &facts, sandbox).map(drop)
+        }
+        Cmd::Install { dry_run, workdir } => {
+            install_cmd::run(&catalog, &facts, install_cmd::InstallOpts { dry_run, workdir })
         }
         Cmd::Iso {
             desktop,
