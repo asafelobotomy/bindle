@@ -7,9 +7,40 @@ bash <(curl -fsSL https://raw.githubusercontent.com/asafelobotomy/bindle/main/in
 ```
 
 (`curl … | bash` works too; the script reattaches the wizard to the terminal.)
-Wi-Fi first if needed: `iwctl station wlan0 connect "<network>"`.
+Downloading the script needs a connection: plug in a cable, or join Wi-Fi with
+`iwctl station wlan0 connect "<network>"`. The installer saves that Wi-Fi in the
+new system, so you are never asked again.
 
-## What happens
+## `bindle install` (the default)
+
+One wizard, in the same look and keys as the `bindle` wizard on the desktop
+(also callable as `bindleinstall`):
+
+| Step | What you choose |
+|---|---|
+| Network | Connected already, or a Wi-Fi network and its password (`iwctl` underneath). Saved into the new system. |
+| Desktop | Desktop (uQ is recommended) and profile; the right pane shows what this hardware gets: graphics driver, audio, power, Bluetooth, firewall, fonts |
+| Disk | The disk (erased), Btrfs with Snapper snapshots or ext4, optional encryption (LUKS). systemd-boot on UEFI, GRUB on BIOS |
+| You | Computer name, user and password (with sudo), timezone, keyboard, language |
+| Review | Everything above; `m` opens the bindle wizard to change the apps, `i` installs after a y/N confirmation |
+
+Bindle then writes a complete archinstall config and credentials file to a private
+directory and runs the ISO's own archinstall unattended (`--silent`) with Bindle's
+plugin. archinstall partitions, installs the base system, bootloader, desktop and
+user. The plugin carries the Wi-Fi over and sets the new system up before the
+reboot (step 5 below): uQ, its login screen and every app in the profile. The
+credentials file is deleted when archinstall returns. Bindle offers the reboot, and
+the first boot lands on the desktop's login screen.
+
+`bindle install --dry-run` writes the files and prints the archinstall command.
+
+## `bindle iso` (archinstall's own menu)
+
+`install.sh iso` (or any options, as below) runs the older flow: a pre-install
+screen, then archinstall's menu pre-filled with Bindle's preset, for setups the
+wizard doesn't cover (custom partitioning, several disks, other kernels).
+
+### What happens
 
 ```
 install.sh ──► bindle iso ──► pre-install screen ──► archinstall --config <preset> --plugin <bindle>
