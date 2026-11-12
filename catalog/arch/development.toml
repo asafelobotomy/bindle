@@ -11,7 +11,8 @@ description = "Rust via rustup, with the stable toolchain."
 profiles = ["developer"]
 packages = ["rustup"]
 package_conflicts = ["rust", "cargo", "rustfmt"]
-user_commands = [{ argv = ["rustup", "default", "stable"], unless = [{ path = "~/.rustup/settings.toml", contains = 'default_toolchain = "stable' }] }]
+# Before the AUR: Rust packages (scdr, noti-fi, crum-bs) build with this toolchain.
+user_commands = [{ argv = ["rustup", "default", "stable"], before_aur = true, unless = [{ path = "~/.rustup/settings.toml", contains = 'default_toolchain = "stable' }] }]
 
 [[module]]
 id = "python"

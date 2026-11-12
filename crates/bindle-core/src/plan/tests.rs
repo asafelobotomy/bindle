@@ -368,3 +368,14 @@ fn noti_fi_takes_over_once() {
     .unwrap();
     assert!(!takeover(&done));
 }
+
+#[test]
+fn rustup_toolchain_is_set_before_aur_builds() {
+    let sel = Selection { profile: Some("developer".into()), include: vec!["vscode".into()], ..Default::default() };
+    let p = plan(sel, &facts()).unwrap();
+    let at = |f: &dyn Fn(&Step) -> bool| p.steps.iter().position(f).unwrap();
+    let rustup = at(&|s| matches!(s, Step::RunAsUser { argv, .. } if argv == &["rustup", "default", "stable"]));
+    let install = at(&|s| matches!(s, Step::InstallPackages { packages } if packages.contains(&"rustup".into())));
+    let bootstrap = at(&|s| matches!(s, Step::BootstrapAurHelper { .. }));
+    assert!(install < rustup && rustup < bootstrap, "{:?}", p.steps);
+}
