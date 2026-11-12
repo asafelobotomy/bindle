@@ -51,6 +51,7 @@ Scenario switches (env vars for `run.sh`):
 | Switch | Phase | Effect |
 |---|---|---|
 | `KEEP_WELCOME=1` | install | `bindle iso --keep-welcome` |
+| `SETUP_TARGET=1` | install | set the profile up inside the new system before the reboot (what users get); without it the test passes `--setup-at-first-login` to keep checking the first-login wizard |
 | `CLOSE_WELCOME=1` | boot | Alt+F4 via the QEMU monitor after the third screenshot |
 | `SECOND_LOGIN=1` | boot | pre-sets `first-login-seen` for the test user, so login shows the reminder notification |
 | `WITH="uq scdr crumbs noti-fi"` | boot | adds those modules to the check's `plan` and `apply` (`--with`); needs an install made with this switch's support |

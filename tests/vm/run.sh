@@ -9,6 +9,8 @@
 #   tests/vm/run.sh [install|boot|all]     (default: all)
 # Env: ISO, DESKTOP (gnome), PROFILE (desktop), MEM_INSTALL (2048), MEM_BOOT (2560), CPUS (2)
 #      KEEP_WELCOME=1   install with the desktops' welcome apps left on (bindle iso --keep-welcome)
+#      SETUP_TARGET=1   apply the profile in the new system before the reboot (the default
+#                       for users; the first-boot checks then find setup already done)
 #      CLOSE_WELCOME=1  boot: press Alt+F4 after the third screenshot (closes a welcome app)
 #      SECOND_LOGIN=1   boot: pre-mark the wizard as seen, so login shows the reminder notification
 #      WITH="m1 m2"     boot: add these modules to plan and apply (bindle apply --with)
@@ -102,7 +104,7 @@ install_phase() {
     "${qemu_base[@]}" -m "$MEM_INSTALL" -drive "file=$ISO,format=raw,if=virtio,readonly=on" \
         -kernel "$WORK/iso/arch/boot/x86_64/vmlinuz-linux" \
         -initrd "$WORK/iso/arch/boot/x86_64/initramfs-linux.img" \
-        -append "$opts copytoram=n console=tty0 console=ttyS0,115200 script=http://10.0.2.2:$PORT/guest-install.sh bindle_desktop=$DESKTOP bindle_profile=$PROFILE bindle_keep_welcome=${KEEP_WELCOME:-0}" \
+        -append "$opts copytoram=n console=tty0 console=ttyS0,115200 script=http://10.0.2.2:$PORT/guest-install.sh bindle_desktop=$DESKTOP bindle_profile=$PROFILE bindle_keep_welcome=${KEEP_WELCOME:-0} bindle_setup_target=${SETUP_TARGET:-0}" \
         -serial "file:$WORK/install-serial.log" -display none -no-reboot &
     local qemu=$!
     if ! wait_for "$WORK/install-serial.log" "BINDLE-VM: INSTALL \(OK\|FAILED\)" 5400 "$qemu"; then
