@@ -173,13 +173,16 @@ packages = ["linux-zen", "linux-zen-headers"]
 [[module]]
 id = "makepkg-parallel"
 name = "Parallel builds (makepkg)"
-description = "Builds AUR packages on every CPU core."
+description = "Builds AUR packages on half the CPU cores, so a big build (Rust, C++) can't run the machine out of memory."
 default = true
 [[module.files]]
 path = "/etc/makepkg.conf.d/zz-bindle.conf"
 content = '''
 # Managed by Bindle
-MAKEFLAGS="-j$(nproc)"
+# Half the cores: every core at once can exhaust memory on a big Rust or C++
+# build, and earlyoom then kills it (or the machine stalls).
+MAKEFLAGS="-j$(( ($(nproc) + 1) / 2 ))"
+export CARGO_BUILD_JOBS=$(( ($(nproc) + 1) / 2 ))
 '''
 
 [[module]]

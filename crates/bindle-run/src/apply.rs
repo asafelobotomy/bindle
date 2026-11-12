@@ -65,6 +65,21 @@ pub struct Report {
 /// nothing has changed; a failed step is reported in [`Report::failed`].
 pub fn run(plan: &Plan, facts: &Facts, opts: &Options, progress: &mut dyn Progress) -> Result<Report> {
     let fake = opts.sandbox.is_some();
+    let downloads = plan.steps.iter().any(|s| {
+        matches!(
+            s,
+            Step::InstallPackages { .. }
+                | Step::BootstrapAurHelper { .. }
+                | Step::InstallAur { .. }
+                | Step::InstallReleases { .. }
+        )
+    });
+    if downloads
+        && !fake
+        && let Some((what, todo)) = crate::net::problem()
+    {
+        return Err(anyhow!("{what} {todo} Then run Bindle again; nothing was changed."));
+    }
     let log = format!("/var/log/bindle/apply-{}.log", sys::now_id());
     let wants_root = plan.steps.iter().any(|s| {
         s.privileged()
