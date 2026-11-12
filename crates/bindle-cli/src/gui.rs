@@ -37,6 +37,9 @@ fn usable(gui: &Path, display: bool, kirigami: &Path) -> bool {
 
 /// Run the window and wait for it.
 pub fn run(gui: &Path, first_login: bool) -> Ended {
+    // Bare compositors (archinstall's Hyprland) run no polkit agent, so the
+    // window couldn't ask for the password on apply.
+    crate::polkit_agent::ensure();
     let mut cmd = Command::new(gui);
     if first_login {
         cmd.arg("--first-login");
