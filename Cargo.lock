@@ -2076,7 +2076,7 @@ dependencies = [
  "bitflags 2.13.2",
  "parking_lot",
  "rustix",
- "signal-hook",
+ "signal-hook 0.3.18",
  "windows-sys",
 ]
 

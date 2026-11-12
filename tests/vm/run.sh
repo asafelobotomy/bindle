@@ -107,6 +107,7 @@ install_phase() {
         -append "$opts copytoram=n console=tty0 console=ttyS0,115200 script=http://10.0.2.2:$PORT/guest-install.sh bindle_desktop=$DESKTOP bindle_profile=$PROFILE bindle_keep_welcome=${KEEP_WELCOME:-0} bindle_setup_target=${SETUP_TARGET:-0}" \
         -serial "file:$WORK/install-serial.log" -display none -no-reboot &
     local qemu=$!
+    PIDS+=("$qemu")
     if ! wait_for "$WORK/install-serial.log" "BINDLE-VM: INSTALL \(OK\|FAILED\)" 5400 "$qemu"; then
         kill "$qemu" 2>/dev/null || true
         die "install did not finish (see install-serial.log)"
@@ -175,6 +176,7 @@ boot_phase() {
     "${qemu_base[@]}" -m "$MEM_BOOT" -vga std -display none \
         -serial "file:$WORK/boot-serial.log" &
     local qemu=$!
+    PIDS+=("$qemu")
     if ! wait_for "$WORK/boot-serial.log" "BINDLE-VM: CHECK \(DONE\|FAILED\)" 3600 "$qemu"; then
         shot timeout
         kill "$qemu" 2>/dev/null || true

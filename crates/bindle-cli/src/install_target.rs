@@ -21,7 +21,9 @@ use crate::firstlogin;
 /// Selection written by the plugin from the choices made before install.
 pub const SELECTION: &str = "/etc/bindle/selection.toml";
 /// Grants the install user passwordless sudo while the apply runs.
-const SUDOERS: &str = "/etc/sudoers.d/00-bindle-install";
+/// sudo reads the drop-ins in name order and the last match wins, so this
+/// must sort after archinstall's `00_<user>` (which asks for a password).
+const SUDOERS: &str = "/etc/sudoers.d/zz-bindle-install";
 /// User steps left for first login, under the user's state directory.
 pub const PENDING: &str = "finish-at-login.jsonl";
 
@@ -173,6 +175,15 @@ mod tests {
         assert!(pick_user(PASSWD, Some("root")).is_none());
         assert!(pick_user(PASSWD, Some("missing")).is_none());
         assert!(pick_user("root:x:0:0::/root:/bin/bash\n", None).is_none());
+    }
+
+    #[test]
+    fn grant_sorts_after_archinstalls_sudoers() {
+        // archinstall writes `00_<user>`; sudo's last matching rule wins.
+        let ours = SUDOERS.rsplit('/').next().unwrap();
+        let mut names = [ours, "00_solon", "00_zz", "_tester", "wheel"];
+        names.sort_unstable();
+        assert_eq!(names.last(), Some(&ours));
     }
 
     #[test]

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Setting up the new system before the reboot (`bindle install`, `bindle iso`) no longer stops at the first sudo prompt. archinstall's own `/etc/sudoers.d/00_<user>` rule asks for a password and sorted after Bindle's temporary grant, so it won; the grant is now `zz-bindle-install`.
 - The uQ desktop also installs KWrite (`kate`), the screenshot tools uQ binds to Print (`grim`, `satty`, `slurp`, `wl-clipboard`) and `gnome-keyring`, which uQ's login screen now unlocks with your password.
 - The uQ module runs `uqctl setup --apps`, so GTK, Qt (qt6ct and Kvantum) and the terminals follow uQ's theme from the first login. Before, uQ's own Settings and every Qt app stayed in the default light style under a dark uQ theme. Existing files are never overwritten; the step re-runs until `qt6ct.conf` loads uQ's colours, so installs from earlier releases pick it up at the next apply.
 - PipeWire audio installs `rtkit`, so PipeWire and WirePlumber get realtime audio threads instead of logging "RTKit error: ServiceUnknown" at every login.
