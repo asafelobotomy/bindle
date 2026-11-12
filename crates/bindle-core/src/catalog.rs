@@ -144,6 +144,10 @@ pub struct Command {
     /// something": the apply goes on and the message is shown at the end.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub manual: BTreeMap<String, String>,
+    /// Run before the AUR builds (a user command they need, such as
+    /// `rustup default stable`), not after everything else.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub before_aur: bool,
 }
 
 #[derive(Deserialize)]
@@ -163,13 +167,19 @@ struct FullCommand {
     unless: Vec<FileCheck>,
     #[serde(default)]
     manual: BTreeMap<String, String>,
+    #[serde(default)]
+    before_aur: bool,
 }
 
 impl From<CommandRepr> for Command {
     fn from(r: CommandRepr) -> Self {
         match r {
-            CommandRepr::Argv(argv) => Command { argv, when: vec![], unless: vec![], manual: BTreeMap::new() },
-            CommandRepr::Full(FullCommand { argv, when, unless, manual }) => Command { argv, when, unless, manual },
+            CommandRepr::Argv(argv) => {
+                Command { argv, when: vec![], unless: vec![], manual: BTreeMap::new(), before_aur: false }
+            }
+            CommandRepr::Full(FullCommand { argv, when, unless, manual, before_aur }) => {
+                Command { argv, when, unless, manual, before_aur }
+            }
         }
     }
 }
