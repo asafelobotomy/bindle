@@ -23,6 +23,7 @@ use anyhow::{Result, bail};
 use bindle_core::{Catalog, Facts, Selection, plan};
 use bindle_run::selection;
 use clap::{Args, Parser, Subcommand};
+use firstlogin_cmd::FirstLoginCmd;
 
 #[derive(Parser)]
 #[command(name = "bindle", version, about = "Pack your fresh Linux install for the road.")]
@@ -162,61 +163,6 @@ enum Cmd {
         root: PathBuf,
         #[arg(long)]
         fake_commands: bool,
-    },
-}
-
-#[derive(Subcommand)]
-enum FirstLoginCmd {
-    /// Install bindle system-wide with autostart (root). `--root /mnt` from the live ISO.
-    Install {
-        #[arg(long, default_value = "/")]
-        root: PathBuf,
-        /// Skip the console-login hook (/etc/profile.d).
-        #[arg(long)]
-        no_tty_hook: bool,
-    },
-    /// Remove the autostart entries (root); `--purge` also removes the binary.
-    Remove {
-        #[arg(long, default_value = "/")]
-        root: PathBuf,
-        /// Also remove the binary, launcher and icon.
-        #[arg(long)]
-        purge: bool,
-    },
-    /// Show what is installed and whether this user has seen the wizard.
-    Status {
-        #[arg(long, default_value = "/")]
-        root: PathBuf,
-    },
-    /// Run the first-login wizard (used by the autostart entry).
-    Run {
-        #[arg(long, hide = true)]
-        in_terminal: bool,
-        /// Launch-lock token to release (passed from the launching process).
-        #[arg(long, hide = true)]
-        lock: Option<String>,
-    },
-    /// Turn off desktop welcome apps (GNOME tour, KDE Welcome Center, Hyprland
-    /// welcome) so Bindle is the first-login welcome. As root: system-wide (and
-    /// users' homes with --root, used by `bindle iso`); as a user: your own
-    /// Hyprland config.
-    QuietWelcome {
-        #[arg(long, default_value = "/")]
-        root: PathBuf,
-    },
-    /// Stop first-login reminders for this user.
-    Dismiss,
-    /// Wait for a graphical session, then open the wizard (systemd user service).
-    #[command(hide = true)]
-    Watch,
-    /// Print a custom_commands snippet for an archinstall config file.
-    Snippet {
-        /// Download URL of the bindle binary.
-        #[arg(long)]
-        url: String,
-        /// Expected SHA-256 of the binary; the command verifies it before running.
-        #[arg(long, value_name = "HEX")]
-        sha256: Option<String>,
     },
 }
 
