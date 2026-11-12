@@ -55,7 +55,8 @@ fn partition(id: &str, fs: &str, start: u64, size: u64, mount: Option<&str>) -> 
 /// Whole-disk layout: a 1 GiB EFI/boot partition and root on the rest.
 pub fn disk_config(a: &Answers) -> Value {
     let mut esp = partition(ESP_ID, "fat32", 1, ESP_MIB, Some("/boot"));
-    esp["flags"] = json!(["boot", "esp"]);
+    // archinstall partitions GPT on UEFI and MBR on BIOS, where `esp` doesn't exist.
+    esp["flags"] = if a.uefi { json!(["boot", "esp"]) } else { json!(["boot"]) };
     // Leave 1 MiB at the end for the backup GPT.
     let root_size = (a.disk_bytes / MIB).saturating_sub(1 + ESP_MIB + 1);
     let mut root = match a.filesystem {
@@ -168,6 +169,8 @@ mod tests {
         assert_eq!(parts[1]["size"]["value"], 512 * 1024 - 1026);
         assert_eq!(d["btrfs_options"]["snapshot_config"]["type"], "Snapper");
         assert!(d.get("disk_encryption").is_none());
+        let bios = disk_config(&Answers { uefi: false, ..answers() });
+        assert_eq!(bios.pointer("/device_modifications/0/partitions/0/flags").unwrap(), &json!(["boot"]));
     }
 
     #[test]
