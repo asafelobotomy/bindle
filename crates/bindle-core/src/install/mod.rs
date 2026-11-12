@@ -4,6 +4,7 @@
 mod archinstall_log;
 mod pacman_log;
 pub mod preset;
+pub mod target;
 
 use std::collections::BTreeMap;
 use std::fs;

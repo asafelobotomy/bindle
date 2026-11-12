@@ -51,6 +51,9 @@ UNIT
 }
 desktop=$(arg bindle_desktop); profile=$(arg bindle_profile)
 extra=(); [[ "$(arg bindle_keep_welcome)" == 1 ]] && extra+=(--keep-welcome)
+# The checks below look at the first-login wizard; bindle_setup_target=1 tests
+# setting the profile up before the reboot instead.
+[[ "$(arg bindle_setup_target)" == 1 ]] || extra+=(--setup-at-first-login)
 echo "BINDLE-VM: guest start desktop=$desktop profile=$profile archinstall=$(archinstall --version 2>/dev/null)"
 cd /tmp || exit 1
 for f in archinstall-test.json creds-test.json firstboot-check.sh bindle-vm-check.service bindle-vm-diag.service; do

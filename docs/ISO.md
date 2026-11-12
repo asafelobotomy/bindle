@@ -7,9 +7,40 @@ bash <(curl -fsSL https://raw.githubusercontent.com/asafelobotomy/bindle/main/in
 ```
 
 (`curl … | bash` works too; the script reattaches the wizard to the terminal.)
-Wi-Fi first if needed: `iwctl station wlan0 connect "<network>"`.
+Downloading the script needs a connection: plug in a cable, or join Wi-Fi with
+`iwctl station wlan0 connect "<network>"`. The installer saves that Wi-Fi in the
+new system, so you are never asked again.
 
-## What happens
+## `bindle install` (the default)
+
+One wizard, in the same look and keys as the `bindle` wizard on the desktop
+(also callable as `bindleinstall`):
+
+| Step | What you choose |
+|---|---|
+| Network | Connected already, or a Wi-Fi network and its password (`iwctl` underneath). Saved into the new system. |
+| Desktop | Desktop (uQ is recommended) and profile; the right pane shows what this hardware gets: graphics driver, audio, power, Bluetooth, firewall, fonts |
+| Disk | The disk (erased), Btrfs with Snapper snapshots or ext4, optional encryption (LUKS). systemd-boot on UEFI, GRUB on BIOS |
+| You | Computer name, user and password (with sudo), timezone, keyboard, language |
+| Review | Everything above; `m` opens the bindle wizard to change the apps, `i` installs after a y/N confirmation |
+
+Bindle then writes a complete archinstall config and credentials file to a private
+directory and runs the ISO's own archinstall unattended (`--silent`) with Bindle's
+plugin. archinstall partitions, installs the base system, bootloader, desktop and
+user. The plugin carries the Wi-Fi over and sets the new system up before the
+reboot (step 5 below): uQ, its login screen and every app in the profile. The
+credentials file is deleted when archinstall returns. Bindle offers the reboot, and
+the first boot lands on the desktop's login screen.
+
+`bindle install --dry-run` writes the files and prints the archinstall command.
+
+## `bindle iso` (archinstall's own menu)
+
+`install.sh iso` (or any options, as below) runs the older flow: a pre-install
+screen, then archinstall's menu pre-filled with Bindle's preset, for setups the
+wizard doesn't cover (custom partitioning, several disks, other kernels).
+
+### What happens
 
 ```
 install.sh ──► bindle iso ──► pre-install screen ──► archinstall --config <preset> --plugin <bindle>
@@ -38,16 +69,34 @@ install.sh ──► bindle iso ──► pre-install screen ──► archinsta
 4. **Bindle's archinstall plugin** runs at archinstall's `on_install` hook (base system
    installed, target mounted). It copies Bindle into the new system and runs
    `bindle first-login install --root <target>`. It also writes the chosen profile to
-   `/etc/bindle/selection.toml` and a marker to `/etc/bindle/installed-by`. Choosing
+   `/etc/bindle/selection.toml` and a marker to `/etc/bindle/installed-by`. The
+   Wi-Fi you joined on the ISO with `iwctl` is saved into the new system as a
+   NetworkManager connection (`/etc/NetworkManager/system-connections/bindle-<name>.nmconnection`,
+   root-only), so the first boot is online without asking again (`bindle carry-network`;
+   WPA2/WPA3-transition and open networks; enterprise 802.1X ones aren't carried). Choosing
    "Reboot" in archinstall's final menu is fine; the plugin has already run.
    A failure in the plugin never aborts archinstall: it is logged (`[bindle] …`,
    also in `/var/log/archinstall/install.log`) and the install carries on;
    `bindle iso` then reports that Bindle wasn't set up and prints the command
    to finish it (`bindle first-login install --root /mnt`).
-5. The plugin also turns off the desktops' welcome apps (GNOME tour, KDE Welcome
+5. **Setting up the new system before the reboot.** At archinstall's last hook
+   (users and the desktop exist), the plugin runs `bindle install-target --root <target>`.
+   It runs `bindle apply --yes --from /etc/bindle/selection.toml` inside the new system
+   (`arch-chroot`, as its first regular user, or `BINDLE_USER`), while the ISO still has
+   the network: packages, config files, services, the AUR helper and AUR packages (uQ
+   and its apps). sudo needs no password for that user while it runs (a drop-in in
+   `/etc/sudoers.d/` that is removed afterwards, also on failure). Services are
+   enabled, not started. User commands that fail there because they need a running
+   session (such as `systemctl --user` or noti-fi's takeover) are saved to
+   `~/.local/state/bindle/finish-at-login.jsonl` and run once at first login,
+   without a window. If everything worked, setup is marked finished and the first
+   login lands straight in the desktop; if a step failed, the install still completes
+   and Bindle opens at first login to finish, as before. `--setup-at-first-login`
+   skips this step and leaves everything to the first-login wizard.
+6. The plugin also turns off the desktops' welcome apps (GNOME tour, KDE Welcome
    Center, Hyprland welcome), so Bindle is the welcome. `--keep-welcome` opts out;
    see [ARCHINSTALL.md](ARCHINSTALL.md#welcome-apps).
-6. **First login**: Bindle opens (desktop autostart or console hook), shows what
+7. **First login**: the saved session steps run; Bindle opens only if setup isn't finished (desktop autostart or console hook), shows what
    was installed, and starts on the chosen profile, with archinstall's work marked ✓.
 
 ## Bindle's archinstall preset
@@ -94,6 +143,7 @@ bindle iso --desktop plasma --profile gaming      # pre-select on the screen
 bindle iso --desktop gnome --profile desktop --yes # skip the screen
 bindle iso --dry-run                               # write preset/plugin, print the command
 bindle iso --keep-welcome                          # keep GNOME/KDE/Hyprland welcome apps
+bindle iso --setup-at-first-login                  # apply the profile at first login, not before the reboot
 bindle iso --config my.json                        # merge your archinstall config over the preset
 bindle iso --workdir /root/bindle                  # write preset, plugin and selection here
 bindle iso --silent --config my.json --creds creds.json --profile desktop --yes  # unattended

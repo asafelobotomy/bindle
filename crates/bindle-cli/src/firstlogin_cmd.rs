@@ -6,9 +6,65 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
 use bindle_core::{Catalog, Facts};
+use clap::Subcommand;
 
 use crate::apply::{self, sys::is_root};
-use crate::{FirstLoginCmd, firstlogin, gui, notify, session, terminal, uq_handoff, welcome};
+use crate::{firstlogin, gui, notify, session, terminal, uq_handoff, welcome};
+
+#[derive(Subcommand)]
+pub enum FirstLoginCmd {
+    /// Install bindle system-wide with autostart (root). `--root /mnt` from the live ISO.
+    Install {
+        #[arg(long, default_value = "/")]
+        root: PathBuf,
+        /// Skip the console-login hook (/etc/profile.d).
+        #[arg(long)]
+        no_tty_hook: bool,
+    },
+    /// Remove the autostart entries (root); `--purge` also removes the binary.
+    Remove {
+        #[arg(long, default_value = "/")]
+        root: PathBuf,
+        /// Also remove the binary, launcher and icon.
+        #[arg(long)]
+        purge: bool,
+    },
+    /// Show what is installed and whether this user has seen the wizard.
+    Status {
+        #[arg(long, default_value = "/")]
+        root: PathBuf,
+    },
+    /// Run the first-login wizard (used by the autostart entry).
+    Run {
+        #[arg(long, hide = true)]
+        in_terminal: bool,
+        /// Launch-lock token to release (passed from the launching process).
+        #[arg(long, hide = true)]
+        lock: Option<String>,
+    },
+    /// Turn off desktop welcome apps (GNOME tour, KDE Welcome Center, Hyprland
+    /// welcome) so Bindle is the first-login welcome. As root: system-wide (and
+    /// users' homes with --root, used by `bindle iso`); as a user: your own
+    /// Hyprland config.
+    QuietWelcome {
+        #[arg(long, default_value = "/")]
+        root: PathBuf,
+    },
+    /// Stop first-login reminders for this user.
+    Dismiss,
+    /// Wait for a graphical session, then open the wizard (systemd user service).
+    #[command(hide = true)]
+    Watch,
+    /// Print a custom_commands snippet for an archinstall config file.
+    Snippet {
+        /// Download URL of the bindle binary.
+        #[arg(long)]
+        url: String,
+        /// Expected SHA-256 of the binary; the command verifies it before running.
+        #[arg(long, value_name = "HEX")]
+        sha256: Option<String>,
+    },
+}
 
 /// Every subcommand except `run` (which needs hardware detection).
 pub fn dispatch(action: FirstLoginCmd) -> Result<()> {
@@ -58,6 +114,10 @@ pub fn run(catalog: &Catalog, facts: &Facts, in_terminal: bool, lock: Option<Str
     // process. Take it over before anything can return, so that every way out
     // finishes it: a return, an error, or the window closing (SIGHUP).
     let inherited = if in_terminal { hold_handoff() } else { None };
+    if !in_terminal && session::regular_user_session() {
+        // Steps the install from the ISO left for a running session.
+        crate::install_target::finish_pending();
+    }
     if firstlogin::is_done() || !session::regular_user_session() {
         return Ok(());
     }
@@ -136,17 +196,60 @@ pub fn run(catalog: &Catalog, facts: &Facts, in_terminal: bool, lock: Option<Str
     // Held (taken over from the launcher above, or begun here) while the
     // wizard runs; dropped at the end of this function, opening uQ's Welcome.
     let _handoff = inherited.or_else(hold_handoff);
-    let result = wizard_once(catalog, facts);
-    if in_terminal {
-        // The window closes with this process: show any error and wait.
-        if let Err(e) = &result {
-            eprintln!("\nBindle stopped with an error: {e:#}");
-            eprintln!("It will open again at your next login; or run `bindle` any time.");
+    let mut result = wizard_once(catalog, facts);
+    // The window closes with this process, and a fresh desktop may have no
+    // other way to open a terminal: offer a retry and a shell right here.
+    while in_terminal && let Err(e) = &result {
+        eprintln!("\nBindle stopped with an error: {e:#}");
+        match after_error() {
+            AfterError::Retry => result = wizard_once(catalog, facts),
+            AfterError::Close => {
+                eprintln!("It will open again at your next login; or run `bindle` any time.");
+                break;
+            }
         }
+    }
+    if in_terminal {
         session::release_launch(lock.as_deref());
-        apply::confirm("Press Enter to close.", true);
+        if result.is_ok() {
+            apply::confirm("Press Enter to close.", true);
+        }
     }
     result
+}
+
+enum AfterError {
+    Retry,
+    Close,
+}
+
+/// Ask what to do after a failed run: try again (finished steps are
+/// skipped), open a shell to fix the cause (e.g. join Wi-Fi), or close.
+fn after_error() -> AfterError {
+    use std::io::{BufRead, Write};
+    loop {
+        eprintln!("\nEnter: try again (finished steps are skipped)");
+        eprintln!(
+            "s:     open a shell here to fix it, e.g. `nmcli device wifi connect <name> --ask`; `exit` comes back"
+        );
+        eprint!("q:     close  > ");
+        let _ = std::io::stderr().flush();
+        let mut answer = String::new();
+        if std::io::stdin().lock().read_line(&mut answer).unwrap_or(0) == 0 {
+            return AfterError::Close;
+        }
+        match answer.trim().to_lowercase().as_str() {
+            "" | "r" | "y" => return AfterError::Retry,
+            "q" | "n" => return AfterError::Close,
+            "s" => {
+                let shell = std::env::var("SHELL").ok().filter(|s| !s.is_empty()).unwrap_or_else(|| "/bin/bash".into());
+                if let Err(e) = std::process::Command::new(&shell).status() {
+                    eprintln!("couldn't start {shell}: {e}");
+                }
+            }
+            _ => {}
+        }
+    }
 }
 
 /// Hold uQ's Welcome back while the wizard runs in this terminal, until this

@@ -111,7 +111,12 @@ pub fn run(
         return r.state;
     };
     // The review screen was the confirmation: AUR helpers run unattended.
-    let opts = Options { yes: true, sandbox: sandbox.clone(), launch: Launch { exe: Some(exe), graphical: true } };
+    let opts = Options {
+        yes: true,
+        sandbox: sandbox.clone(),
+        launch: Launch { exe: Some(exe), graphical: true },
+        ..Default::default()
+    };
     match bindle_run::apply::run(plan, facts, &opts, &mut r) {
         Err(e) => {
             r.state.state = "error".into();

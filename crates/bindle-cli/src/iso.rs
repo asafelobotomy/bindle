@@ -20,10 +20,11 @@ use bindle_core::{Catalog, Facts, desktops};
 use serde_json::Value;
 
 use crate::apply::sys::{is_root, write_atomic};
+use crate::archinstall_version::{archinstall_version, version_note};
 use crate::firstlogin;
 use crate::{selection, tui};
 
-const PLUGIN: &str = include_str!("../../../packaging/archinstall/bindle_plugin.py");
+pub(crate) const PLUGIN: &str = include_str!("../../../packaging/archinstall/bindle_plugin.py");
 
 pub struct IsoOpts {
     pub desktop: Option<String>,
@@ -34,26 +35,18 @@ pub struct IsoOpts {
     pub creds: Option<PathBuf>,
     pub silent: bool,
     pub keep_welcome: bool,
+    /// Leave the profile for the first-login wizard instead of applying it
+    /// in the new system before reboot.
+    pub setup_at_first_login: bool,
     pub workdir: Option<PathBuf>,
 }
 
-fn online() -> bool {
+pub(crate) fn online() -> bool {
     ("archlinux.org", 443)
         .to_socket_addrs()
         .ok()
         .and_then(|mut a| a.next())
         .is_some_and(|addr| TcpStream::connect_timeout(&addr, Duration::from_secs(5)).is_ok())
-}
-
-fn archinstall_version() -> Option<String> {
-    let out = Command::new("archinstall").arg("--version").output().ok()?;
-    let text = String::from_utf8_lossy(&out.stdout);
-    text.split_whitespace().find(|w| w.chars().next().is_some_and(|c| c.is_ascii_digit())).map(String::from)
-}
-
-fn major_minor(v: &str) -> (u32, u32) {
-    let mut it = v.split('.').map(|p| p.parse().unwrap_or(0));
-    (it.next().unwrap_or(0), it.next().unwrap_or(0))
 }
 
 /// Why this isn't the Arch live ISO, or None if it is: `/run/archiso`
@@ -78,7 +71,7 @@ fn not_live_iso(run_archiso: bool, cmdline: &str, mounts: &str) -> Option<&'stat
     }
 }
 
-fn is_live_iso() -> Result<()> {
+pub(crate) fn is_live_iso() -> Result<()> {
     let read = |p: &str| fs::read_to_string(p).unwrap_or_default();
     match not_live_iso(Path::new("/run/archiso").is_dir(), &read("/proc/cmdline"), &read("/proc/self/mounts")) {
         None => Ok(()),
@@ -114,24 +107,6 @@ fn check_block_devices(devices: &[String], is_block: impl Fn(&Path) -> bool) -> 
 
 fn is_block_device(p: &Path) -> bool {
     fs::metadata(p).is_ok_and(|m| m.file_type().is_block_device())
-}
-
-/// A note when archinstall's major.minor differs from the tested release.
-fn version_note(found: &str, tested: &str) -> Option<String> {
-    let (f, t) = (major_minor(found), major_minor(tested));
-    if f == t {
-        return None;
-    }
-    let (how, why) = if f > t {
-        (
-            "newer",
-            "archinstall may log that the Bindle plugin \"does not support\" it, but the plugin only uses \
-             the long-stable on_install hook",
-        )
-    } else {
-        ("older", "its config schema may not accept every preset value, so check the menu before installing")
-    };
-    Some(format!("Note: archinstall {found} is {how} than {tested}, which Bindle was tested with; {why}."))
 }
 
 fn preflight(dry_run: bool) -> Result<Option<String>> {
@@ -175,7 +150,7 @@ fn validate(catalog: &Catalog, data: &[desktops::Desktop], opts: &IsoOpts) -> Re
 
 /// A fresh private directory for the preset (it can hold a merged config with
 /// disk layout and more): never a predictable, pre-creatable /tmp path.
-fn private_workdir() -> Result<PathBuf> {
+pub(crate) fn private_workdir() -> Result<PathBuf> {
     let base = if is_root() && Path::new("/run").is_dir() { PathBuf::from("/run") } else { std::env::temp_dir() };
     for attempt in 0..16u32 {
         let nonce = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.subsec_nanos());
@@ -262,6 +237,9 @@ pub fn run(catalog: &Catalog, facts: &Facts, opts: IsoOpts) -> Result<()> {
     if opts.keep_welcome {
         cmd.env("BINDLE_KEEP_WELCOME", "1");
     }
+    if !opts.setup_at_first_login {
+        cmd.env("BINDLE_SETUP_TARGET", "1");
+    }
     if let Some(creds) = &opts.creds {
         cmd.arg("--creds").arg(creds);
     }
@@ -304,8 +282,15 @@ pub fn run(catalog: &Catalog, facts: &Facts, opts: IsoOpts) -> Result<()> {
     }
     let installed = |p: &str| crate::apply::sys::host(Path::new("/mnt"), p).exists();
     if installed(firstlogin::BIN) && installed(firstlogin::AUTOSTART) {
-        println!("\nDone. Reboot and remove the install media; Bindle opens when you first log in");
-        println!("with the `{}` profile ready to review.", choice.profile);
+        if opts.setup_at_first_login {
+            println!("\nDone. Reboot and remove the install media; Bindle opens when you first log in");
+            println!("with the `{}` profile ready to review.", choice.profile);
+        } else {
+            println!("\nDone. Reboot and remove the install media. The `{}` profile is installed;", choice.profile);
+            println!(
+                "if a step didn't finish (see the [bindle] lines above), Bindle opens at first login to finish it."
+            );
+        }
     } else {
         println!("\narchinstall finished, but Bindle wasn't set up in the new system (see the [bindle] lines above).");
         println!("If it's still mounted at /mnt: {} first-login install --root /mnt", exe.display());
@@ -314,10 +299,10 @@ pub fn run(catalog: &Catalog, facts: &Facts, opts: IsoOpts) -> Result<()> {
 }
 
 /// What `bindle-gui` needs on the installed system (breeze-icons: its icons).
-const WINDOW_RUNTIME: &[&str] = &["qt6-declarative", "kirigami", "breeze-icons"];
+pub(crate) const WINDOW_RUNTIME: &[&str] = &["qt6-declarative", "kirigami", "breeze-icons"];
 
 /// Append to archinstall's extra `packages`, keeping any from `--config`.
-fn add_packages(preset: &mut Value, pkgs: &[&str]) {
+pub(crate) fn add_packages(preset: &mut Value, pkgs: &[&str]) {
     let list = preset["packages"].as_array().cloned().unwrap_or_default();
     let mut out: Vec<Value> = list;
     for p in pkgs {
@@ -386,15 +371,5 @@ mod tests {
         let err = check_block_devices(&devs, |p| p == Path::new("/dev/vda")).unwrap_err();
         assert!(err.to_string().contains("/dev/vdb"));
         assert!(!is_block_device(Path::new("/proc/cmdline")));
-    }
-
-    #[test]
-    fn version_note_on_any_major_minor_mismatch() {
-        assert_eq!(version_note("4.5", "4.5"), None);
-        assert_eq!(version_note("4.5.2", "4.5"), None);
-        assert!(version_note("4.6", "4.5").unwrap().contains("newer than 4.5"));
-        assert!(version_note("5.0", "4.5").unwrap().contains("newer"));
-        assert!(version_note("4.4.1", "4.5").unwrap().contains("older than 4.5"));
-        assert!(version_note("3.0", "4.5").unwrap().contains("older"));
     }
 }

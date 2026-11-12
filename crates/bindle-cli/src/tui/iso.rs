@@ -68,13 +68,13 @@ pub fn run(
 
 /// Row 0 = "choose in archinstall"; rows 1.. = desktops. The requested
 /// desktop, else Bindle's recommended one, else row 0.
-fn desktop_row(desktops: &[Desktop], wanted: Option<&str>) -> usize {
+pub(crate) fn desktop_row(desktops: &[Desktop], wanted: Option<&str>) -> usize {
     let recommended = || bindle_core::desktops::recommended(desktops).map(|d| d.id.as_str());
     wanted.or_else(recommended).and_then(|id| desktops.iter().position(|d| d.id == id)).map_or(0, |i| i + 1)
 }
 
 /// The requested profile, else `desktop` (the everyday default), else the first.
-fn profile_index(profiles: &[Profile], wanted: Option<&str>) -> usize {
+pub(crate) fn profile_index(profiles: &[Profile], wanted: Option<&str>) -> usize {
     let pos = |id: &str| profiles.iter().position(|p| p.id == id);
     wanted.and_then(pos).or_else(|| pos("desktop")).unwrap_or(0)
 }

@@ -18,6 +18,7 @@ use crate::print;
 mod pick;
 mod wrap;
 
+pub mod install;
 pub mod iso;
 
 #[derive(PartialEq)]

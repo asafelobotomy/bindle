@@ -16,8 +16,8 @@ From the Arch Linux live ISO (online):
 bash <(curl -fsSL https://raw.githubusercontent.com/asafelobotomy/bindle/main/install.sh)
 ```
 
-Pick a desktop and profile, finish archinstall's pre-filled menu, reboot, and
-Bindle greets you on first login. See [docs/ISO.md](docs/ISO.md).
+One wizard asks for the network, desktop, disk and your user; Bindle then installs
+Arch, the desktop and your apps before the first reboot. See [docs/ISO.md](docs/ISO.md).
 
 The AppImage, for an existing install, is on the
 [releases page](https://github.com/asafelobotomy/bindle/releases/latest) as

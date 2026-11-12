@@ -90,6 +90,19 @@ impl HelperClient {
                         bail!("could not get administrator rights via sudo");
                     }
                     Command::new("sudo")
+                } else if on_path("sudo")
+                    && Command::new("sudo")
+                        .args(["-n", "true"])
+                        .stdin(Stdio::null())
+                        .stderr(Stdio::null())
+                        .status()
+                        .is_ok_and(|s| s.success())
+                {
+                    // No terminal, but sudo needs no password (the install
+                    // from the ISO grants that for its run).
+                    let mut c = Command::new("sudo");
+                    c.arg("-n");
+                    c
                 } else if on_path("pkexec")
                     && (env::var_os("DISPLAY").is_some() || env::var_os("WAYLAND_DISPLAY").is_some())
                 {

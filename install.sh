@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
-# Bindle: install Arch Linux from the live ISO with Bindle's presets, then
-# finish setting up on first login.
+# Bindle: install Arch Linux from the live ISO in one wizard (`bindle install`):
+# network, desktop, disk and user, then everything is installed before the
+# first reboot.
 #
 #   bash <(curl -fsSL https://raw.githubusercontent.com/asafelobotomy/bindle/main/install.sh)
 #   curl -fsSL https://raw.githubusercontent.com/asafelobotomy/bindle/main/install.sh | bash
 #
-# Arguments are passed to `bindle iso` (e.g. --desktop plasma --profile gaming).
+# No arguments: `bindle install`. `iso …` (or any options, e.g. --desktop plasma
+# --profile gaming --yes) runs `bindle iso`, which opens archinstall's own menu
+# with Bindle's presets instead; `install …` passes options to `bindle install`.
 # Environment:
 #   BINDLE_VERSION   release tag to fetch, e.g. v0.2.0 (default: latest)
 #   BINDLE_REPO      GitHub owner/repo (default: asafelobotomy/bindle)
@@ -105,13 +108,20 @@ main() {
         fi
     fi
 
+    local cmd=install
+    if [[ $# -gt 0 ]]; then
+        case "$1" in
+            install | iso) cmd=$1; shift ;;
+            *) cmd=iso ;;
+        esac
+    fi
     say "Starting Bindle…"
     trap - EXIT  # the binary runs from $dir
     # When piped (curl … | bash) stdin is this script; the wizard needs the terminal.
     if [[ ! -t 0 ]] && { : </dev/tty; } 2>/dev/null; then
-        exec "$dir/bindle" iso "$@" </dev/tty
+        exec "$dir/bindle" "$cmd" "$@" </dev/tty
     fi
-    exec "$dir/bindle" iso "$@"
+    exec "$dir/bindle" "$cmd" "$@"
 }
 
 # SHA256SUMS must carry a valid signature by exactly SIGNING_FPR, and list

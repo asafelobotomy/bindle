@@ -2,11 +2,11 @@
 //! run it through `bindle_run::apply`, printing its progress.
 
 use std::io::{self, BufRead, IsTerminal, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use anyhow::{Result, bail};
-use bindle_core::{Facts, Plan, Step};
+use bindle_core::{Catalog, Facts, Plan, Selection, Step, plan};
 use bindle_run::apply::{Progress, root_request};
 use bindle_run::client::HelperClient;
 use bindle_run::protocol::Request;
@@ -14,7 +14,7 @@ use bindle_run::protocol::Request;
 pub use bindle_run::apply::Options;
 pub use bindle_run::{helper, snapshot, sys};
 
-use crate::print;
+use crate::{print, selection, tui};
 
 #[derive(Debug, PartialEq)]
 pub enum Outcome {
@@ -186,4 +186,40 @@ pub fn undo(id: Option<String>, list: bool, opts: &Options) -> Result<()> {
 
 fn still_installed(pkg: &str, root: &Path) -> bool {
     root == Path::new("/") && Command::new("pacman").args(["-Q", pkg]).output().is_ok_and(|o| o.status.success())
+}
+
+/// Written into the new system by the archinstall plugin.
+pub const SYSTEM_SELECTION: &str = "/etc/bindle/selection.toml";
+
+pub fn read_current(path: &str) -> Option<String> {
+    std::fs::read_to_string(path).ok()
+}
+
+/// Resolve, apply, and remember the selection on success.
+pub fn apply_selection(catalog: &Catalog, facts: &Facts, sel: &Selection, opts: Options) -> Result<bool> {
+    let current = |p: &str| match &opts.sandbox {
+        Some(root) => std::fs::read_to_string(sys::host(root, p)).ok(),
+        None => read_current(p),
+    };
+    let p = plan::resolve(catalog, facts, sel, &current)?;
+    let outcome = apply(&p, facts, &opts)?;
+    if outcome == Outcome::Applied
+        && opts.sandbox.is_none()
+        && let Some(path) = selection::default_path()
+    {
+        selection::save(sel, &path)?;
+        println!("Selection saved to {} (replay with `bindle apply --from`).", path.display());
+    }
+    Ok(outcome != Outcome::Cancelled)
+}
+
+/// Run the wizard; if the user chose to apply, apply. Returns whether the
+/// user went through with it (applied, or nothing was left to do).
+pub fn wizard(catalog: &Catalog, facts: &Facts, sandbox: Option<PathBuf>) -> Result<bool> {
+    // A profile chosen before install (`bindle iso`) seeds the wizard.
+    let seed = selection::load(std::path::Path::new(SYSTEM_SELECTION)).ok();
+    match tui::run(catalog, facts, seed)? {
+        Some(sel) => apply_selection(catalog, facts, &sel, Options { yes: false, sandbox, ..Default::default() }),
+        None => Ok(false),
+    }
 }
