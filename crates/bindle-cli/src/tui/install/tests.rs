@@ -141,3 +141,38 @@ fn every_step_renders_on_an_80_column_console() {
         }
     }
 }
+
+#[test]
+fn manual_layout_replaces_the_disk_choice() {
+    let (facts, catalog) = (Facts::default(), Catalog::arch().unwrap());
+    let desktops = bindle_core::desktops::all().unwrap();
+    let mut w = Wizard::new(&facts, &catalog, &desktops);
+    w.step = Step::Disk;
+    assert_eq!(w.on_key(KeyCode::Char('p')), Action::Partition);
+    // No disk Bindle could use: with a manual layout the page still moves on.
+    w.on_key(KeyCode::Enter);
+    assert_eq!(w.step, Step::Disk);
+    let saved = r#"{"disk_config":{"config_type":"manual_partitioning","device_modifications":[
+        {"device":"/dev/sdb","wipe":false,"partitions":[{"obj_id":"a"}]}]},"encryption_password":"from-editor"}"#;
+    w.manual = manual::ManualDisk::parse(saved);
+    w.encrypt = true;
+    assert!(!w.encrypting(), "the editor's own encryption applies, not Bindle's");
+    assert!(screen(&mut w, 140, 45).contains("Manual layout"));
+    w.on_key(KeyCode::Char('e'));
+    assert!(w.message.is_some() && w.encrypt, "f and e don't apply to a manual layout");
+    w.on_key(KeyCode::Enter);
+    assert_eq!(w.step, Step::You);
+    for (key, text) in [(Key::Username, "solon"), (Key::Password, "pw"), (Key::Confirm, "pw")] {
+        w.fields.iter_mut().find(|f| f.key == key).unwrap().value = text.into();
+    }
+    w.fields.iter_mut().find(|f| f.key == Key::Timezone).unwrap().value = "UTC".into();
+    if let Ok(a) = w.answers() {
+        // (No zoneinfo on a build machine without tzdata: then answers() stops at the timezone.)
+        assert_eq!(a.disk, "/dev/sdb");
+        assert_eq!(a.encryption.as_deref(), Some("from-editor"));
+        assert_eq!(a.manual_disk.unwrap()["config_type"], "manual_partitioning");
+    }
+    w.step = Step::Disk;
+    w.on_key(KeyCode::Char('x'));
+    assert!(w.manual.is_none());
+}

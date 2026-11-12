@@ -35,7 +35,7 @@
 - Sign releases (minisign) and verify in install.sh
 - ~~Real apply runs in an Arch VM per desktop~~ ✅ all installable desktops ([VM-TEST.md](VM-TEST.md))
 - Turn advisories into optional steps (prune GPU drivers, iwd → NetworkManager)
-- Progress view inside the TUI instead of dropping to the terminal
+- ~~Progress view inside the TUI instead of dropping to the terminal~~ ✅ for `bindle install`; next: the same for `bindle apply` from the desktop wizard's terminal
 - ✅ uQ as the default desktop: recommended since 2026-11-10 (`uq` 0.2.1 on the AUR; the VM `bindle iso` → uQ run with uq, scdr, crumbs and noti-fi passes) ([CATALOG.md](CATALOG.md#recommended-desktop))
 
 ## Phase 2: distribution

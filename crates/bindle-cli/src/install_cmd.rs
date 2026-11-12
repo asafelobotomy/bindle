@@ -8,6 +8,7 @@ use std::fs;
 use std::io::{BufRead, IsTerminal, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::process::ExitStatus;
 
 use anyhow::{Context, Result, bail};
 use bindle_core::install::target;
@@ -16,6 +17,7 @@ use bindle_core::{Catalog, Facts, desktops};
 use crate::apply::sys::{is_root, write_atomic};
 use crate::archinstall_version::{archinstall_version, version_note};
 use crate::iso::{PLUGIN, WINDOW_RUNTIME, add_packages, is_live_iso, private_workdir};
+use crate::tui::install::progress::{self, End};
 use crate::{firstlogin, selection, tui};
 use bindle_core::install::preset::TESTED_ARCHINSTALL;
 
@@ -97,14 +99,47 @@ pub fn run(catalog: &Catalog, facts: &Facts, opts: InstallOpts) -> Result<()> {
     if let Some(note) = version.as_deref().and_then(|v| version_note(v, TESTED_ARCHINSTALL)) {
         println!("{note}");
     }
-    println!("\nInstalling to {}. This takes a while: Arch, then your desktop and apps.\n", out.answers.disk);
-    let status = cmd.status();
+    // One progress screen for the whole install; the plain terminal when the
+    // screen can't be used (no `script` to give archinstall its own terminal).
+    let title = format!("to {}", out.answers.disk);
+    let user = out.answers.username.clone();
+    let shown = progress::run(&cmd, title, Path::new(LOG), |status| outcome(status, &user));
+    let done = match shown {
+        Ok(Some(done)) => done,
+        Ok(None) => {
+            println!("\nInstalling to {}. This takes a while: Arch, then your desktop and apps.\n", out.answers.disk);
+            let status = cmd.status();
+            files.remove(opts.workdir.is_none().then_some(&work));
+            return finish_plain(outcome(status.context("start archinstall")?, &user));
+        }
+        Err(e) => {
+            files.remove(opts.workdir.is_none().then_some(&work));
+            return Err(e);
+        }
+    };
     files.remove(opts.workdir.is_none().then_some(&work));
-    let status = status.context("start archinstall")?;
-    if !status.success() {
-        bail!("archinstall stopped ({status}). Nothing after it ran. Log: /var/log/archinstall/install.log");
+    keep_log();
+    match done.end {
+        End::Failed(why) => {
+            done.tail.iter().for_each(|l| println!("{l}"));
+            bail!("{why}\nEverything it printed: {LOG}");
+        }
+        End::Ready | End::Unfinished(_) if done.restart => restart()?,
+        End::Ready => println!("Your system is ready. Restart when you like: systemctl reboot"),
+        End::Unfinished(why) => println!("{why}\nRestart when you like: systemctl reboot"),
     }
-    finish(&out.answers.username)
+    Ok(())
+}
+
+/// Everything the install printed, on the ISO (in memory, gone at restart).
+const LOG: &str = "/var/log/bindle-install.log";
+
+/// Keep that log in the new system too.
+fn keep_log() {
+    let dir = Path::new("/mnt/var/log");
+    if dir.is_dir() {
+        let _ = fs::copy(LOG, dir.join("bindle-install.log"));
+    }
 }
 
 struct Files {
@@ -130,34 +165,53 @@ fn argv(cmd: &Command) -> Vec<String> {
     std::iter::once(cmd.get_program()).chain(cmd.get_args()).map(|s| s.to_string_lossy().into_owned()).collect()
 }
 
-/// Say how it went (the plugin marks setup finished in the user's home) and
-/// offer the reboot.
-fn finish(user: &str) -> Result<()> {
+/// How it went: archinstall's exit, then what is in the new system (the
+/// plugin marks setup finished in the user's home).
+fn outcome(status: ExitStatus, user: &str) -> End {
     let mnt = Path::new("/mnt");
-    let done = fs::read_to_string(mnt.join("etc/passwd")).ok().and_then(|p| {
-        crate::install_target::pick_user(&p, Some(user))
-            .map(|a| mnt.join(a.home.trim_start_matches('/')).join(".local/state/bindle/first-login-done").exists())
-    });
+    if !status.success() {
+        return End::Failed(format!("archinstall stopped ({status}). Nothing after it ran."));
+    }
+    let Ok(passwd) = fs::read_to_string(mnt.join("etc/passwd")) else {
+        // archinstall refuses some configs (a boot loader the layout can't
+        // take) with a message and a clean exit.
+        return End::Failed("archinstall ended without installing anything; its last lines say why.".into());
+    };
+    let done = crate::install_target::pick_user(&passwd, Some(user))
+        .map(|a| mnt.join(a.home.trim_start_matches('/')).join(".local/state/bindle/first-login-done").exists());
     let installed = mnt.join(firstlogin::BIN.trim_start_matches('/')).exists();
     match (installed, done) {
-        (true, Some(true)) => println!("\nDone. Your system is ready: remove the install media and restart."),
-        (true, _) => println!(
-            "\nArch is installed, but not every setup step finished (see the [bindle] lines above).\n\
-             Bindle opens when you first log in and finishes the rest."
+        (true, Some(true)) => End::Ready,
+        (true, _) => End::Unfinished(
+            "Arch is installed, but not every setup step finished. Bindle opens when you first log in and finishes the rest."
+                .into(),
         ),
-        (false, _) => println!(
-            "\nArch is installed, but Bindle wasn't set up in it (see the [bindle] lines above).\n\
-             While it's still mounted: {} first-login install --root /mnt",
+        (false, _) => End::Unfinished(format!(
+            "Arch is installed, but Bindle wasn't set up in it. Before restarting: {} first-login install --root /mnt",
             firstlogin::BIN
-        ),
+        )),
+    }
+}
+
+fn restart() -> Result<()> {
+    let _ = Command::new("umount").args(["-R", "/mnt"]).status();
+    Command::new("systemctl").arg("reboot").status().context("reboot")?;
+    Ok(())
+}
+
+/// Without the progress screen: say how it went and offer the reboot.
+fn finish_plain(end: End) -> Result<()> {
+    match end {
+        End::Failed(why) => bail!("{why} Log: /var/log/archinstall/install.log"),
+        End::Ready => println!("\nDone. Your system is ready: remove the install media and restart."),
+        End::Unfinished(why) => println!("\n{why}"),
     }
     print!("Restart now? [Y/n] ");
     let _ = std::io::stdout().flush();
     let mut answer = String::new();
     let _ = std::io::stdin().lock().read_line(&mut answer);
     if matches!(answer.trim(), "" | "y" | "Y" | "yes") {
-        let _ = Command::new("umount").args(["-R", "/mnt"]).status();
-        Command::new("systemctl").arg("reboot").status().context("reboot")?;
+        restart()?;
     }
     Ok(())
 }

@@ -21,10 +21,11 @@ One wizard, in the same look and keys as the `bindle` wizard on the desktop
 | Network | Connected already, or a Wi-Fi network and its password (`iwctl` underneath). Saved into the new system. |
 | Desktop | Desktop (uQ is recommended) and profile; the right pane shows what this hardware gets |
 | Hardware | What Bindle recommends for the detected hardware, one row each: graphics driver, kernel (linux, linux-lts, linux-zen), boot loader (systemd-boot on UEFI, GRUB on BIOS; Limine on either), zram swap, power profiles, Bluetooth, audio. ←/→ changes a row, `r` goes back to the recommendation. CPU microcode is shown but set by archinstall |
-| Disk | The disk (erased), Btrfs with Snapper snapshots or ext4, optional encryption (LUKS) |
+| Disk | The disk (erased), Btrfs with Snapper snapshots or ext4, optional encryption (LUKS). `p` is manual partitioning: archinstall's own disk editor for this one step (keep another system, several disks, LVM), then back to the wizard; `x` returns to Bindle's layout |
 | You | Computer name, user and password (with sudo), timezone, keyboard, language |
 | Apps | Every app and setup step the profile and desktop bring, ticked; Space unticks one, `m` opens the bindle wizard to add more |
 | Review | Everything above; `i` installs after a y/N confirmation |
+| Install | One progress screen: the steps (disk, base system, boot loader, users and desktop, your apps and setup) with the latest output beside them, then Enter restarts |
 
 Bindle then writes a complete archinstall config and credentials file to a private
 directory and runs the ISO's own archinstall unattended (`--silent`) with Bindle's
@@ -33,6 +34,20 @@ user. The plugin carries the Wi-Fi over and sets the new system up before the
 reboot (step 5 below): uQ, its login screen and every app in the profile. The
 credentials file is deleted when archinstall returns. Bindle offers the reboot, and
 the first boot lands on the desktop's login screen.
+
+archinstall runs in a pseudo-terminal of its own (`script`, from util-linux) so the
+progress screen can show its output; without `script` it prints straight to the
+terminal as before. Everything it printed is kept in `/var/log/bindle-install.log`
+on the ISO and copied to the same path in the new system. If the install fails,
+the screen stays on the failed step with the last lines, and they are printed
+again after you leave it.
+
+Manual partitioning runs a small helper (`packaging/archinstall/bindle_disk_editor.py`,
+embedded in the binary) with the ISO's Python. It opens archinstall's disk menu and
+saves the layout in archinstall's own `disk_config` format, which the unattended
+install then uses unchanged. Nothing is written to a disk before the confirmation
+on Review. If this archinstall's menu can't be opened, the wizard says so and
+`install.sh iso` remains the way to partition by hand.
 
 `bindle install --dry-run` writes the files and prints the archinstall command.
 

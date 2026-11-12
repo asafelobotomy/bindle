@@ -1,10 +1,11 @@
 //! The Hardware and Apps pages of `bindle install`: what detection
 //! recommends for this machine, each row changeable, and the apps the profile
-//! installs, each one untickable.
+//! installs, each one untickable. Also the Disk page's keys.
 
 use bindle_core::Selection;
 use bindle_core::catalog::Module;
 use bindle_core::install::hardware::Hardware;
+use bindle_core::install::target::Filesystem;
 use ratatui::Frame;
 use ratatui::crossterm::event::KeyCode;
 use ratatui::layout::Rect;
@@ -70,6 +71,20 @@ impl<'a> Wizard<'a> {
             }
             (Step::Apps, KeyCode::Char(' ')) => self.toggle_app(),
             (Step::Apps, KeyCode::Char('m')) => return Some(Action::Apps),
+            (Step::Disk, KeyCode::Char('p')) => return Some(Action::Partition),
+            (Step::Disk, KeyCode::Char('x')) => self.manual = None,
+            (Step::Disk, KeyCode::Up | KeyCode::Down | KeyCode::Char('f' | 'e')) if self.manual.is_some() => {
+                self.message = Some("A manual layout is set: p edits it again, x goes back to Bindle's layout.".into());
+            }
+            (Step::Disk, KeyCode::Up | KeyCode::Down) => {
+                let len = self.disks.len();
+                step(&mut self.disk, key == KeyCode::Down, len);
+            }
+            (Step::Disk, KeyCode::Char('f')) => {
+                self.filesystem =
+                    if self.filesystem == Filesystem::Btrfs { Filesystem::Ext4 } else { Filesystem::Btrfs };
+            }
+            (Step::Disk, KeyCode::Char('e')) => self.encrypt = !self.encrypt,
             _ => return None,
         }
         Some(Action::None)

@@ -67,7 +67,8 @@ impl Wizard<'_> {
         }
         if self.confirm {
             let disk = self.answers().map(|a| a.disk).unwrap_or_default();
-            let ask = format!(" Erase everything on {disk} and install? y to start, any other key to go back");
+            let what = if self.manual.is_some() { "Apply your partitioning to" } else { "Erase everything on" };
+            let ask = format!(" {what} {disk} and install? y to start, any other key to go back");
             f.render_widget(Line::from(ask).bold().fg(Color::Red), msg);
         }
         let keys = match self.step {
@@ -76,7 +77,10 @@ impl Wizard<'_> {
             Step::Desktop => "↑↓ choose · Tab switch list · Enter next · Esc back · q quit",
             Step::Hardware => "↑↓ choose · ←→ change · r recommended again · Enter next · Esc back · q quit",
             Step::Apps => "↑↓ choose · Space tick or untick · m more apps · Enter next · Esc back · q quit",
-            Step::Disk => "↑↓ choose disk · f filesystem · e encryption · Enter next · Esc back · q quit",
+            Step::Disk if self.manual.is_some() => {
+                "p edit the layout again · x Bindle's layout · Enter next · Esc back"
+            }
+            Step::Disk => "↑↓ disk · f filesystem · e encryption · p manual partitioning · Enter next · Esc back",
             Step::You => "↑↓ field · type to edit · Enter next field · Esc back",
             Step::Review => "i install · Esc back · q quit",
         };
@@ -163,11 +167,23 @@ impl Wizard<'_> {
         let hw = self.hardware();
         let boot = hw.rows.iter().find(|r| r.setting == Setting::Bootloader).map_or("", |r| r.choice().label);
         let boot = format!("{boot} ({})", if self.uefi { "UEFI" } else { "BIOS" });
+        if let Some(m) = &self.manual {
+            let mut lines = vec![Line::from("Manual layout, from archinstall's disk editor:").bold()];
+            lines.extend(m.lines().into_iter().map(|l| Line::from(format!("  {l}"))));
+            lines.push(Line::from(format!("   Boot loader  {boot}")));
+            lines.push(Line::from(""));
+            lines.push(Line::from("Nothing is changed on any disk until you confirm on Review.").fg(Color::Yellow));
+            lines.push(Line::from("p opens the editor again; x drops this and uses Bindle's layout.").dim());
+            let block = Block::bordered().title(" Disk ");
+            f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }).block(block), right);
+            return;
+        }
         let mut lines = vec![
             Line::from(format!("f  Filesystem   {fs}")),
             Line::from(format!("e  Encryption   {enc}")),
             Line::from(format!("   Boot loader  {boot}")),
             Line::from("   Layout       1 GiB boot partition, the rest for the system"),
+            Line::from("p  Manual partitioning: keep other systems, several disks, LVM (archinstall's editor)"),
             Line::from(""),
         ];
         if let Some(d) = self.disks.get(self.disk.selected().unwrap_or(0)) {
@@ -209,7 +225,10 @@ impl Wizard<'_> {
             Ok(a) => {
                 let fs = if a.filesystem == Filesystem::Btrfs { "Btrfs + snapshots" } else { "ext4" };
                 let enc = if a.encryption.is_some() { ", encrypted" } else { "" };
-                lines.push(Line::from(format!("Disk         {} (erased) · {fs}{enc}", a.disk)));
+                match &self.manual {
+                    Some(m) => lines.push(Line::from(format!("Disk         manual layout: {}", m.lines().join("; ")))),
+                    None => lines.push(Line::from(format!("Disk         {} (erased) · {fs}{enc}", a.disk))),
+                }
                 lines.push(Line::from(format!("You          {} on {}", a.username, a.hostname)));
                 lines.push(Line::from(format!("Locale       {} · {} keyboard · {}", a.locale, a.keyboard, a.timezone)));
             }

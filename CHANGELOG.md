@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- `bindle install` shows one progress screen for the whole install instead of archinstall's scrolling output: the steps (disk, base system, boot loader, users and desktop, your apps and setup, with "Step 3 of 16" while Bindle sets the system up), the latest lines beside them, and Enter to restart at the end. A failed install stays on the failed step with the last lines. Everything printed is kept in `/var/log/bindle-install.log`, on the ISO and in the new system.
+- `bindle install`: `p` on the Disk page is manual partitioning. It opens archinstall's own disk editor for that one step (keep another system, several disks, LVM, its own encryption) and returns to the wizard with the layout; `x` goes back to Bindle's whole-disk layout.
+- `bindle install` no longer says "Arch is installed" when archinstall refused the configuration and installed nothing.
 - `bindle install` has two more pages. Hardware lists what Bindle recommends for the detected machine (graphics driver, kernel, boot loader, zram swap, power profiles, Bluetooth, audio) and every row can be changed with ←/→; before, the recommendations were only shown and the kernel and boot loader were fixed. Apps lists everything the profile and desktop install, each one untickable with Space (`m` still opens the full bindle wizard, now from this page instead of Review).
 - Setting up the new system before the reboot (`bindle install`, `bindle iso`) no longer stops at the first sudo prompt. archinstall's own `/etc/sudoers.d/00_<user>` rule asks for a password and sorted after Bindle's temporary grant, so it won; the grant is now `zz-bindle-install`.
 - The uQ desktop also installs KWrite (`kate`), the screenshot tools uQ binds to Print (`grim`, `satty`, `slurp`, `wl-clipboard`) and `gnome-keyring`, which uQ's login screen now unlocks with your password.
