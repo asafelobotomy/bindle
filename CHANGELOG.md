@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Pre-Turing NVIDIA GPUs (GTX 10xx and older) no longer get nvidia-open from the live-ISO install, which left the card without a driver: the preset picks nouveau ("All open-source" on hybrid laptops). On a system that already has nvidia-open on such a card, the wizard now says to replace it with nvidia-580xx-dkms instead of keeping it.
 - `bindle install` (also `bindleinstall`, and what `install.sh` now starts): the whole install from the live ISO in one wizard with the bindle wizard's look and keys. Network (Wi-Fi asked once, saved into the new system) → Desktop and profile with the hardware recommendations → Disk (Btrfs with Snapper or ext4, optional encryption) → You → Review (`m` changes the apps in the bindle wizard). archinstall runs unattended underneath; the first boot lands in the finished desktop. `install.sh iso` keeps the archinstall-menu flow.
 - `bindle iso` now sets the new system up before the first reboot: at archinstall's last hook, Bindle applies the chosen profile inside the new system (`arch-chroot`, as its user, while the ISO is online), including the AUR helper and uQ. User commands that need a running session are saved and run once at first login. The first login lands in a finished desktop; Bindle only opens if a step didn't finish. `--setup-at-first-login` keeps the old behaviour.
 - The root helper starts through `sudo -n` without a terminal when sudo needs no password, and enables services without starting them inside a chroot.

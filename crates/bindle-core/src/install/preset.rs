@@ -5,6 +5,7 @@
 use serde_json::{Value, json};
 
 use super::GFX_DRIVERS;
+use crate::builtins::nvidia_open_supported;
 use crate::desktops::{Desktop, by_id};
 use crate::detect::Facts;
 use crate::plan::Selection;
@@ -21,10 +22,14 @@ pub struct IsoChoice {
 }
 
 /// archinstall's graphics-driver choice for the detected GPUs.
-pub fn gfx_driver(gpus: &[String]) -> Option<&'static str> {
-    let has = |v: &str| gpus.iter().any(|g| g == v);
-    let idx = if has("nvidia") {
-        3 // open kernel module; pre-Turing cards need an AUR legacy driver
+pub fn gfx_driver(facts: &Facts) -> Option<&'static str> {
+    let has = |v: &str| facts.gpus.iter().any(|g| g == v);
+    let idx = if has("nvidia") && nvidia_open_supported(facts) {
+        3 // open kernel module: Turing and newer
+    } else if has("nvidia") {
+        // nvidia-open can't drive pre-Turing cards (they need the AUR's
+        // nvidia-580xx-dkms): nouveau, plus the iGPU's drivers on hybrids.
+        if has("amd") || has("intel") { 0 } else { 4 }
     } else if has("amd") && has("intel") {
         0
     } else if has("amd") {
@@ -80,7 +85,7 @@ pub fn archinstall_preset(facts: &Facts, desktops: &[Desktop], choice: &IsoChoic
         if let Some(g) = chosen.greeter.as_ref().or(d.greeter.as_ref()) {
             profile["greeter"] = json!(g);
         }
-        if let Some(gfx) = gfx_driver(&facts.gpus) {
+        if let Some(gfx) = gfx_driver(facts) {
             profile["gfx_driver"] = json!(gfx);
         }
         cfg["profile_config"] = profile;
@@ -283,8 +288,17 @@ mod tests {
 
     #[test]
     fn gfx_mapping() {
-        assert_eq!(gfx_driver(&["intel".into(), "nvidia".into()]), Some(GFX_DRIVERS[3].0));
-        assert_eq!(gfx_driver(&["intel".into(), "amd".into()]), Some("All open-source"));
-        assert_eq!(gfx_driver(&[]), None);
+        let gpus = |g: &[&str], nvidia: &[u16]| Facts {
+            gpus: g.iter().map(|s| s.to_string()).collect(),
+            nvidia_devices: nvidia.to_vec(),
+            ..Default::default()
+        };
+        assert_eq!(gfx_driver(&gpus(&["intel", "nvidia"], &[0x1f08])), Some(GFX_DRIVERS[3].0)); // RTX 2060
+        assert_eq!(gfx_driver(&gpus(&["nvidia"], &[])), Some(GFX_DRIVERS[3].0)); // unknown id: assume current
+        // Pre-Turing (GTX 1060 Mobile): never nvidia-open.
+        assert_eq!(gfx_driver(&gpus(&["intel", "nvidia"], &[0x1c20])), Some("All open-source"));
+        assert_eq!(gfx_driver(&gpus(&["nvidia"], &[0x1c20])), Some(GFX_DRIVERS[4].0));
+        assert_eq!(gfx_driver(&gpus(&["intel", "amd"], &[])), Some("All open-source"));
+        assert_eq!(gfx_driver(&gpus(&[], &[])), None);
     }
 }

@@ -57,7 +57,16 @@ pub(super) fn gpu(ctx: &Ctx) -> Expansion {
             // installed NVIDIA kernel module conflicts, and under --noconfirm
             // that aborts the whole package transaction.
             "nvidia" if existing.is_some() => {
-                e.notes.push(format!("Keeping the installed NVIDIA driver ({}).", existing.unwrap_or_default()));
+                let driver = existing.unwrap_or_default();
+                e.notes.push(if driver.contains("open") && !nvidia_open_supported(f) {
+                    format!(
+                        "The installed NVIDIA driver ({driver}) can't drive this pre-Turing GPU. \
+                         Replace it with nvidia-580xx-dkms and nvidia-580xx-utils from the AUR \
+                         (Kepler: nvidia-470xx-dkms)."
+                    )
+                } else {
+                    format!("Keeping the installed NVIDIA driver ({driver}).")
+                });
             }
             // Derivatives package NVIDIA drivers per kernel and ship their own
             // driver managers; nvidia-open-dkms may be missing or conflict.
@@ -185,6 +194,17 @@ mod tests {
         let e = run(&nvidia(&[0x1f08]), false); // RTX 2060
         assert!(e.packages.contains(&"nvidia-open-dkms".to_string()));
         assert!(run(&nvidia(&[]), false).packages.contains(&"nvidia-open-dkms".to_string()));
+    }
+
+    #[test]
+    fn flags_nvidia_open_on_a_pre_turing_gpu() {
+        let mut f = nvidia(&[0x1c20]); // GTX 1060 Mobile
+        f.installed.insert("nvidia-open-dkms".into());
+        let e = run(&f, false);
+        assert!(!e.packages.iter().any(|p| p.starts_with("nvidia")));
+        assert!(e.notes.iter().any(|n| n.contains("can't drive") && n.contains("nvidia-580xx-dkms")));
+        f.nvidia_devices = vec![0x2684];
+        assert!(run(&f, false).notes.iter().any(|n| n.starts_with("Keeping")));
     }
 
     #[test]
