@@ -1,0 +1,63 @@
+# bindo recipes: Setup (Bindle's wizard and parts of it).
+
+[[recipe]]
+name = "setup"
+category = "Setup"
+description = "Open Bindle's setup wizard again"
+requires = ["bindle"]
+run = 'exec bindle'
+
+[[recipe]]
+name = "add"
+category = "Setup"
+description = "Set up one of Bindle's modules (see `bindle list`)"
+help = "Shows what will change and asks first, like the wizard."
+requires = ["bindle"]
+args = [{ name = "module", help = "A module id from `bindle list`, e.g. printing or steam." }]
+run = 'exec bindle apply --with "$1"'
+
+[[recipe]]
+name = "printer"
+category = "Setup"
+description = "Set up printing: CUPS, network printer discovery, drivers"
+help = "Bindle's printing module. Then add the printer in your desktop's settings."
+requires = ["bindle"]
+run = 'exec bindle apply --with printing'
+
+[[recipe]]
+name = "undo"
+category = "Setup"
+description = "Put back the files Bindle's last setup changed"
+requires = ["bindle"]
+run = 'exec bindle undo'
+
+[[recipe]]
+name = "completions"
+category = "Setup"
+description = "Turn on tab completion of recipe names for your shell"
+args = [{ name = "shell", choices = ["bash", "zsh", "fish"] }]
+run = '''
+data="${XDG_DATA_HOME:-$HOME/.local/share}"
+case "$1" in
+    bash) dir="$data/bash-completion/completions"; file="$dir/bindo" ;;
+    zsh) dir="$data/zsh/site-functions"; file="$dir/_bindo" ;;
+    fish) dir="${XDG_CONFIG_HOME:-$HOME/.config}/fish/completions"; file="$dir/bindo.fish" ;;
+esac
+mkdir -p -- "$dir"
+bindo --completions "$1" > "$file"
+echo "Wrote $file; open a new shell to use it."
+if [ "$1" = zsh ]; then
+    echo "zsh: add $dir to fpath in ~/.zshrc, before compinit."
+fi
+'''
+
+[[recipe]]
+name = "whats-new"
+category = "Setup"
+description = "Review what a newer Bindle adds or changes, and apply what you pick"
+help = """
+New features for this computer, modules Bindle now sets up differently (with
+the exact changes), and ones it retired. Nothing changes until you confirm the
+review; `bindle undo` reverts it."""
+requires = ["bindle"]
+run = 'exec bindle whats-new'

@@ -18,6 +18,9 @@ pub struct Selection {
     /// Remove installed packages that a module's packages conflict with
     /// (`package_conflicts`) instead of skipping the module.
     pub replace_conflicts: bool,
+    /// Exactly `include` (and what it requires): no profile, no defaults.
+    /// For applying only what the user picked on "What's new".
+    pub exact: bool,
 }
 
 impl Selection {
@@ -36,6 +39,7 @@ impl Selection {
         let mut set: BTreeSet<String> = catalog
             .modules
             .iter()
+            .filter(|_| !self.exact)
             .filter(|m| m.default || self.profile.as_ref().is_some_and(|p| m.profiles.contains(p)))
             .map(|m| m.id.clone())
             .collect();
@@ -135,6 +139,12 @@ pub struct Plan {
     pub replaced: Vec<(String, String)>,
     pub notes: Vec<(String, String)>,
     pub steps: Vec<Step>,
+    /// What each module puts on this system, resolved (recorded at apply).
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub contents: BTreeMap<String, content::Content>,
+    /// Modules this plan retires (What's new clean-ups): their record is dropped.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub forget: Vec<String>,
 }
 
 impl Plan {
@@ -274,8 +284,9 @@ pub fn resolve(
         aur.extend(m.aur.iter().cloned());
         releases.extend(m.releases.iter().map(|r| ReleaseAsset { title: m.name.clone(), ..r.clone() }));
         plan.notes.extend(m.notes.iter().map(|n| (id.clone(), n.clone())));
-        if let Some(b) = &m.builtin {
-            let e = builtins::expand(b, &ctx);
+        let expansion = m.builtin.as_ref().map(|b| builtins::expand(b, &ctx));
+        plan.contents.insert(id.clone(), content::of(m, expansion.as_ref(), ctx.facts));
+        if let Some(e) = expansion {
             packages.extend(e.packages);
             aur.extend(e.aur);
             files.extend(e.files.into_iter().map(|f| (id.clone(), f)));
@@ -382,6 +393,7 @@ pub fn resolve(
 }
 
 mod checks;
+pub mod content;
 mod mounts;
 pub mod retire;
 #[cfg(test)]

@@ -1,6 +1,6 @@
 //! Terminal wizard: Install → Profile → Pick → Review. Returns the selection
 //! when the user presses `a` to apply; the wizard itself never modifies the
-//! system (applying happens in the plain terminal so sudo can prompt).
+//! system (applying happens in the plain terminal so pkexec can prompt).
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -20,6 +20,7 @@ mod wrap;
 
 pub mod install;
 pub mod iso;
+pub mod whatsnew;
 
 #[derive(PartialEq)]
 enum Screen {
@@ -124,6 +125,7 @@ impl<'a> App<'a> {
             exclude: base.difference(&self.selected).cloned().collect(),
             // The Review screen lists replacements before anything happens.
             replace_conflicts: true,
+            exact: false,
         }
     }
 

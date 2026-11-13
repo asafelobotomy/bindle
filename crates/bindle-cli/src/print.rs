@@ -52,3 +52,21 @@ pub fn list(c: &Catalog, f: &Facts) {
         }
     }
 }
+
+/// `bindle list | head` closes stdout early; `println!` then panics (and the
+/// release build aborts). Treat that like SIGPIPE would: quietly stop.
+pub fn quiet_broken_pipe() {
+    let default = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        let msg = info
+            .payload()
+            .downcast_ref::<String>()
+            .map(String::as_str)
+            .or_else(|| info.payload().downcast_ref::<&str>().copied())
+            .unwrap_or_default();
+        if msg.starts_with("failed printing to std") && msg.contains("Broken pipe") {
+            std::process::exit(0);
+        }
+        default(info);
+    }));
+}

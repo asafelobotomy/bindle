@@ -24,6 +24,20 @@ root_commands = [
 ]
 notes = ["Ports published by Docker (`-p`) bypass ufw: Docker inserts its own iptables rules ahead of ufw's. Bind them to 127.0.0.1 or use ufw-docker rules."]
 
+[[module.recipe]]
+name = "firewall"
+category = "Toggles"
+description = "Turn the firewall (ufw) on or off, or show its rules"
+admin = true
+args = [{ name = "state", choices = ["on", "off", "status"] }]
+run = '''
+case "$1" in
+    on) systemctl enable --now ufw.service; ufw enable ;;
+    off) ufw disable; systemctl disable --now ufw.service ;;
+    status) ufw status verbose ;;
+esac
+'''
+
 [[module]]
 id = "firewalld"
 group = "Firewall"
@@ -76,6 +90,21 @@ mount /.snapshots"""], when = ["snapshots-mount"], unless = [{ path = "/proc/sel
 ]
 enable = ["snapper-timeline.timer", "snapper-cleanup.timer"]
 notes = ["To boot into snapshots from GRUB, add grub-btrfs too."]
+
+[[module.recipe]]
+name = "snapshots"
+category = "System"
+description = "List the system's snapper snapshots"
+admin = true
+run = 'snapper -c root list'
+
+[[module.recipe]]
+name = "snapshot"
+category = "Maintenance"
+description = "Take a snapshot of the system now"
+admin = true
+args = [{ name = "note", kind = "text", default = "bindo", help = "Description to find it by." }]
+run = 'snapper -c root create --cleanup-algorithm number --description "$1" --print-number'
 
 [[module]]
 id = "grub-btrfs"

@@ -3,7 +3,6 @@
 //! In sandbox mode it runs unprivileged against a temp root and only records
 //! the commands it would run.
 
-use std::collections::BTreeMap;
 use std::fs::{self, OpenOptions};
 use std::io::{self, BufRead, Write};
 use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
@@ -83,36 +82,6 @@ pub fn serve(opts: HelperOpts) -> Result<()> {
         }
     }
     Ok(())
-}
-
-/// pacman.conf `[options]` keys are single words; values are one line. Anything
-/// else could inject sections or directives.
-fn check_pacman_edit(options: &BTreeMap<String, String>, repos: &[String]) -> Result<()> {
-    for (k, v) in options {
-        if k.is_empty() || !k.chars().all(|c| c.is_ascii_alphanumeric()) || v.contains(['\n', '\r', '[', ']']) {
-            bail!("refusing pacman.conf option `{k}`");
-        }
-    }
-    match repos.iter().find(|r| r.is_empty() || !r.chars().all(|c| c.is_ascii_alphanumeric() || c == '-')) {
-        Some(r) => bail!("refusing repo name `{r}`"),
-        None => Ok(()),
-    }
-}
-
-/// Let pacman itself parse the edited file before it replaces the real one.
-fn check_pacman_conf(text: &str) -> Result<()> {
-    let tmp = Path::new("/etc/.pacman.conf.bindle-check");
-    write_atomic(tmp, text.as_bytes(), 0o600)?;
-    let out = std::process::Command::new("pacman-conf").arg("--config").arg(tmp).arg("--repo-list").output();
-    let _ = fs::remove_file(tmp);
-    match out {
-        Ok(o) if o.status.success() => Ok(()),
-        Ok(o) => {
-            bail!("edited pacman.conf does not parse; left unchanged: {}", String::from_utf8_lossy(&o.stderr).trim())
-        }
-        // No pacman-conf (shouldn't happen on Arch): nothing to check with.
-        Err(_) => Ok(()),
-    }
 }
 
 fn check_names(names: &[String]) -> Result<()> {
@@ -227,14 +196,33 @@ impl Helper {
                     }
                     bail!("snapshot {id}: {} item(s) could not be restored (listed above)", errors.len());
                 }
-                snapshot::mark_undone(self.root(), &id).map(|()| None)
+                snapshot::mark_undone(self.root(), &id)?;
+                crate::record::on_undone(self.root(), &id).map(|()| None)
+            }
+            Request::Interactive { argv, tty } => {
+                self.log_line(&format!("$ {}  (on {tty})", shell_words(&argv)));
+                let fake = self.opts.fake_commands;
+                crate::tty::serve(&argv, &tty, fake, &mut |l| self.output(l)).map(|()| None)
+            }
+            Request::BootFiles => {
+                for name in crate::pacman_check::boot_files(self.root())? {
+                    self.emit(&Event::Output { line: name });
+                }
+                Ok(None)
+            }
+            Request::InstallBindle { files } => {
+                let (root, fake) = (self.opts.root.clone(), self.opts.fake_commands);
+                crate::self_install::install(&root, &files, fake, &mut |l| self.output(l)).map(|()| None)
             }
             Request::Log { line } => {
                 // One line per request, whatever it contains.
                 self.log_line(&line.replace(['\n', '\r'], " "));
                 Ok(None)
             }
-            Request::Complete { id } => snapshot::mark_complete(self.root(), &id).map(|()| None),
+            Request::Complete { id } => {
+                snapshot::mark_complete(self.root(), &id)?;
+                crate::record::on_complete(self.root(), &snapshot::load(self.root(), &id)?).map(|()| None)
+            }
             Request::Quit => Ok(None),
         }
     }
@@ -266,7 +254,7 @@ impl Helper {
         }
         match step {
             Step::EditPacmanConf { options, enable_repos } => {
-                check_pacman_edit(&options, &enable_repos)?;
+                crate::pacman_check::edit(&options, &enable_repos)?;
                 self.capture_late("/etc/pacman.conf")?;
                 let path = host(self.root(), "/etc/pacman.conf");
                 let mut text = fs::read_to_string(&path).context("read /etc/pacman.conf")?;
@@ -277,7 +265,7 @@ impl Helper {
                     text = pacman_conf::enable_repo(&text, r);
                 }
                 if !self.opts.fake_commands {
-                    check_pacman_conf(&text)?;
+                    crate::pacman_check::conf(&text)?;
                 }
                 let mode = fs::metadata(&path).map_or(0o644, |m| m.permissions().mode() & 0o7777);
                 write_atomic(&path, text.as_bytes(), mode)?;

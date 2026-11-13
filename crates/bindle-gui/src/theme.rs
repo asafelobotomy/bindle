@@ -23,6 +23,28 @@ const COLORS: [&str; 12] = [
     "error",
 ];
 
+/// uqd rewrites tokens.json when the theme or variant changes: check once a
+/// second and hand the new tokens (JSON) to `send` until it returns false
+/// (the window is gone).
+pub fn watch(path: Option<PathBuf>, send: impl Fn(String) -> bool + Send + 'static) {
+    std::thread::Builder::new()
+        .name("uq-theme".into())
+        .spawn(move || {
+            let mut seen = path.as_ref().and_then(modified);
+            loop {
+                std::thread::sleep(std::time::Duration::from_secs(1));
+                let now = path.as_ref().and_then(modified);
+                if now != seen {
+                    seen = now;
+                    if !send(load(path.as_ref()).to_string()) {
+                        return;
+                    }
+                }
+            }
+        })
+        .expect("spawning the theme watcher");
+}
+
 /// `$BINDLE_UQ_TOKENS` (screenshot tests), else uQ's state directory.
 pub fn tokens_path() -> Option<PathBuf> {
     if let Some(p) = std::env::var_os("BINDLE_UQ_TOKENS") {

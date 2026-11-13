@@ -26,7 +26,7 @@ fn diagnose(resolved: Option<bool>, by_address: impl Fn() -> bool) -> Option<(&'
         )),
         None => Some((
             "This computer is online but can't look up names (DNS).",
-            "Try `sudo systemctl restart NetworkManager`, and check /etc/resolv.conf has a nameserver.",
+            "Try `systemctl restart NetworkManager` (it asks for your password), and check /etc/resolv.conf has a nameserver.",
         )),
         Some(false) => Some((
             "archlinux.org can't be reached right now, though the internet works.",

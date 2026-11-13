@@ -104,7 +104,7 @@ fn quiet_welcome(root: &Path) -> Result<Vec<String>> {
     let home = std::env::var_os("HOME").map(PathBuf::from).context("HOME is not set")?;
     let mut lines = welcome::quiet_own_home(&home)?;
     if !Path::new(welcome::MARKER).exists() {
-        lines.push("System-wide (GNOME, KDE, new users): sudo bindle first-login quiet-welcome".into());
+        lines.push("System-wide (GNOME, KDE, new users): pkexec bindle first-login quiet-welcome".into());
     }
     Ok(lines)
 }
@@ -283,13 +283,13 @@ fn offer_remove() {
     println!("\nEvery user here has finished first-login setup. The login hooks stay installed");
     println!("(and new users still get the wizard) until they are removed.");
     let exe = if Path::new(firstlogin::BIN).exists() { PathBuf::from(firstlogin::BIN) } else { "bindle".into() };
-    if std::io::stdin().is_terminal() && apply::confirm("Remove them now with sudo?", false) {
-        match std::process::Command::new("sudo").arg(&exe).args(["first-login", "remove"]).status() {
+    if std::io::stdin().is_terminal() && apply::confirm("Remove them now? (asks for your password)", false) {
+        match std::process::Command::new("pkexec").arg(&exe).args(["first-login", "remove"]).status() {
             Ok(s) if s.success() => return,
             Ok(_) | Err(_) => eprintln!("Couldn't remove them."),
         }
     }
-    println!("Remove them any time with: sudo {} first-login remove", exe.display());
+    println!("Remove them any time with: pkexec {} first-login remove", exe.display());
 }
 
 #[cfg(test)]

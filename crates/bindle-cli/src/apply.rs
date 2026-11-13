@@ -177,7 +177,7 @@ pub fn undo(id: Option<String>, list: bool, opts: &Options) -> Result<()> {
         session.iter().flat_map(|m| m.packages.iter().chain(&m.aur)).filter(|p| still_installed(p, &root)).collect();
     if !pkgs.is_empty() {
         println!("\nPackages are left installed. To remove them:");
-        println!("  sudo pacman -Rns {}", pkgs.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(" "));
+        println!("  pkexec pacman -Rns {}", pkgs.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(" "));
     }
     if !failed.is_empty() {
         bail!("undo incomplete for snapshot(s) {}; see the log", failed.join(", "));

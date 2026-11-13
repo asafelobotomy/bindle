@@ -11,6 +11,7 @@ mod choose;
 pub use choose::Change;
 mod profile;
 mod review;
+mod whatsnew;
 
 pub struct Wizard {
     catalog: Catalog,
@@ -21,18 +22,31 @@ pub struct Wizard {
     addons: BTreeSet<String>,
     selected: BTreeSet<String>,
     provided: BTreeMap<String, String>,
+    /// "What's new" after a Bindle upgrade, when there is any.
+    whats_new: Option<whatsnew::WhatsNewState>,
 }
 
 impl Wizard {
     pub fn new(catalog: Catalog, facts: Facts) -> Self {
         let profile = if facts.desktops.is_empty() { "minimal" } else { "desktop" }.to_string();
         let provided = facts.install.provided();
-        let mut w = Wizard { catalog, facts, profile, addons: BTreeSet::new(), selected: BTreeSet::new(), provided };
+        let mut w = Wizard {
+            catalog,
+            facts,
+            profile,
+            addons: BTreeSet::new(),
+            selected: BTreeSet::new(),
+            provided,
+            whats_new: None,
+        };
         w.selected = w.base();
         w
     }
 
     pub fn selection(&self) -> Selection {
+        if let Some(w) = self.active_whats_new() {
+            return self.whats_new_selection(w);
+        }
         // Relative to the base profile alone: add-ons travel as includes,
         // which every frontend (and `bindle apply --from`) understands.
         let base = self.profile_set(&self.profile);
@@ -42,6 +56,7 @@ impl Wizard {
             exclude: base.difference(&self.selected).cloned().collect(),
             // The review lists replacements before anything happens.
             replace_conflicts: true,
+            exact: false,
         }
     }
 
@@ -94,6 +109,9 @@ impl Wizard {
     /// The plan for the current selection, reading files from `root`
     /// (`/`, or the sandbox).
     pub fn plan(&self, root: &std::path::Path) -> anyhow::Result<Plan> {
+        if let Some(w) = self.active_whats_new() {
+            return self.whats_new_plan(w, root);
+        }
         let read = |p: &str| std::fs::read_to_string(bindle_run::sys::host(root, p)).ok();
         plan::resolve(&self.catalog, &self.facts, &self.selection(), &read)
     }

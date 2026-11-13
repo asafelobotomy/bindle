@@ -160,8 +160,8 @@ pub fn run(
     r.state
 }
 
-/// No polkit agent: save the selection and finish in a terminal, where sudo
-/// can ask for the password.
+/// No polkit agent: save the selection and finish in a terminal, where
+/// pkexec asks for the password with its text prompt.
 pub fn continue_in_terminal(sel: &Selection) -> anyhow::Result<()> {
     let exe = helper_exe().ok_or_else(|| anyhow::anyhow!("the bindle program isn't installed"))?;
     let dir = std::env::var_os("XDG_CACHE_HOME")

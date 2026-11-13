@@ -42,6 +42,44 @@ hint, steps and log folded away, and on uQ "Open uQ Welcome"). Each screen reads
 terminal wizard does: `print::install_lines`, `print::module_details`,
 `plan::resolve`.
 
+## The update window
+
+`bindle-gui --upgrade` (opened by `bindleupgrade --gui`, which passes
+`--dry-run` / `--sandbox` on) is bindleupgrade with the wizard's look: the
+same QML module, theme, `Glyph`, `Panel`, `Pill`, `Notice`, `ReviewList`,
+`StepBar` and `Disclosure`, from a second entry point (`UpgradeMain.qml`)
+in the same binary rather than a separate one, so it installs, themes and
+screenshots like the wizard. Steps: Check → Update → Done.
+
+- **Check** (`UpgradeCheckPage.qml`): the checks as they happen, then what
+  the update costs (password, restart, snapshot), the Arch news since the last
+  upgrade (a post asking for a manual step first, with Read), and every stage
+  with work, its details and a switch: leave the stage out, or answer its
+  question (upgrade the packages, remove orphans, "I've read it" for the
+  news), or install firmware. Stages with nothing to do share one quiet list.
+- Stages a switched-off question holds (the news unread, updating on
+  battery, the system upgrade off) show as held, with why, and don't count
+  as work; so do the preflight holds (space, uQ's pin).
+- **Update** (`UpgradeRunPage.qml`): each stage's status beside the output,
+  then the result table, Restart now, "Update the AUR" and "Finish in a
+  terminal" (both `bindle in-terminal upgrade`), and Open the log (every line,
+  in `~/.cache/bindle/upgrade-*.log`; the helper's own log is root's). Also
+  "Don't restart yet" (a DKMS module or boot image missing; no Restart
+  button then), Open Bindle (new features), and Go on after Bindle updated
+  itself (the new window does the rest).
+
+`bindle-upgrade` stays free of Qt. `src/upgrade.rs` (the Check model: the
+probe, the switches, `Upgrade::check`) and `src/upgrade/run.rs` (the run's
+state and the window's `Ui`, which answers each stage's question from its
+switch and anything else no) are plain Rust with unit tests;
+`src/upgrade_backend.rs` is the cxx-qt bridge, as `backend.rs` is for the
+wizard. The plan is `bindle_upgrade::plan` with `windowed: true`: the AUR,
+whose helper reviews and asks for a password on a terminal, is reported and
+handed to one. Screenshots use built-in sample systems
+(`src/upgrade/sample.rs`: one with something in every stage, one held back
+by /boot space, uQ's pin and battery, with a restart that isn't safe) and a
+dry run (`u1`…`u5` per theme).
+
 ## uQ integration
 
 1. **Catalog**: a `uq` desktop in `desktops.toml` (Hyprland plus the `uq`

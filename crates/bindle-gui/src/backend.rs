@@ -4,7 +4,6 @@
 
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
-use std::time::Duration;
 
 use bindle_core::{Catalog, Facts};
 use cxx_qt::{CxxQtType, Threading};
@@ -48,6 +47,8 @@ pub mod qobject {
         #[qproperty(QString, sandbox)]
         /// The Apply screen: `crate::apply::ApplyState`.
         #[qproperty(QString, apply_json)]
+        /// "What's new" after a Bindle upgrade (`Wizard::whats_new_json`).
+        #[qproperty(QString, whats_new_json)]
         type Backend = super::BackendRust;
 
         #[qinvokable]
@@ -74,6 +75,25 @@ pub mod qobject {
         fn continue_in_terminal(self: Pin<&mut Backend>);
         #[qinvokable]
         fn reboot(self: &Backend);
+        /// Tick or untick a What's new item.
+        #[qinvokable]
+        fn toggle_whats_new(self: Pin<&mut Backend>, id: &QString);
+        /// Open What's new (Review and Apply follow its picks) or leave it
+        /// for the wizard.
+        #[qinvokable]
+        fn set_whats_new(self: Pin<&mut Backend>, on: bool);
+        /// Tick or untick one change of a What's new item.
+        #[qinvokable]
+        fn toggle_whats_new_change(self: Pin<&mut Backend>, id: &QString, key: &QString);
+        /// Hide a What's new item for good (until it changes again).
+        #[qinvokable]
+        fn hide_whats_new(self: Pin<&mut Backend>, id: &QString);
+        /// Done with this version: What's new opens by itself again for a newer Bindle.
+        #[qinvokable]
+        fn skip_whats_new(self: Pin<&mut Backend>);
+        /// Screenshots: a made-up What's new.
+        #[qinvokable]
+        fn sample_whats_new(self: Pin<&mut Backend>);
         /// Save the window as a PNG (screenshot tests).
         #[qinvokable]
         fn grab_window(self: &Backend, path: &QString) -> bool;
@@ -105,6 +125,7 @@ pub struct BackendRust {
     screenshot_dir: QString,
     sandbox: QString,
     apply_json: QString,
+    whats_new_json: QString,
     wizard: Option<Wizard>,
     applying: bool,
 }
@@ -139,28 +160,20 @@ impl cxx_qt::Initialize for Backend {
             self.as_mut().set_sandbox(QString::from(&dir));
         }
         self.as_mut().set_apply_json(QString::from(r#"{"state":"idle"}"#));
+        // What's new: asked for (`--whats-new`), or the first run of a newer Bindle.
+        let asked = crate::flag("--whats-new");
+        let shots = crate::arg("--screenshots").is_some();
+        if !shots && (asked || real) {
+            let root = self.root();
+            self.as_mut().wizard_mut().load_whats_new(&root, !asked);
+            self.as_mut().wizard_mut().set_whats_new_active(true);
+        }
+        self.as_mut().refresh_whats_new();
 
         let path = theme::tokens_path();
         self.as_mut().set_theme_json(json(&theme::load(path.as_ref())));
-        // uqd rewrites tokens.json when the theme or variant changes; follow it.
         let qt = self.qt_thread();
-        std::thread::Builder::new()
-            .name("uq-theme".into())
-            .spawn(move || {
-                let mut seen = path.as_ref().and_then(theme::modified);
-                loop {
-                    std::thread::sleep(Duration::from_secs(1));
-                    let now = path.as_ref().and_then(theme::modified);
-                    if now != seen {
-                        seen = now;
-                        let tokens = json(&theme::load(path.as_ref())).to_string();
-                        if qt.queue(move |b| b.set_theme_json(QString::from(&tokens))).is_err() {
-                            return; // the window is gone
-                        }
-                    }
-                }
-            })
-            .expect("spawning the theme watcher");
+        theme::watch(path, move |tokens| qt.queue(move |b| b.set_theme_json(QString::from(&tokens))).is_ok());
     }
 }
 
@@ -243,6 +256,10 @@ impl Backend {
         if self.rust().applying {
             return;
         }
+        if self.wizard().whats_new_active() && self.real_run() {
+            // Done with this version: it opens by itself again for a newer Bindle.
+            let _ = bindle_run::whatsnew_state::skip_this_version();
+        }
         let root = self.root();
         let plan = match self.wizard().plan(&root) {
             Ok(p) => p,
@@ -281,6 +298,54 @@ impl Backend {
             Err(e) => format!("Couldn't open a terminal: {e:#}"),
         };
         self.as_mut().set_notice(QString::from(&note));
+    }
+
+    fn refresh_whats_new(mut self: Pin<&mut Self>) {
+        let j = json(&self.wizard().whats_new_json());
+        self.as_mut().set_whats_new_json(j);
+    }
+
+    fn toggle_whats_new(mut self: Pin<&mut Self>, id: &QString) {
+        self.as_mut().wizard_mut().toggle_whats_new(&id.to_string());
+        self.refresh_whats_new();
+    }
+
+    /// "Not now" leaves it (nothing stored: it asks again next time).
+    fn set_whats_new(mut self: Pin<&mut Self>, on: bool) {
+        self.as_mut().wizard_mut().set_whats_new_active(on);
+        self.refresh_whats_new();
+    }
+
+    fn real_run(&self) -> bool {
+        self.rust().sandbox.is_empty() && self.rust().screenshot_dir.is_empty()
+    }
+
+    fn toggle_whats_new_change(mut self: Pin<&mut Self>, id: &QString, key: &QString) {
+        self.as_mut().wizard_mut().toggle_whats_new_change(&id.to_string(), &key.to_string());
+        self.refresh_whats_new();
+    }
+
+    fn hide_whats_new(mut self: Pin<&mut Self>, id: &QString) {
+        let persist = self.real_run();
+        let note = match self.as_mut().wizard_mut().hide_whats_new(&id.to_string(), persist) {
+            Ok(()) => String::new(),
+            Err(e) => format!("Couldn't remember that: {e:#}"),
+        };
+        self.as_mut().set_notice(QString::from(&note));
+        self.refresh_whats_new();
+    }
+
+    fn skip_whats_new(self: Pin<&mut Self>) {
+        if self.real_run() {
+            let _ = bindle_run::whatsnew_state::skip_this_version();
+        }
+        self.set_whats_new(false);
+    }
+
+    fn sample_whats_new(mut self: Pin<&mut Self>) {
+        self.as_mut().wizard_mut().sample_whats_new();
+        self.as_mut().wizard_mut().set_whats_new_active(true);
+        self.refresh_whats_new();
     }
 
     fn reboot(&self) {

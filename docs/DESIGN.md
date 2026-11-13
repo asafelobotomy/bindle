@@ -17,7 +17,7 @@ These shaped every decision below:
 | Reality on day 0 | Consequence |
 |---|---|
 | Often **TTY only** (archinstall minimal profile, no DE yet) | Primary UI is a **terminal wizard**; a GUI is an optional second frontend. |
-| No polkit agent without a desktop session | Privilege escalation must work via `sudo` as well as `pkexec`. |
+| No polkit agent without a desktop session | Every approval goes through `pkexec`; on a console it prompts as text. Only the unattended ISO install (arch-chroot, no polkit) uses its passwordless sudo grant. |
 | `fuse3` (`fusermount3`) not in a pacstrap base | AppImage may not mount: document `--appimage-extract-and-run`, also publish the bare static binary. |
 | No AUR helper; `makepkg` refuses to run as root | AUR work runs **as the user**; only `pacman`/file writes run as root. |
 | User may re-run after a failure | Every step must be **idempotent**; planning skips work that's already done. |
@@ -39,7 +39,7 @@ These shaped every decision below:
 │  bindle-core:  detect ─► Facts ─┐                                                  │
 │                catalog (TOML) ──┼─► plan::resolve ─► Plan { steps[] }  (pure, JSON) │
 │                builtins ────────┘                                                  │
-│  bindle-run:   apply (Progress) ─► user-side steps ◄──► root helper (sudo / pkexec)│
+│  bindle-run:   apply (Progress) ─► user-side steps ◄──► root helper (pkexec)       │
 └────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -70,8 +70,8 @@ steps, with no side effects. That gives:
 ### Privilege model
 
 The orchestrator runs as the user. Root steps go to **one helper session**
-(the same binary in a hidden `helper` mode), started once through `sudo` (TTY) or
-`pkexec` (desktop session); it reads steps as JSON lines and streams output back.
+(the same binary in a hidden `helper` mode), started once through `pkexec` (polkit's dialog, or its text prompt on a
+console); it reads steps as JSON lines and streams output back.
 A FUSE mount is private to the user who mounted it, so from an AppImage the
 binary is first copied to a private directory root can read. A version
 handshake makes sure both sides speak the same protocol. The helper is as

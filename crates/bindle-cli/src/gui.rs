@@ -55,6 +55,40 @@ fn wait(mut cmd: Command) -> Ended {
     }
 }
 
+/// `bindleupgrade --gui`: the update window (`bindle-gui --upgrade`), with
+/// a rehearsal's `--dry-run` or `--sandbox` passed on.
+pub fn upgrade(dry_run: bool, sandbox: Option<&Path>) -> Result<()> {
+    let Some(gui) = available() else {
+        anyhow::bail!(
+            "the update window can't start here (it needs bindle-gui next to bindle, a desktop session and Kirigami); run bindleupgrade without --gui"
+        );
+    };
+    crate::polkit_agent::ensure();
+    let mut cmd = Command::new(gui);
+    cmd.arg("--upgrade");
+    if dry_run {
+        cmd.arg("--dry-run");
+    }
+    if let Some(dir) = sandbox {
+        cmd.arg("--sandbox").arg(dir);
+    }
+    match wait(cmd) {
+        Ended::Failed => anyhow::bail!("the update window couldn't start; run bindleupgrade without --gui"),
+        _ => Ok(()),
+    }
+}
+
+/// "What's new": the window's page when it can start, else the terminal's.
+pub fn whats_new() -> Result<()> {
+    if let Some(gui) = available() {
+        crate::polkit_agent::ensure();
+        Command::new(gui).arg("--whats-new").spawn()?;
+        return Ok(());
+    }
+    let exe = std::env::current_exe()?.to_string_lossy().into_owned();
+    crate::terminal::spawn(&[exe, "whats-new".into()])
+}
+
 /// The app-menu entry: the window if it can start, else the terminal wizard.
 pub fn open() -> Result<()> {
     if let Some(gui) = available()

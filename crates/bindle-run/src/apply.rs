@@ -1,7 +1,7 @@
 //! Run a plan for real: snapshot, then each step.
 //!
 //! The orchestrator runs as the user. Privileged steps go to one root helper
-//! session (sudo on a terminal, pkexec otherwise); AUR builds and user
+//! session (pkexec: polkit's dialog or its text prompt); AUR builds and user
 //! commands run here. Every file the plan touches is snapshotted first.
 //! Nothing here prints: frontends render what [`Progress`] reports.
 
@@ -22,7 +22,7 @@ pub struct Options {
     pub yes: bool,
     /// Run unprivileged against this directory, recording commands only.
     pub sandbox: Option<PathBuf>,
-    /// How to start the root helper (the CLI's defaults: itself, sudo on a terminal).
+    /// How to start the root helper (the CLI's defaults: itself, through pkexec).
     pub launch: Launch,
     /// Installing from the live ISO into the new system (`arch-chroot`): a
     /// user command that fails there (it may need a running session) is
@@ -96,10 +96,10 @@ pub fn run(plan: &Plan, facts: &Facts, opts: &Options, progress: &mut dyn Progre
         if wants_root { Some(HelperClient::launch(opts.sandbox.as_deref(), &log, &opts.launch)?) } else { None };
 
     let snapshot = match helper.as_mut() {
-        Some(h) => {
-            root_request(h, &Request::Snapshot { plan: snapshot_plan(plan, facts) }, &mut |l| progress.output(l))
-                .map_err(|e| e.context("could not snapshot before applying; nothing was changed"))?
-        }
+        Some(h) => root_request(h, &Request::Snapshot { plan: Box::new(snapshot_plan(plan, facts)) }, &mut |l| {
+            progress.output(l)
+        })
+        .map_err(|e| e.context("could not snapshot before applying; nothing was changed"))?,
         None => None,
     };
     if let Some(id) = &snapshot {
@@ -155,6 +155,9 @@ pub fn run(plan: &Plan, facts: &Facts, opts: &Options, progress: &mut dyn Progre
             root_request(&mut h, &Request::Complete { id: id.clone() }, &mut |l| progress.output(l))?;
         }
         h.quit();
+    } else if failed.is_none() && !fake {
+        // No root helper, no snapshot: the user's own ledger keeps the record.
+        record_user_apply(plan);
     }
     Ok(Report {
         total,
@@ -165,6 +168,18 @@ pub fn run(plan: &Plan, facts: &Facts, opts: &Options, progress: &mut dyn Progre
         relogin: plan.steps.iter().any(|s| matches!(s, Step::AddToGroups { .. })),
         manual,
     })
+}
+
+/// An apply that needed no root: its record goes to the user's ledger.
+fn record_user_apply(plan: &Plan) {
+    let s = snapshot_plan(plan, &Facts::default());
+    if let Some(path) = crate::record::user_path()
+        && (!s.record.is_empty() || !s.forget.is_empty())
+    {
+        let mut l = crate::record::load(&path);
+        l.add(&sys::now_id(), &s.version, &s.record, &s.forget);
+        let _ = crate::record::save(&path, &l);
+    }
 }
 
 /// Best effort: a line in the root-only apply log.
@@ -238,7 +253,19 @@ pub fn needs_reboot(plan: &Plan) -> bool {
 }
 
 pub fn snapshot_plan(plan: &Plan, facts: &Facts) -> SnapshotPlan {
-    let mut s = SnapshotPlan { label: plan.modules.join(", "), user: facts.user.clone(), ..Default::default() };
+    let mut s = SnapshotPlan {
+        label: plan.modules.join(", "),
+        user: facts.user.clone(),
+        version: env!("CARGO_PKG_VERSION").into(),
+        record: plan
+            .contents
+            .iter()
+            .filter(|(id, _)| plan.modules.contains(id))
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect(),
+        forget: plan.forget.clone(),
+        ..Default::default()
+    };
     for step in &plan.steps {
         match step {
             Step::EditPacmanConf { .. } => s.files.push("/etc/pacman.conf".into()),
@@ -264,7 +291,10 @@ pub fn snapshot_plan(plan: &Plan, facts: &Facts) -> SnapshotPlan {
             Step::InstallReleases { assets } => {
                 for a in assets {
                     match a.kind() {
-                        Some(AssetKind::Package) => s.packages.push(a.name.clone()),
+                        Some(AssetKind::Package) => {
+                            s.packages.push(a.name.clone());
+                            s.releases.push(a.name.clone());
+                        }
                         _ => s.manual.push(format!("installed ~/.local/bin/{} ({}); remove it by hand", a.name, a.tag)),
                     }
                 }

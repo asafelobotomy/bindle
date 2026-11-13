@@ -247,6 +247,8 @@ dependencies = [
  "anyhow",
  "bindle-core",
  "bindle-run",
+ "bindle-upgrade",
+ "bindo",
  "clap",
  "libc",
  "ratatui",
@@ -262,6 +264,7 @@ name = "bindle-core"
 version = "0.1.8"
 dependencies = [
  "anyhow",
+ "bindo",
  "serde",
  "serde_json",
  "toml",
@@ -274,6 +277,7 @@ dependencies = [
  "anyhow",
  "bindle-core",
  "bindle-run",
+ "bindle-upgrade",
  "cxx",
  "cxx-qt",
  "cxx-qt-build",
@@ -291,6 +295,27 @@ dependencies = [
  "libc",
  "serde",
  "serde_json",
+ "toml",
+]
+
+[[package]]
+name = "bindle-upgrade"
+version = "0.1.8"
+dependencies = [
+ "anyhow",
+ "bindle-core",
+ "bindle-run",
+ "serde",
+ "serde_json",
+ "toml",
+]
+
+[[package]]
+name = "bindo"
+version = "0.1.8"
+dependencies = [
+ "anyhow",
+ "serde",
  "toml",
 ]
 

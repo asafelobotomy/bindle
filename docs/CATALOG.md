@@ -59,6 +59,13 @@ asset = "app-1.2.3-1-x86_64.pkg.tar.zst"   # .pkg.tar.zst → pacman -U; .AppIma
 sha256 = "…"                    # of the asset; a download that differs is refused
 name = "app"                    # package name, or the AppImage's command name
 
+[[module.recipe]]               # a bindo recipe, listed while the module is installed (docs/BINDO.md)
+name = "app-reset"
+category = "Maintenance"
+description = "Reset app's settings"
+confirm = "Delete app's settings?"
+run = 'rm -rf -- "$HOME/.config/app"'
+
 [[module.files]]
 path = "/etc/udev/rules.d/60-bindle-ioschedulers.rules"
 mode = 0o644

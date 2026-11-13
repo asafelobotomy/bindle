@@ -1,0 +1,36 @@
+# bindo recipes: Toggles (switch a service or setting on or off).
+
+[[recipe]]
+name = "bluetooth"
+category = "Toggles"
+description = "Turn the Bluetooth service on or off (and at startup)"
+admin = true
+args = [{ name = "state", choices = ["on", "off"] }]
+run = '''
+case "$1" in
+    on) systemctl enable --now bluetooth.service ;;
+    off) systemctl disable --now bluetooth.service ;;
+esac
+'''
+
+[[recipe]]
+name = "ssh"
+category = "Toggles"
+description = "Allow or stop logins to this computer over SSH"
+admin = true
+requires = ["sshd"]
+args = [{ name = "state", choices = ["on", "off"] }]
+run = '''
+case "$1" in
+    on) systemctl enable --now sshd.service ;;
+    off) systemctl disable --now sshd.service ;;
+esac
+'''
+
+[[recipe]]
+name = "wifi"
+category = "Toggles"
+description = "Turn Wi-Fi on or off"
+requires = ["nmcli"]
+args = [{ name = "state", choices = ["on", "off"] }]
+run = 'nmcli radio wifi "$1"'

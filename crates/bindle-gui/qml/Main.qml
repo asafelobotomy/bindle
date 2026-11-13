@@ -8,14 +8,19 @@ QQC2.ApplicationWindow {
     id: root
 
     // 0 Welcome, 1 Profile, 2 Choose (one category at a time), 3 Summary,
-    // 4 Review, 5 Apply.
+    // 4 Review, 5 Apply, 6 What's new (after a Bindle upgrade: then the steps
+    // are What's new → Review → Apply, over its picks).
     property int page: 0
+    readonly property var whatsNew: JSON.parse(backend.whatsNewJson || '{"state": "none"}')
+    readonly property bool whatsNewMode: whatsNew.state === "ready" && whatsNew.active === true
+    readonly property var modePages: [6, 4, 5]
     // The furthest screen visited: the step bar goes back to any of them.
     property int reached: 0
     readonly property var apply: JSON.parse(backend.applyJson || '{"state": "idle"}')
     readonly property bool running: apply.state === "running"
     property string footerNote: ""
-    readonly property var steps: ["Welcome", "Profile", "Choose", "Summary", "Review", "Apply"]
+    readonly property var steps: whatsNewMode ? ["What's new", "Review", "Apply"]
+        : ["Welcome", "Profile", "Choose", "Summary", "Review", "Apply"]
     readonly property var catalog: JSON.parse(backend.catalogJson || "[]")
     readonly property var selection: JSON.parse(backend.stateJson || "{}")
     readonly property int picked: selection.total || 0
@@ -75,23 +80,41 @@ QQC2.ApplicationWindow {
         Theme.win = winColors.Kirigami.Theme;
         Theme.view = viewColors.Kirigami.Theme;
         Theme.backend = backend;
+        if (root.whatsNewMode)
+            root.page = 6;
+    }
+
+    // Leave What's new for the wizard: "Not now" (it asks again next time),
+    // or `skip` this version (it opens by itself again for a newer Bindle).
+    function leaveWhatsNew(skip) {
+        if (skip)
+            backend.skipWhatsNew();
+        else
+            backend.setWhatsNew(false);
+        root.reached = 0;
+        root.go(0);
     }
 
     function go(to) {
         root.footerNote = "";
         if (to === 4)
             backend.refreshReview();
-        root.page = Math.max(0, Math.min(5, to));
+        root.page = Math.max(0, Math.min(6, to));
         root.reached = Math.max(root.reached, root.page);
     }
     // The step bar: going back to Choose resumes where the user was.
     function jump(to) {
+        if (root.whatsNewMode)
+            return root.go(root.modePages[to]);
         if (to === 2)
             choose.open(choose.categoryIndex);
         root.go(to);
     }
     // Where the primary button leads, as its label.
     function nextLabel() {
+        if (root.page === 6)
+            return root.whatsNew.picked > 0 ? "Review " + root.whatsNew.picked + (root.whatsNew.picked === 1 ? " pick" : " picks")
+                : "Continue to setup";
         switch (root.page) {
         case 0:
             return "Get started";
@@ -109,6 +132,13 @@ QQC2.ApplicationWindow {
         return root.apply.noAgent ? "Continue in a terminal" : "Try again";
     }
     function next() {
+        if (root.page === 6) {
+            if (root.whatsNew.picked > 0)
+                root.go(4);
+            else
+                root.leaveWhatsNew();
+            return;
+        }
         if (root.page === 1) {
             choose.open(0);
             root.go(2);
@@ -126,6 +156,10 @@ QQC2.ApplicationWindow {
         }
     }
     function back() {
+        if (root.whatsNewMode && root.page === 4) {
+            root.go(6);
+            return;
+        }
         if (root.page === 2 && choose.categoryIndex > 0 && choose.query === "")
             choose.open(choose.categoryIndex - 1);
         else
@@ -153,9 +187,10 @@ QQC2.ApplicationWindow {
             }
             StepBar {
                 steps: root.steps
-                current: root.page
+                current: root.whatsNewMode ? root.modePages.indexOf(root.page) : root.page
                 // Apply is reached only through Review's button.
-                reached: Math.min(root.reached, root.apply.state === "idle" ? 4 : 5)
+                reached: root.whatsNewMode ? (root.apply.state === "idle" ? Math.min(1, root.reached >= 4 ? 1 : 0) : 2)
+                    : Math.min(root.reached, root.apply.state === "idle" ? 4 : 5)
                 detail: root.page === 2 && choose.query === "" ? (choose.categoryIndex + 1) + "/" + root.catalog.length : ""
                 locked: root.running || root.apply.state === "done"
                 onPicked: index => root.jump(index)
@@ -220,6 +255,13 @@ QQC2.ApplicationWindow {
             onUndo: backend.undoInTerminal()
             onOpenLog: path => Qt.openUrlExternally("file://" + path)
         }
+        WhatsNewPage {
+            id: whatsNewPage
+            whatsNew: root.whatsNew
+            onToggled: id => backend.toggleWhatsNew(id)
+            onChangeToggled: (id, key) => backend.toggleWhatsNewChange(id, key)
+            onHidden: id => backend.hideWhatsNew(id)
+        }
     }
 
     footer: Rectangle {
@@ -240,8 +282,18 @@ QQC2.ApplicationWindow {
 
             ActionButton {
                 text: root.page === 5 ? "Back to review" : "Back"
-                visible: root.page > 0 && !root.running && root.apply.state !== "done"
+                visible: root.page > 0 && root.page !== 6 && !root.running && root.apply.state !== "done"
                 onClicked: root.back()
+            }
+            ActionButton {
+                visible: root.page === 6
+                text: "Not now"
+                onClicked: root.leaveWhatsNew()
+            }
+            ActionButton {
+                visible: root.page === 6
+                text: "Skip this version"
+                onClicked: root.leaveWhatsNew(true)
             }
             QQC2.Label {
                 Layout.fillWidth: true
@@ -284,6 +336,9 @@ QQC2.ApplicationWindow {
             { page: 3, name: "4-summary" },
             { page: 4, name: "5-review" },
             { page: 4, name: "5b-review-details", details: true },
+            // What's new after a Bindle upgrade, on a made-up comparison.
+            { page: 6, name: "7-whats-new", whatsNew: true },
+            { page: 6, name: "7b-whats-new-changes", whatsNewOpen: true },
             // Only with --sandbox: apply for real (recording commands) and wait.
             { page: 5, name: "6-applied", apply: true },
             { page: 5, name: "6b-applied-details", details: true }
@@ -307,6 +362,14 @@ QQC2.ApplicationWindow {
             if (s.apply && backend.sandbox === "") {
                 Qt.quit();
                 return;
+            }
+            if (s.apply)
+                backend.setWhatsNew(false);
+            if (s.whatsNew)
+                backend.sampleWhatsNew();
+            if (s.whatsNewOpen) {
+                whatsNewPage.openAll = true;
+                Qt.callLater(() => whatsNewPage.contentItem.contentY = Kirigami.Units.gridUnit * 13);
             }
             if (s.details) {
                 // Open the current page's details, scrolled to show them.

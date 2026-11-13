@@ -1,0 +1,204 @@
+# bindo recipes: Maintenance (keeping the system tidy and current).
+
+[[recipe]]
+name = "update"
+category = "Maintenance"
+description = "Update everything: packages, AUR, Flatpak, Bindle's apps"
+help = """
+Runs bindleupgrade, which shows what will change and checks the Arch news
+first. `bindo update check` only reports what is available."""
+args = [{ name = "mode", choices = ["all", "check"], default = "all" }]
+requires = ["bindleupgrade"]
+run = '''
+if [ "$1" = check ]; then
+    exec bindleupgrade --check
+fi
+exec bindleupgrade
+'''
+
+[[recipe]]
+name = "clean-pkg-cache"
+category = "Maintenance"
+description = "Remove old package files from pacman's cache"
+help = """
+Keeps the newest versions of each installed package (2 by default, so a
+downgrade stays possible) and removes every cached file of packages that
+are no longer installed."""
+admin = true
+requires = ["paccache"]
+args = [{ name = "keep", kind = "number", default = "2", help = "Versions of each package to keep." }]
+run = '''
+paccache -r -k "$1"
+paccache -r -u -k 0
+'''
+
+[[recipe]]
+name = "clean-journal"
+category = "Maintenance"
+description = "Shrink the system journal (old log messages) to a size"
+admin = true
+args = [{ name = "size", kind = "size", default = "500M", help = "Size to keep, e.g. 200M or 1G." }]
+run = 'journalctl --vacuum-size="$1"'
+
+[[recipe]]
+name = "clean-thumbnails"
+category = "Maintenance"
+description = "Delete cached file thumbnails (they are made again as needed)"
+confirm = "Delete your cached thumbnails?"
+run = '''
+dir="${XDG_CACHE_HOME:-$HOME/.cache}/thumbnails"
+if [ ! -d "$dir" ]; then
+    echo "No thumbnail cache."
+    exit 0
+fi
+du -sh -- "$dir"
+rm -rf -- "$dir"
+echo "Deleted."
+'''
+
+[[recipe]]
+name = "orphans"
+category = "Maintenance"
+description = "Remove packages that were dependencies and are needed by nothing"
+help = "Lists them first; pacman asks before removing anything."
+admin = true
+run = '''
+orphans=$(pacman -Qdtq || true)
+if [ -z "$orphans" ]; then
+    echo "No orphaned packages."
+    exit 0
+fi
+echo "Installed as dependencies, needed by nothing now:"
+printf '  %s\n' $orphans
+pacman -Rns -- $orphans
+'''
+
+[[recipe]]
+name = "pacnew"
+category = "Maintenance"
+description = "Merge or remove the .pacnew and .pacsave files upgrades left"
+help = """
+A .pacnew is a package's new default for a config file you changed; a
+.pacsave is your old config kept after a package was removed. pacdiff walks
+through each one: view the difference, merge, keep or remove."""
+admin = true
+requires = ["pacdiff"]
+run = '''
+if [ -z "${DIFFPROG:-}" ]; then
+    for d in nvim vim; do
+        if command -v "$d" >/dev/null; then
+            export DIFFPROG="$d -d"
+            break
+        fi
+    done
+    export DIFFPROG="${DIFFPROG:-diff -u}"
+fi
+pacdiff
+'''
+
+[[recipe]]
+name = "mirrors"
+category = "Maintenance"
+description = "Pick fast, current package mirrors again (reflector)"
+help = "Uses reflector's own settings in /etc/xdg/reflector/reflector.conf."
+admin = true
+requires = ["reflector"]
+run = '''
+systemctl start reflector.service
+echo "Mirrors now:"
+grep -m 5 '^Server' /etc/pacman.d/mirrorlist
+'''
+
+[[recipe]]
+name = "fix-keyring"
+category = "Maintenance"
+description = "Repair package signature errors (refresh Arch's signing keys)"
+help = """
+For `signature is unknown trust` or `invalid or corrupted package` errors:
+refreshes archlinux-keyring and reloads its keys. Run `bindo update` after."""
+admin = true
+run = '''
+pacman-key --init
+pacman-key --populate archlinux
+pacman -Sy --needed --noconfirm archlinux-keyring
+echo "Keys refreshed. Now update the system: bindo update"
+'''
+
+[[recipe]]
+name = "upgrade-prefs"
+category = "Maintenance"
+description = "Change bindleupgrade's preferences (mirror age, news, app sources)"
+help = """
+Opens ~/.config/bindle/upgrade.toml in your editor ($VISUAL, $EDITOR, else
+nano or vi), first writing it with the values in effect when it is missing."""
+requires = ["bindleupgrade"]
+run = '''
+file="${XDG_CONFIG_HOME:-$HOME/.config}/bindle/upgrade.toml"
+if [ ! -f "$file" ]; then
+    mkdir -p -- "$(dirname -- "$file")"
+    bindleupgrade --prefs > "$file"
+fi
+editor="${VISUAL:-${EDITOR:-}}"
+if [ -z "$editor" ]; then
+    for e in nano vim vi; do
+        if command -v "$e" >/dev/null; then
+            editor=$e
+            break
+        fi
+    done
+fi
+exec $editor "$file"
+'''
+
+[[recipe]]
+name = "update-notify"
+category = "Maintenance"
+description = "Check for updates daily and notify you (a user timer)"
+help = """
+Runs `bindleupgrade --check --notify` once a day (and after login): when
+there is something to update, a notification's Update button opens the
+update window. Off by default; `bindo update-notify off` removes it."""
+requires = ["bindleupgrade", "systemctl"]
+args = [{ name = "state", choices = ["on", "off"] }]
+run = '''
+dir="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
+unit=bindle-update-check
+if [ "$1" = off ]; then
+    systemctl --user disable --now "$unit.timer" 2>/dev/null || true
+    rm -f -- "$dir/$unit.service" "$dir/$unit.timer"
+    systemctl --user daemon-reload
+    echo "Update checks are off."
+    exit 0
+fi
+exe=$(command -v bindleupgrade)
+mkdir -p -- "$dir"
+cat > "$dir/$unit.service" <<UNIT
+# Managed by Bindle (bindo update-notify)
+[Unit]
+Description=Check for system updates (bindleupgrade --check)
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=$exe --check --notify
+# The notification waits for a click.
+TimeoutStartSec=45min
+UNIT
+cat > "$dir/$unit.timer" <<UNIT
+# Managed by Bindle (bindo update-notify)
+[Unit]
+Description=Check for system updates daily
+
+[Timer]
+OnBootSec=15min
+OnCalendar=daily
+RandomizedDelaySec=1h
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+UNIT
+systemctl --user daemon-reload
+systemctl --user enable --now "$unit.timer"
+echo "Update checks are on: daily, and 15 minutes after you log in."
+'''

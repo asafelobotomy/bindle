@@ -73,9 +73,11 @@ pub fn expand(name: &str, ctx: &Ctx) -> Expansion {
 }
 
 fn aur_helper(f: &Facts) -> Expansion {
+    // rebuild-detector: bindleupgrade finds AUR packages a library update broke.
+    let packages = vec!["rebuild-detector".to_string()];
     match &f.aur_helper {
-        Some(h) => Expansion { notes: vec![format!("{h} already installed.")], ..Default::default() },
-        None => Expansion { aur_bootstrap: true, ..Default::default() },
+        Some(h) => Expansion { notes: vec![format!("{h} already installed.")], packages, ..Default::default() },
+        None => Expansion { aur_bootstrap: true, packages, ..Default::default() },
     }
 }
 

@@ -1,0 +1,15 @@
+# What a diff of the catalog can't tell "What's new" (crates/bindle-core/src/whatsnew).
+# Validated by the unit tests against the catalog.
+#
+# [[renamed]]   a module id that changed: what was applied under `from` counts as `to`.
+#   from, to, version, why
+# [[retired]]   a module that left the catalog: offered as a clean-up (its files and units).
+#   id, version, why, replaced_by (optional, a module id)
+# [[added]]     optional modules worth showing to people upgrading to `version`
+#   (modules their profile already includes show up anyway, ticked).
+#   version, modules, why
+
+[[added]]
+version = "0.1.9"
+modules = ["everyday-apps", "spellcheck", "disk-formats", "appimage", "bash-completion", "vpn-plugins", "text-editor", "xournalpp", "marknote", "nvidia-legacy"]
+why = "New in Bindle 0.1.9: everyday apps, spell checking, USB drive formats, AppImage support, tab completion, VPN plugins, notes and handwriting apps, and NVIDIA's driver for older cards."

@@ -1,0 +1,15 @@
+[package]
+name = "bindle-upgrade"
+description = "bindleupgrade: one guided run that updates the whole system"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+bindle-core = { path = "../bindle-core" }
+bindle-run = { path = "../bindle-run" }
+serde.workspace = true
+serde_json.workspace = true
+toml.workspace = true

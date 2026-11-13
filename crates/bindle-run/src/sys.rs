@@ -32,6 +32,11 @@ pub fn valid_name(name: &str) -> bool {
         && name.chars().all(|c| c.is_ascii_alphanumeric() || "@._+-:\\".contains(c))
 }
 
+/// `true`, for serde defaults.
+pub fn yes() -> bool {
+    true
+}
+
 pub fn is_root() -> bool {
     fs::metadata("/proc/self").is_ok_and(|m| m.uid() == 0)
 }

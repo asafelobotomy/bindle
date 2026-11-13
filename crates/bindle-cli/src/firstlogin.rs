@@ -146,6 +146,7 @@ pub fn install(root: &Path, tty_hook: bool) -> Result<Vec<String>> {
     let _ = fs::remove_file(&link);
     symlink(BIN, &link).with_context(|| format!("link {UQ_PAGE_BIN}"))?;
     done.push(format!("linked {UQ_PAGE_BIN} to {BIN} for uQ Settings' Re-run setup page"));
+    done.push(crate::bindo_cmd::link_names(root)?);
     Ok(done)
 }
 
@@ -155,6 +156,7 @@ pub fn remove(root: &Path, purge: bool) -> Result<Vec<String>> {
     let mut paths = vec![AUTOSTART, PROFILE_HOOK, USER_UNIT_WANTS, USER_UNIT];
     if purge {
         paths.extend([LAUNCHER, POLKIT, UQ_PAGE, UQ_PAGE_QML, UQ_PAGE_BIN, GUI_BIN, BIN]);
+        paths.extend(crate::bindo_cmd::NAMES);
         paths.extend(icons.iter().map(String::as_str));
     }
     let mut done = Vec::new();
@@ -327,6 +329,7 @@ mod tests {
         assert!(host(&root, USER_UNIT_WANTS).symlink_metadata().is_err());
         remove(&root, true).unwrap();
         assert!(!host(&root, BIN).exists() && !host(&root, POLKIT).exists());
+        assert!(crate::bindo_cmd::NAMES.iter().all(|n| host(&root, n).symlink_metadata().is_err()));
         assert!(!host(&root, UQ_PAGE_DIR).exists() && host(&root, UQ_PAGE_BIN).symlink_metadata().is_err());
     }
 

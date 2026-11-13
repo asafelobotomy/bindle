@@ -210,6 +210,12 @@ description = "Sandboxed apps from Flathub."
 profiles = ["desktop", "gaming"]
 packages = ["flatpak"]
 
+[[module.recipe]]
+name = "flatpak-clean"
+category = "Maintenance"
+description = "Remove Flatpak runtimes that no installed app uses any more"
+run = 'flatpak uninstall --unused -y'
+
 [[module]]
 id = "flatpak-discover"
 group = "App stores"

@@ -68,6 +68,16 @@ packages = ["power-profiles-daemon"]
 package_conflicts = ["tlp-pd", "tuned-ppd"]
 enable = ["power-profiles-daemon.service"]
 
+[[module.recipe]]
+name = "power-profile"
+category = "Toggles"
+description = "Switch power mode: power-saver, balanced or performance"
+args = [{ name = "profile", choices = ["power-saver", "balanced", "performance"] }]
+run = '''
+powerprofilesctl set "$1"
+echo "Power mode: $(powerprofilesctl get)"
+'''
+
 [[module]]
 id = "tlp"
 group = "Laptop & power"
@@ -123,6 +133,19 @@ profiles = ["desktop", "gaming", "developer"]
 # system-config-printer is the settings window outside Plasma and GNOME.
 packages = ["cups", "cups-pdf", "cups-browsed", "avahi", "ipp-usb", "gutenprint", "foomatic-db", "foomatic-db-engine", "system-config-printer"]
 enable = ["cups.socket", "cups-browsed.service", "avahi-daemon.socket"]
+
+[[module.recipe]]
+name = "printers"
+category = "System"
+description = "Show printers, which is the default, and what is waiting to print"
+run = 'lpstat -t'
+
+[[module.recipe]]
+name = "printing-restart"
+category = "Maintenance"
+description = "Restart the printing service (stuck jobs, a printer gone missing)"
+admin = true
+run = 'systemctl restart cups.service cups-browsed.service'
 
 [[module]]
 id = "scanning-qt"

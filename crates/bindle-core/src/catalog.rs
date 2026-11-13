@@ -232,6 +232,9 @@ pub struct Module {
     /// Pinned GitHub release assets (`[[module.release]]`).
     #[serde(default, rename = "release")]
     pub releases: Vec<ReleaseAsset>,
+    /// bindo recipes, listed once the module is installed (`[[module.recipe]]`).
+    #[serde(default, rename = "recipe")]
+    pub recipes: Vec<bindo::Recipe>,
     #[serde(default)]
     pub enable: Vec<String>,
     #[serde(default)]

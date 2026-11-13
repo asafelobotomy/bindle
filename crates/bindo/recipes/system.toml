@@ -1,0 +1,69 @@
+# bindo recipes: System (read-only looks at this computer).
+# Format: docs/BINDO.md. Scripts run with `sh -e`; arguments are $1, $2, …
+
+[[recipe]]
+name = "info"
+category = "System"
+description = "Show this computer's system, memory and disks at a glance"
+run = '''
+. /etc/os-release 2>/dev/null || true
+printf 'System:    %s\n' "${PRETTY_NAME:-unknown}"
+printf 'Kernel:    %s\n' "$(uname -r)"
+printf 'Host:      %s\n' "$(cat /etc/hostname 2>/dev/null || uname -n)"
+printf 'Uptime:    %s\n' "$(uptime -p)"
+printf 'Desktop:   %s\n' "${XDG_CURRENT_DESKTOP:-none}"
+printf 'Packages:  %s\n' "$(pacman -Qq | wc -l)"
+echo
+free -h
+echo
+df -h -x tmpfs -x devtmpfs -x efivarfs
+if command -v bindle >/dev/null; then
+    echo
+    bindle detect
+fi
+'''
+
+[[recipe]]
+name = "kernel"
+category = "System"
+description = "Show the running and installed kernels, and if a reboot is due"
+run = '''
+running=$(uname -r)
+echo "Running:   $running"
+echo "Installed:"
+pacman -Q linux linux-lts linux-zen linux-hardened linux-rt 2>/dev/null | sed 's/^/  /' || true
+if [ -d "/usr/lib/modules/$running" ]; then
+    echo "The running kernel is the installed one."
+else
+    echo "The kernel was updated since this boot: reboot to use the new one."
+fi
+'''
+
+[[recipe]]
+name = "errors"
+category = "System"
+description = "Show this boot's error messages from the system journal"
+args = [{ name = "lines", kind = "number", default = "50", help = "How many of the latest to show." }]
+run = 'journalctl -b -p err --no-pager -n "$1"'
+
+[[recipe]]
+name = "failed"
+category = "System"
+description = "List system and user services that failed"
+run = '''
+echo "System services:"
+systemctl --failed --no-pager
+echo
+echo "Your services:"
+systemctl --user --failed --no-pager
+'''
+
+[[recipe]]
+name = "logs"
+category = "System"
+description = "Show a service's messages since this boot"
+args = [
+    { name = "unit", help = "The service, e.g. NetworkManager or cups.service." },
+    { name = "lines", kind = "number", default = "100", help = "How many of the latest to show." },
+]
+run = 'journalctl -b -u "$1" --no-pager -n "$2"'

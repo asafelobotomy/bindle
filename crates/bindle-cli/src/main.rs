@@ -1,5 +1,6 @@
 mod apply;
 mod archinstall_version;
+mod bindo_cmd;
 mod carry_network;
 mod firstlogin;
 mod firstlogin_cmd;
@@ -17,8 +18,10 @@ mod session;
 mod status;
 mod terminal;
 mod tui;
+mod upgrade_cmd;
 mod uq_handoff;
 mod welcome;
+mod whatsnew_cmd;
 
 use std::io::IsTerminal;
 use std::path::PathBuf;
@@ -98,6 +101,18 @@ enum Cmd {
         #[arg(long, hide = true)]
         sandbox: Option<PathBuf>,
     },
+    /// Run a recipe: a short, named system task (`bindo` lists them).
+    Bindo {
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true, value_name = "RECIPE [ARGS]")]
+        args: Vec<std::ffi::OsString>,
+    },
+    /// What this Bindle would add or change compared with what an earlier
+    /// version set up here; pick and apply (undo reverts it).
+    WhatsNew(whatsnew_cmd::WhatsNewArgs),
+    /// Update the whole system in one guided run: Arch news, packages, AUR,
+    /// Flatpak, firmware, Bindle's apps, then leftovers and reboot.
+    #[command(visible_alias = "bindleupgrade")]
+    Upgrade(upgrade_cmd::UpgradeArgs),
     /// Open Bindle automatically on each user's first login.
     FirstLogin {
         #[command(subcommand)]
@@ -233,27 +248,10 @@ impl SelArgs {
 pub(crate) use apply::wizard;
 use apply::{SYSTEM_SELECTION, apply_selection, read_current};
 
-/// `bindle list | head` closes stdout early; `println!` then panics (and the
-/// release build aborts). Treat that like SIGPIPE would: quietly stop.
-fn quiet_broken_pipe() {
-    let default = std::panic::take_hook();
-    std::panic::set_hook(Box::new(move |info| {
-        let msg = info
-            .payload()
-            .downcast_ref::<String>()
-            .map(String::as_str)
-            .or_else(|| info.payload().downcast_ref::<&str>().copied())
-            .unwrap_or_default();
-        if msg.starts_with("failed printing to std") && msg.contains("Broken pipe") {
-            std::process::exit(0);
-        }
-        default(info);
-    }));
-}
-
 fn main() -> Result<()> {
-    quiet_broken_pipe();
-    let cli = Cli::parse();
+    print::quiet_broken_pipe();
+    let Some(argv) = bindo_cmd::route()? else { return Ok(()) };
+    let cli = Cli::parse_from(argv);
     let command = cli.command.unwrap_or(Cmd::Wizard { sandbox: None });
     // Commands that don't need detection (and may run as root).
     match command {
@@ -285,6 +283,8 @@ echo; printf 'Press Enter to close. '; read -r _"#;
         Cmd::Undo { id, list, yes, sandbox } => {
             return apply::undo(id, list, &apply::Options { yes, sandbox, ..Default::default() });
         }
+        Cmd::Bindo { args } => return bindo_cmd::main(args),
+        Cmd::Upgrade(args) => return upgrade_cmd::main(args),
         _ => {}
     }
 
@@ -298,8 +298,10 @@ echo; printf 'Press Enter to close. '; read -r _"#;
                 bail!("the wizard needs a terminal; try `bindle plan --help`");
             }
             warn_distro(&facts);
+            whatsnew_cmd::first_run(&catalog, &facts, sandbox.clone());
             wizard(&catalog, &facts, sandbox).map(drop)
         }
+        Cmd::WhatsNew(args) => whatsnew_cmd::run(&catalog, &facts, args),
         Cmd::Install { dry_run, workdir } => {
             install_cmd::run(&catalog, &facts, install_cmd::InstallOpts { dry_run, workdir })
         }
@@ -380,6 +382,8 @@ echo; printf 'Press Enter to close. '; read -r _"#;
         | Cmd::Open { .. }
         | Cmd::InTerminal { .. }
         | Cmd::Undo { .. }
+        | Cmd::Bindo { .. }
+        | Cmd::Upgrade(_)
         | Cmd::FirstLogin { .. } => {
             unreachable!("handled above")
         }

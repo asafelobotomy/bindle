@@ -2,7 +2,7 @@
 
 use std::env;
 use std::fs;
-use std::io::{BufRead, BufReader, IsTerminal, Write};
+use std::io::{BufRead, BufReader, Write};
 use std::os::unix::fs::{DirBuilderExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
@@ -49,9 +49,30 @@ fn helper_binary() -> Result<(PathBuf, Option<PathBuf>)> {
 pub struct Launch {
     /// The `bindle` binary to run as `bindle helper`; by default this program.
     pub exe: Option<PathBuf>,
-    /// A desktop window, not a terminal: always ask through pkexec (polkit's
-    /// password dialog) and report pkexec's own errors.
+    /// A desktop window, not a terminal: report pkexec's own errors (no
+    /// agent, dismissed) instead of letting them reach a terminal.
     pub graphical: bool,
+}
+
+/// How the helper gets root.
+#[derive(Debug, PartialEq, Eq)]
+enum Elevation {
+    /// Every approval: polkit's password dialog, or its text prompt on a console.
+    Pkexec,
+    /// Installing from the live ISO into the new system (arch-chroot): no
+    /// polkit runs there and nobody is asked; the install granted
+    /// passwordless sudo for that run only.
+    GrantedSudo,
+}
+
+fn elevation(in_chroot: bool, has_pkexec: bool, granted_sudo: &dyn Fn() -> bool) -> Result<Elevation> {
+    if in_chroot && granted_sudo() {
+        Ok(Elevation::GrantedSudo)
+    } else if has_pkexec {
+        Ok(Elevation::Pkexec)
+    } else {
+        bail!("Bindle asks for administrator rights through polkit, but pkexec isn't installed (pacman -S polkit)")
+    }
 }
 
 /// pkexec found no polkit agent to ask for the password (some window
@@ -75,40 +96,26 @@ impl HelperClient {
                 c
             }
             None => {
-                let mut c = if how.graphical {
-                    if !on_path("pkexec") {
-                        bail!("pkexec is not installed, so Bindle can't ask for your password here");
+                let mut c = match elevation(crate::sys::in_chroot(), on_path("pkexec"), &|| {
+                    on_path("sudo")
+                        && Command::new("sudo")
+                            .args(["-n", "true"])
+                            .stdin(Stdio::null())
+                            .stderr(Stdio::null())
+                            .status()
+                            .is_ok_and(|s| s.success())
+                })? {
+                    Elevation::Pkexec => {
+                        if !how.graphical {
+                            println!("Bindle needs administrator rights for system changes.");
+                        }
+                        Command::new("pkexec")
                     }
-                    Command::new("pkexec")
-                } else if std::io::stdin().is_terminal() && on_path("sudo") {
-                    println!("Bindle needs administrator rights for system changes.");
-                    // `sudo true`, not `sudo -v`: -v demands a password unless *every*
-                    // sudoers entry is NOPASSWD, while `true` follows the same rules as
-                    // the helper command. It still caches credentials for password users.
-                    let ok = Command::new("sudo").arg("true").status().is_ok_and(|s| s.success());
-                    if !ok {
-                        bail!("could not get administrator rights via sudo");
+                    Elevation::GrantedSudo => {
+                        let mut c = Command::new("sudo");
+                        c.arg("-n");
+                        c
                     }
-                    Command::new("sudo")
-                } else if on_path("sudo")
-                    && Command::new("sudo")
-                        .args(["-n", "true"])
-                        .stdin(Stdio::null())
-                        .stderr(Stdio::null())
-                        .status()
-                        .is_ok_and(|s| s.success())
-                {
-                    // No terminal, but sudo needs no password (the install
-                    // from the ISO grants that for its run).
-                    let mut c = Command::new("sudo");
-                    c.arg("-n");
-                    c
-                } else if on_path("pkexec")
-                    && (env::var_os("DISPLAY").is_some() || env::var_os("WAYLAND_DISPLAY").is_some())
-                {
-                    Command::new("pkexec")
-                } else {
-                    bail!("no way to get administrator rights: run Bindle from a terminal with sudo installed");
                 };
                 c.arg(&exe).arg("helper");
                 c
@@ -192,5 +199,22 @@ impl Drop for HelperClient {
         if let Some(dir) = self.private_copy.take() {
             let _ = fs::remove_dir_all(dir);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn approvals_go_through_polkit() {
+        assert_eq!(
+            elevation(false, true, &|| true).unwrap(),
+            Elevation::Pkexec,
+            "sudo is never used outside the ISO install"
+        );
+        assert!(elevation(false, false, &|| true).unwrap_err().to_string().contains("pkexec"));
+        assert_eq!(elevation(true, true, &|| true).unwrap(), Elevation::GrantedSudo);
+        assert_eq!(elevation(true, true, &|| false).unwrap(), Elevation::Pkexec);
     }
 }

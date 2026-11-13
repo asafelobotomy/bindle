@@ -14,6 +14,16 @@ pub(super) fn validate(cat: &Catalog) -> Result<()> {
     unique("category", cat.categories.iter().map(|c| c.id.as_str()))?;
     unique("profile", cat.profiles.iter().map(|p| p.id.as_str()))?;
     unique("module", cat.modules.iter().map(|m| m.id.as_str()))?;
+    // Module recipes: valid, and named apart from each other and from bindo's own.
+    let shipped = bindo::Book::shipped().map_err(anyhow::Error::msg)?;
+    let recipes: Vec<&str> = cat.modules.iter().flat_map(|m| m.recipes.iter().map(|r| r.name.as_str())).collect();
+    unique("recipe", recipes.iter().copied())?;
+    for (m, r) in cat.modules.iter().flat_map(|m| m.recipes.iter().map(move |r| (m, r))) {
+        r.validate().map_err(|e| anyhow::anyhow!("module `{}` recipe `{}`: {e}", m.id, r.name))?;
+        if shipped.get(&r.name).is_some() {
+            bail!("module `{}` recipe `{}` has the name of a shipped bindo recipe", m.id, r.name);
+        }
+    }
     let ids: BTreeSet<&str> = cat.modules.iter().map(|m| m.id.as_str()).collect();
     let profile_ids: BTreeSet<_> = cat.profiles.iter().map(|p| p.id.as_str()).collect();
     let desktops = desktops::all()?;

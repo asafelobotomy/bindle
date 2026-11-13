@@ -2,6 +2,10 @@
 //! and engine as the terminal wizard. On uQ it takes its colours from uQ's
 //! theme tokens; elsewhere it follows the desktop's Qt theme.
 //!
+//! `bindle-gui --upgrade` is the system update window instead (what
+//! `bindleupgrade --gui` opens): the same look and parts over bindleupgrade's
+//! plan, from `UpgradeMain.qml` and `UpgradeBackend`.
+//!
 //! `bindle-gui --screenshots <dir>` renders every screen offscreen into `dir`
 //! (with `BINDLE_UQ_TOKENS=<tokens.json>` to pick a uQ theme) and exits.
 //!
@@ -21,12 +25,19 @@ mod backend;
 mod glyph;
 mod model;
 mod theme;
+mod upgrade;
+mod upgrade_backend;
 
 /// The value after `flag` on the command line: `--screenshots <dir>`, and
 /// the hidden `--sandbox <dir>` (apply records commands there, as the CLI's).
 pub fn arg(flag: &str) -> Option<String> {
     let args: Vec<String> = std::env::args().collect();
     args.iter().position(|a| a == flag).and_then(|i| args.get(i + 1)).cloned()
+}
+
+/// A flag with no value (`--upgrade`, `--dry-run`).
+pub fn flag(name: &str) -> bool {
+    std::env::args().any(|a| a == name)
 }
 
 fn main() {
@@ -50,7 +61,8 @@ fn main() {
     app::ffi::bindle_set_window_icon(include_bytes!("../../../branding/bindle.svg"));
     let mut engine = QQmlApplicationEngine::new();
     if let Some(engine) = engine.as_mut() {
-        engine.load(&QUrl::from("qrc:/qt/qml/org/bindle/wizard/qml/Main.qml"));
+        let main = if flag("--upgrade") { "UpgradeMain" } else { "Main" };
+        engine.load(&QUrl::from(&format!("qrc:/qt/qml/org/bindle/wizard/qml/{main}.qml")));
     }
     if !app::ffi::bindle_has_window() {
         eprintln!("bindle-gui: the window couldn't be created (is Kirigami installed?)");
@@ -61,6 +73,7 @@ fn main() {
     }
     let applied = apply::APPLIED.load(std::sync::atomic::Ordering::SeqCst);
     // A screenshot run finishing is success, applied or not.
-    let shots = arg("--screenshots").is_some();
+    // The update window reports its results itself; closing it is no error.
+    let shots = arg("--screenshots").is_some() || flag("--upgrade");
     std::process::exit(if applied || shots { EXIT_APPLIED } else { EXIT_CLOSED });
 }

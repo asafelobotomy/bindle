@@ -14,6 +14,7 @@ path = "src/main.rs"
 anyhow.workspace = true
 bindle-core = { path = "../bindle-core" }
 bindle-run = { path = "../bindle-run" }
+bindle-upgrade = { path = "../bindle-upgrade" }
 cxx = "1.0"
 cxx-qt = "0.10"
 cxx-qt-lib = { version = "0.10", features = ["qt_gui", "qt_qml", "qt_quickcontrols"] }
