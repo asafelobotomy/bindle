@@ -161,6 +161,53 @@ when = ["bare-desktop"]
 profiles = ["desktop", "gaming", "developer"]
 builtin = "everyday"
 
+# Clipboard history where the desktop has none (Plasma has Klipper, DMS its
+# own). On Wayland, cliphist stores what wl-paste sees; a user unit starts it
+# with the session (uQ and uwsm start graphical-session.target).
+[[module]]
+id = "clipboard-history"
+group = "Desktop basics"
+name = "Clipboard history"
+description = "Keeps what you copy, text and images, so you can paste something from earlier."
+notes = [
+  "Pick from the history with a key bound to: cliphist list | fuzzel --dmenu | cliphist decode | wl-copy (rofi -dmenu or wofi --dmenu work too).",
+  "History starts from your next login. Without uwsm or uQ (plain sway, river, labwc) nothing starts it: add `exec wl-paste --watch cliphist store` to your config.",
+]
+when = ["bare-desktop", "display:wayland", "!desktop:niri-dms"]
+profiles = ["desktop", "gaming", "developer"]
+packages = ["cliphist", "wl-clipboard"]
+[[module.files]]
+path = "/etc/systemd/user/bindle-cliphist.service"
+content = '''
+# Managed by Bindle
+[Unit]
+Description=Clipboard history (cliphist)
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+ExecStart=/usr/bin/wl-paste --watch /usr/bin/cliphist store
+Restart=on-failure
+
+[Install]
+WantedBy=graphical-session.target
+'''
+[[module.user_commands]]
+argv = ["systemctl", "--user", "enable", "bindle-cliphist.service"]
+unless = [{ path = "~/.config/systemd/user/graphical-session.target.wants/bindle-cliphist.service" }]
+
+# X11 desktops with no clipboard history of their own (Xfce has Clipman,
+# Deepin its own).
+[[module]]
+id = "copyq"
+group = "Desktop basics"
+name = "Clipboard history (CopyQ)"
+description = "Keeps what you copy, text and images, with search and a tray icon."
+notes = ["CopyQ starts itself at login once opened. On i3, bspwm, qtile, xmonad and awesome, add `exec copyq` to your config instead."]
+when = ["display:xorg", "!desktop:xfce4", "!desktop:deepin"]
+profiles = ["desktop", "gaming", "developer"]
+packages = ["copyq"]
+
 [[module]]
 id = "spellcheck"
 group = "Desktop basics"
