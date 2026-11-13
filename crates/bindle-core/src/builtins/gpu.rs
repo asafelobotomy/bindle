@@ -37,6 +37,37 @@ pub fn nvidia_open_supported(f: &Facts) -> bool {
     f.nvidia_devices.is_empty() || f.nvidia_devices.iter().any(|&d| d >= TURING_FIRST_DEVICE)
 }
 
+/// First PCI device id of the Maxwell generation (GM107). From here up to
+/// Turing (Maxwell, Pascal, Volta) NVIDIA's own driver is the 580 branch,
+/// on the AUR as nvidia-580xx-dkms. Older cards (Kepler, Fermi) share id
+/// ranges and need other branches, so they aren't matched here.
+const MAXWELL_FIRST_DEVICE: u16 = 0x1340;
+
+/// This machine's NVIDIA GPU needs the legacy 580 driver branch.
+pub fn nvidia_legacy(f: &Facts) -> bool {
+    f.gpus.iter().any(|g| g == "nvidia")
+        && !f.nvidia_devices.is_empty()
+        && !nvidia_open_supported(f)
+        && f.nvidia_devices.iter().any(|&d| d >= MAXWELL_FIRST_DEVICE)
+}
+
+/// What the `nvidia-legacy` module needs beside its AUR packages: headers
+/// for DKMS to build against, and the 32-bit libraries with multilib.
+pub(super) fn nvidia_legacy_extras(ctx: &Ctx) -> Expansion {
+    let mut e = Expansion { packages: kernel_headers(ctx.facts), ..Default::default() };
+    if ctx.multilib {
+        e.aur.push("lib32-nvidia-580xx-utils".into());
+    }
+    if !ctx.facts.installed.contains("nvidia-580xx-dkms") {
+        e.notes.push(
+            "NVIDIA's 580 driver comes from the AUR; DKMS builds it for your kernel (a few minutes) and it \
+             replaces nouveau after a restart. Untick this module to stay on the open-source nouveau driver."
+                .into(),
+        );
+    }
+    e
+}
+
 pub(super) fn gpu(ctx: &Ctx) -> Expansion {
     let f = ctx.facts;
     let mut e = Expansion::default();
@@ -88,9 +119,14 @@ pub(super) fn gpu(ctx: &Ctx) -> Expansion {
             "nvidia" => {
                 add(&mut e, &["mesa", "vulkan-nouveau"], &["mesa", "vulkan-nouveau"]);
                 e.notes.push(
-                    "This NVIDIA GPU predates Turing, so nvidia-open cannot drive it: using the open nouveau driver. \
-                     For NVIDIA's driver, Maxwell–Volta cards need nvidia-580xx-dkms from the AUR (Kepler: nvidia-470xx-dkms)."
-                        .into(),
+                    if nvidia_legacy(f) {
+                        "This NVIDIA GPU predates Turing, so nvidia-open cannot drive it. NVIDIA's own driver for it \
+                         is the \"NVIDIA driver for older cards\" module (recommended); nouveau is installed as the open-source fallback."
+                    } else {
+                        "This NVIDIA GPU predates Turing, so nvidia-open cannot drive it: using the open nouveau driver. \
+                         For NVIDIA's driver, Kepler cards need nvidia-470xx-dkms from the AUR."
+                    }
+                    .into(),
                 );
             }
             "virtual" => {
@@ -185,12 +221,29 @@ mod tests {
     }
 
     #[test]
+    fn legacy_branch_is_maxwell_to_volta() {
+        assert!(nvidia_legacy(&nvidia(&[0x1b80]))); // GTX 1080
+        assert!(nvidia_legacy(&nvidia(&[0x1380]))); // GTX 750 Ti
+        assert!(!nvidia_legacy(&nvidia(&[0x1f08]))); // RTX 2060: nvidia-open
+        assert!(!nvidia_legacy(&nvidia(&[0x1184]))); // GTX 770 (Kepler)
+        assert!(!nvidia_legacy(&nvidia(&[]))); // unknown card
+        assert!(!nvidia_legacy(&Facts { nvidia_devices: vec![0x1b80], ..Default::default() }));
+        let mut f = nvidia(&[0x1b80]);
+        f.installed.insert("linux-lts".into());
+        let e = expand("nvidia-legacy", &Ctx { facts: &f, multilib: true });
+        assert_eq!(e.packages, ["linux-lts-headers"]);
+        assert_eq!(e.aur, ["lib32-nvidia-580xx-utils"]);
+        assert!(expand("nvidia-legacy", &Ctx { facts: &f, multilib: false }).aur.is_empty());
+        assert!(run(&f, false).notes.iter().any(|n| n.contains("NVIDIA driver for older cards")));
+    }
+
+    #[test]
     fn pre_turing_uses_nouveau() {
         let e = run(&nvidia(&[0x1b80]), true); // GTX 1080
         assert!(e.packages.contains(&"vulkan-nouveau".to_string()));
         assert!(e.packages.contains(&"lib32-vulkan-nouveau".to_string()));
         assert!(!e.packages.iter().any(|p| p.starts_with("nvidia") || p.contains("nvidia-utils")));
-        assert!(e.notes.iter().any(|n| n.contains("nvidia-580xx-dkms")));
+        assert!(e.notes.iter().any(|n| n.contains("NVIDIA driver for older cards")));
         let e = run(&nvidia(&[0x1f08]), false); // RTX 2060
         assert!(e.packages.contains(&"nvidia-open-dkms".to_string()));
         assert!(run(&nvidia(&[]), false).packages.contains(&"nvidia-open-dkms".to_string()));

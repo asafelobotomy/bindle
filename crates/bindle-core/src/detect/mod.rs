@@ -81,6 +81,7 @@ pub struct Facts {
 
 /// Boolean tags `Facts::tags` can emit (validated against the catalog).
 pub const FLAG_TAGS: &[&str] = &[
+    "nvidia-legacy",
     "ssd",
     "laptop",
     "bluetooth",
@@ -242,6 +243,7 @@ impl Facts {
             (self.installed.contains("kdeconnect"), "kdeconnect"),
             (self.snapshots_mount, "snapshots-mount"),
             (self.hybrid_gpu(), "hybrid-gpu"),
+            (crate::builtins::nvidia_legacy(self), "nvidia-legacy"),
         ] {
             if flag {
                 t.insert(name.into());

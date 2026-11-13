@@ -7,9 +7,21 @@ order = 20
 [[module]]
 id = "gpu-driver"
 name = "Graphics drivers"
-description = "Mesa and Vulkan for AMD and Intel; the open NVIDIA driver on Arch. Keeps a driver you already have."
+description = "Mesa and Vulkan for AMD and Intel; NVIDIA's own driver (nvidia-open) for Turing and newer cards on Arch. Keeps a driver you already have."
 default = true
 builtin = "gpu"
+
+# NVIDIA's own driver is the recommended one wherever it exists: pre-selected
+# on the cards that need this branch, and unticking it keeps nouveau.
+[[module]]
+id = "nvidia-legacy"
+name = "NVIDIA driver for older cards (580xx)"
+description = "NVIDIA's own driver for GTX 700 (Maxwell), 900 and 10 series and Titan V cards, which the current driver no longer supports. Recommended over the open-source nouveau driver: full speed, video decoding and power management."
+default = true
+when = ["nvidia-legacy", "distro:arch"]
+requires = ["aur-helper"]
+aur = ["nvidia-580xx-dkms", "nvidia-580xx-utils"]
+builtin = "nvidia-legacy"
 
 [[module]]
 id = "audio-firmware"

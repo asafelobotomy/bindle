@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- NVIDIA's own driver is now the recommended one wherever it can be installed, with the open-source driver as the other choice. New module `nvidia-legacy` (NVIDIA driver for older cards): GTX 750/900/10-series and Titan V cards (Maxwell, Pascal, Volta) get `nvidia-580xx-dkms` and `nvidia-580xx-utils` from the AUR, with the kernel's headers and, with multilib, the 32-bit libraries. It is pre-selected on those cards; before, they got nouveau and a note. Untick it (or pick the open-source driver on `bindle install`'s Hardware page) to stay on nouveau. Kepler and older cards still get nouveau.
+- `bindle install`'s Hardware page names the graphics choices plainly ("NVIDIA's own driver", "NVIDIA open-source driver (nouveau)") and says which one is recommended and why.
+- New module `text-editor` (KWrite): a plain notepad, pre-selected with uQ and with Hyprland, which had no text editor to choose. With uQ it was installed silently as part of the desktop; it is now listed and can be unticked.
+- New module `kyko` (drop-down terminal for uQ, by asafelobotomy), from its v0.0.2 release package. Offered, not pre-selected: 0.0.2 is an early preview without the drop-down window.
 - `bindle install` shows one progress screen for the whole install instead of archinstall's scrolling output: the steps (disk, base system, boot loader, users and desktop, your apps and setup, with "Step 3 of 16" while Bindle sets the system up), the latest lines beside them, and Enter to restart at the end. A failed install stays on the failed step with the last lines. Everything printed is kept in `/var/log/bindle-install.log`, on the ISO and in the new system.
 - `bindle install`: `p` on the Disk page is manual partitioning. It opens archinstall's own disk editor for that one step (keep another system, several disks, LVM, its own encryption) and returns to the wizard with the layout; `x` goes back to Bindle's whole-disk layout.
 - `bindle install` no longer says "Arch is installed" when archinstall refused the configuration and installed nothing.

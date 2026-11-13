@@ -174,7 +174,14 @@ impl<'a> Wizard<'a> {
     }
 
     pub fn selection(&self) -> Selection {
-        self.apps.clone().unwrap_or_else(|| preset::first_login_selection(self.desktops, &self.choice()))
+        let mut sel = self.apps.clone().unwrap_or_else(|| preset::first_login_selection(self.desktops, &self.choice()));
+        // A driver the Hardware page was told not to use (open-source chosen).
+        for m in self.hardware().excluded_modules() {
+            if !sel.exclude.iter().any(|x| x == m) {
+                sel.exclude.push(m.into());
+            }
+        }
+        sel
     }
 
     /// Bindle's own layout with encryption on (a manual layout brings its own).

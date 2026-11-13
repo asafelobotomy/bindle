@@ -2,7 +2,7 @@
 
 mod gpu;
 
-pub use gpu::nvidia_open_supported;
+pub use gpu::{nvidia_legacy, nvidia_open_supported};
 
 use std::collections::BTreeSet;
 
@@ -10,7 +10,7 @@ use crate::catalog::FileSpec;
 use crate::desktops;
 use crate::detect::Facts;
 
-pub const KNOWN: &[&str] = &["aur-helper", "desktop", "gpu", "microcode", "zram"];
+pub const KNOWN: &[&str] = &["aur-helper", "desktop", "gpu", "microcode", "nvidia-legacy", "zram"];
 
 /// AUR package bootstrapped by the `aur-helper` builtin.
 pub const AUR_HELPER: &str = "paru-bin";
@@ -29,6 +29,8 @@ pub use gpu::PACKAGES as GPU_PACKAGES;
 #[derive(Debug, Default, Clone)]
 pub struct Expansion {
     pub packages: Vec<String>,
+    /// AUR packages, beside the module's own `aur` list.
+    pub aur: Vec<String>,
     pub files: Vec<FileSpec>,
     /// systemd units to enable.
     pub enable: Vec<String>,
@@ -49,6 +51,7 @@ pub fn expand(name: &str, ctx: &Ctx) -> Expansion {
         "desktop" => desktop(ctx.facts),
         "gpu" => gpu::gpu(ctx),
         "microcode" => microcode(ctx.facts),
+        "nvidia-legacy" => gpu::nvidia_legacy_extras(ctx),
         "zram" => zram(ctx.facts),
         _ => Expansion::default(),
     }

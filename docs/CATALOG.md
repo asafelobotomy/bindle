@@ -42,7 +42,7 @@ user_commands = [{ argv = ["xdg-user-dirs-update"], unless = [{ path = "~/.confi
 # A user command may map exit codes to a manual step: the apply goes on and the
 # message is listed at the end. Any other non-zero exit fails the step.
 #   { argv = ["uqctl", "setup"], manual = { 3 = "add the lines it printed to hyprland.lua" } }
-builtin = "zram"                # hardware-computed steps (gpu, microcode, zram, aur-helper, desktop)
+builtin = "zram"                # hardware-computed steps (gpu, nvidia-legacy, microcode, zram, aur-helper, desktop)
 notes = ["Shown on the review screen."]
 
 [[module.release]]              # a pinned GitHub release asset (repeatable)
@@ -114,7 +114,8 @@ file and check paths.
 `multilib`, `zram-active`, `zswap`, `hibernate`, `aur-helper`, `desktop`, `nm`,
 `kdeconnect` (installed, or in a detected desktop's essentials),
 `snapshots-mount` (`/.snapshots` is its own mount, e.g. archinstall's
-`@.snapshots`), `hybrid-gpu` (NVIDIA plus Intel/AMD),
+`@.snapshots`), `hybrid-gpu` (NVIDIA plus Intel/AMD), `nvidia-legacy` (a Maxwell,
+Pascal or Volta NVIDIA card: NVIDIA's own driver for it is the 580 branch),
 plus `desktop:<id>`, `toolkit:<qt|gtk|other>`, `display:<wayland|xorg>` and
 `installer:<archinstall|pacstrap>`, and `installed:<package>` (the package is
 installed now). Prefix with `!` to negate.
@@ -178,9 +179,9 @@ their own, recommended or not.
 | Category | Modules |
 |---|---|
 | System | pacman-qol, mirrors, multilib, build-tools, aur-helper, microcode, firmware-updates, fstrim, man-pages |
-| Hardware | gpu-driver, audio-firmware, audio-pipewire, bluetooth, power-profiles, tlp, tlp-rdw, thermald, fingerprint, printing, scanning-qt, scanning-gtk, solaar, piper, openrgb, android-tools |
+| Hardware | gpu-driver, nvidia-legacy, audio-firmware, audio-pipewire, bluetooth, power-profiles, tlp, tlp-rdw, thermald, fingerprint, printing, scanning-qt, scanning-gtk, solaar, piper, openrgb, android-tools |
 | Performance | zram, xzram, oomd, earlyoom, io-schedulers, scdr, scdr-sched-ext, scdr-devbox, scx-schedulers, kernel-zen, makepkg-parallel, makepkg-native |
-| Desktop & apps | desktop-essentials, uq, noti-fi, crumbs, uq-dev, fonts, nerd-fonts, codecs, archives, user-dirs, flatpak, flatpak-discover, flatpak-gnome-software, media-players, spotify, libreoffice, obsidian, keepassxc, bitwarden, backup-gtk, backup-deja-dup, yakuake, emobie |
+| Desktop & apps | desktop-essentials, uq, noti-fi, crumbs, uq-dev, fonts, nerd-fonts, codecs, archives, user-dirs, flatpak, flatpak-discover, flatpak-gnome-software, media-players, spotify, libreoffice, obsidian, keepassxc, bitwarden, backup-gtk, backup-deja-dup, text-editor, yakuake, kyko, emobie |
 | Internet | firefox, chromium, brave, brave-origin, vivaldi, zen-browser, google-chrome, thunderbird, signal, telegram, element, proton-mail, proton-mail-bridge, proton-pass, proton-pass-cli, proton-vpn, proton-authenticator, proton-drive-cli, syncthing, nextcloud-client, tailscale, qbittorrent, qbittorrent-enhanced, qbit-plugin-dl, hauler, av-morning-star |
 | Creative | gimp, krita, inkscape, darktable, rawtherapee, digikam, kdenlive, handbrake, obs-studio, audacity, blender, photocraft, lightcraft, filmcraft, vectorcraft, effectcraft, designcraft, pdfcraft, wordcraft, deckcraft, gridcraft |
 | Development | rustup, python, nodejs, js-runtimes, go, c-cpp, java, dotnet, zig, mise, git-tools, jujutsu, cli-tools, neovim, helix, code-oss, vscodium, vscode, zed, ghostty, kitty, alacritty, fish, zsh, docker, podman, distrobox, virt-manager |
