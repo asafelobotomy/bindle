@@ -87,6 +87,28 @@ pub(super) fn gpus(virt: &str) -> GpuInfo {
     classify_gpus(&cards, virt)
 }
 
+/// The kernel driver bound to an Intel or AMD GPU, read from sysfs.
+pub(super) fn igpu_driver() -> Option<String> {
+    let mut found: Vec<String> = fs::read_dir("/sys/class/drm")
+        .ok()?
+        .flatten()
+        .filter_map(|e| {
+            let name = e.file_name().to_string_lossy().into_owned();
+            if !name.starts_with("card") || name.contains('-') {
+                return None;
+            }
+            let dev = format!("/sys/class/drm/{name}/device");
+            if !matches!(pci_vendor_name(&read(&format!("{dev}/vendor"))), "intel" | "amd") {
+                return None;
+            }
+            let driver = fs::read_link(format!("{dev}/driver")).ok()?;
+            driver.file_name().map(|d| d.to_string_lossy().into_owned())
+        })
+        .collect();
+    found.sort();
+    found.into_iter().next()
+}
+
 pub(super) fn has_ssd() -> bool {
     let Ok(entries) = fs::read_dir("/sys/block") else {
         return false;
