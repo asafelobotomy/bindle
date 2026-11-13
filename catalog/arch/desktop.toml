@@ -6,6 +6,7 @@ order = 40
 
 [[module]]
 id = "desktop-essentials"
+group = "Desktop basics"
 name = "Desktop essentials"
 description = "The apps, portals, polkit agent and applets archinstall leaves out of your desktop."
 default = true
@@ -14,6 +15,7 @@ builtin = "desktop"
 
 [[module]]
 id = "uq"
+group = "uQ desktop"
 name = "uQ desktop"
 description = "uQ, a themeable Hyprland desktop: shell, theming daemon and base config. By asafelobotomy."
 notes = [
@@ -47,6 +49,7 @@ manual = { 3 = "your own ~/.config/hypr/hyprland.lua was kept. Add the lines `uq
 
 [[module]]
 id = "noti-fi"
+group = "uQ desktop"
 name = "noti-fi (notifications)"
 description = "Notification daemon (notifd) with grouped popups, rules, history and Do Not Disturb; uQ's bar and OSD use it. By asafelobotomy."
 notes = ["Replaces mako, dunst and swaync. `notify restore` hands notifications back."]
@@ -62,6 +65,7 @@ manual = { 1 = "notifd could not take over notifications yet. Log in to your des
 
 [[module]]
 id = "crumbs"
+group = "Utilities"
 name = "crumBS (uninstaller and cleaner)"
 description = "Lists every installed app, uninstalls them with their leftovers, and cleans caches and old files, all to the trash with undo. By asafelobotomy."
 notes = ["Run `crumbs scan` to see what can be cleaned. uQ's own packages need a second confirmation to remove."]
@@ -71,6 +75,7 @@ aur = ["crum-bs-bin"]
 
 [[module]]
 id = "uq-dev"
+group = "uQ desktop"
 name = "uQ developer setup"
 description = "Clones uQ and its apps into ~/Projects and installs what building them needs, so you can work on them while you use the installed ones. By asafelobotomy."
 notes = [
@@ -106,6 +111,7 @@ manual = { 3 = "some uQ repos could not be cloned (see above). Clone them into ~
 
 [[module]]
 id = "fonts"
+group = "Desktop basics"
 name = "Fonts"
 description = "Noto (with emoji and CJK), DejaVu and Liberation."
 profiles = ["desktop", "gaming", "developer"]
@@ -113,6 +119,7 @@ packages = ["noto-fonts", "noto-fonts-emoji", "noto-fonts-cjk", "ttf-dejavu", "t
 
 [[module]]
 id = "nerd-fonts"
+group = "Desktop basics"
 name = "Nerd Fonts"
 description = "JetBrains Mono and Fira Code with icon glyphs, for terminals and status bars."
 profiles = ["developer"]
@@ -120,6 +127,7 @@ packages = ["ttf-jetbrains-mono-nerd", "ttf-firacode-nerd"]
 
 [[module]]
 id = "codecs"
+group = "Desktop basics"
 name = "Multimedia codecs"
 description = "FFmpeg and the GStreamer plugin sets."
 profiles = ["desktop", "gaming", "developer"]
@@ -127,6 +135,7 @@ packages = ["ffmpeg", "gst-plugins-good", "gst-plugins-bad", "gst-plugins-ugly",
 
 [[module]]
 id = "archives"
+group = "Desktop basics"
 name = "Archive tools"
 description = "zip, unzip, 7-Zip and unrar."
 profiles = ["desktop", "gaming", "developer"]
@@ -134,6 +143,7 @@ packages = ["zip", "unzip", "7zip", "unrar"]
 
 [[module]]
 id = "user-dirs"
+group = "Desktop basics"
 name = "XDG user folders"
 description = "Creates Documents, Downloads, Music, Pictures and Videos in your home folder."
 profiles = ["desktop", "gaming", "developer"]
@@ -142,6 +152,7 @@ user_commands = [{ argv = ["xdg-user-dirs-update"], unless = [{ path = "~/.confi
 
 [[module]]
 id = "flatpak"
+group = "App stores"
 name = "Flatpak + Flathub"
 description = "Sandboxed apps from Flathub."
 profiles = ["desktop", "gaming"]
@@ -149,6 +160,7 @@ packages = ["flatpak"]
 
 [[module]]
 id = "flatpak-discover"
+group = "App stores"
 name = "Flatpak in Discover"
 description = "Browse and update Flathub apps in Plasma's Discover."
 profiles = ["desktop", "gaming"]
@@ -158,6 +170,7 @@ packages = ["discover", "flatpak-kcm"]
 
 [[module]]
 id = "flatpak-gnome-software"
+group = "App stores"
 name = "Flatpak in GNOME Software"
 description = "Browse and update Flathub apps in GNOME Software."
 profiles = ["desktop", "gaming"]
@@ -167,6 +180,7 @@ packages = ["gnome-software"]
 
 [[module]]
 id = "media-players"
+group = "Media"
 name = "Media players"
 description = "VLC and mpv for video and audio."
 profiles = ["desktop", "gaming", "developer"]
@@ -174,51 +188,30 @@ packages = ["vlc", "mpv"]
 
 [[module]]
 id = "spotify"
+group = "Media"
 name = "Spotify"
 description = "spotify-launcher, which installs Spotify's official build and keeps it updated."
 packages = ["spotify-launcher"]
 
 [[module]]
 id = "libreoffice"
+group = "Office & notes"
 name = "LibreOffice"
 description = "Office suite: documents, spreadsheets and presentations."
 packages = ["libreoffice-fresh"]
 
 [[module]]
 id = "obsidian"
+group = "Office & notes"
 name = "Obsidian"
 description = "Markdown notes and knowledge base."
 packages = ["obsidian"]
-
-[[module]]
-id = "keepassxc"
-name = "KeePassXC"
-description = "Offline password manager with browser integration."
-packages = ["keepassxc"]
-
-[[module]]
-id = "bitwarden"
-name = "Bitwarden"
-description = "Desktop client for the Bitwarden password manager."
-packages = ["bitwarden"]
-
-[[module]]
-id = "backup-gtk"
-name = "Backups (Pika Backup)"
-description = "Deduplicated, encrypted backups of your home folder (BorgBackup)."
-when = ["toolkit:gtk"]
-packages = ["pika-backup"]
-
-[[module]]
-id = "backup-deja-dup"
-name = "Backups (Déjà Dup)"
-description = "Simple scheduled backups to a drive or the cloud."
-packages = ["deja-dup"]
 
 # KWrite (from the kate package): a plain notepad that follows uQ's theme
 # through qt6ct. uQ and Hyprland pre-select it (desktops.toml `apps`).
 [[module]]
 id = "text-editor"
+group = "Desktop basics"
 name = "Text editor (KWrite)"
 description = "A simple notepad for text files and quick edits, with tabs and syntax colours. Follows uQ's theme."
 when = ["desktop"]
@@ -226,6 +219,7 @@ packages = ["kate"]
 
 [[module]]
 id = "kyko"
+group = "Utilities"
 name = "kyko (drop-down terminal)"
 description = "Drop-down terminal for uQ and other Wayland desktops, in the manner of Yakuake: one key slides it down, sessions keep running. By asafelobotomy."
 notes = ["Early preview (0.0.2): this installs kykod, which keeps the shells running, but the drop-down window isn't finished yet."]
@@ -239,6 +233,7 @@ name = "kyko"
 
 [[module]]
 id = "yakuake"
+group = "Utilities"
 name = "Yakuake"
 description = "Drop-down terminal for Plasma (F12 to toggle)."
 when = ["desktop:plasma"]
@@ -246,6 +241,7 @@ packages = ["yakuake"]
 
 [[module]]
 id = "emobie"
+group = "Utilities"
 name = "emobie (emoji palette)"
 description = "Compact emoji palette with a global hotkey, favourites and text macros. By asafelobotomy."
 packages = ["fuse2"]
@@ -258,6 +254,7 @@ name = "emobie"
 
 [[module]]
 id = "appofholding"
+group = "Utilities"
 name = "appOFholding (AppImage manager)"
 description = "Adds AppImages to your application menu, keeps them up to date from GitHub and GitLab, and sandboxes them. By asafelobotomy."
 notes = ["Once it is in use, crumBS leaves the AppImages in ~/Applications to it."]

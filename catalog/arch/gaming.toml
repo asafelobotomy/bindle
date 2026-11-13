@@ -6,6 +6,7 @@ order = 60
 
 [[module]]
 id = "steam"
+group = "Steam & Proton"
 name = "Steam"
 description = "Valve's Steam client (Proton included)."
 profiles = ["gaming"]
@@ -15,6 +16,7 @@ packages = ["steam", "steam-devices"]
 
 [[module]]
 id = "gamemode"
+group = "Performance & overlays"
 name = "GameMode"
 description = "On-demand CPU governor and scheduler tweaks while games run."
 profiles = ["gaming"]
@@ -24,6 +26,7 @@ groups = ["gamemode"]
 
 [[module]]
 id = "mangohud"
+group = "Performance & overlays"
 name = "MangoHud"
 description = "FPS, frametime and temperature overlay."
 profiles = ["gaming"]
@@ -32,6 +35,7 @@ packages = ["mangohud", "lib32-mangohud"]
 
 [[module]]
 id = "goverlay"
+group = "Performance & overlays"
 name = "GOverlay"
 description = "GUI to configure MangoHud."
 requires = ["mangohud"]
@@ -39,6 +43,7 @@ packages = ["goverlay"]
 
 [[module]]
 id = "gamescope"
+group = "Performance & overlays"
 name = "gamescope"
 description = "Micro-compositor for games: upscaling, frame limits, HDR."
 profiles = ["gaming"]
@@ -46,6 +51,7 @@ packages = ["gamescope"]
 
 [[module]]
 id = "wine"
+group = "Wine & launchers"
 name = "Wine"
 description = "Wine (staging) with winetricks, Mono and Gecko."
 profiles = ["gaming"]
@@ -54,6 +60,7 @@ packages = ["wine-staging", "winetricks", "wine-mono", "wine-gecko"]
 
 [[module]]
 id = "protontricks"
+group = "Steam & Proton"
 name = "Protontricks"
 description = "winetricks for Proton games in Steam."
 profiles = ["gaming"]
@@ -62,6 +69,7 @@ packages = ["protontricks"]
 
 [[module]]
 id = "protonup-qt"
+group = "Steam & Proton"
 name = "ProtonUp-Qt"
 description = "Install and update GE-Proton and other compatibility tools."
 requires = ["aur-helper", "steam"]
@@ -69,6 +77,7 @@ aur = ["protonup-qt"]
 
 [[module]]
 id = "lutris"
+group = "Wine & launchers"
 name = "Lutris"
 description = "Launcher for GOG, Epic, emulators and Wine games."
 requires = ["wine"]
@@ -76,6 +85,7 @@ packages = ["lutris", "umu-launcher"]
 
 [[module]]
 id = "heroic"
+group = "Wine & launchers"
 name = "Heroic Games Launcher"
 description = "Launcher for Epic, GOG and Amazon games."
 risk = "moderate"
@@ -84,6 +94,7 @@ aur = ["heroic-games-launcher-bin"]
 
 [[module]]
 id = "bottles"
+group = "Wine & launchers"
 name = "Bottles"
 description = "Run Windows software in managed Wine prefixes."
 notes = ["Upstream recommends the Flathub build; this is the AUR package."]
@@ -92,6 +103,7 @@ aur = ["bottles"]
 
 [[module]]
 id = "discord"
+group = "Chat"
 name = "Discord"
 description = "Discord voice and text chat."
 conflicts = ["vesktop"]
@@ -99,6 +111,7 @@ packages = ["discord"]
 
 [[module]]
 id = "vesktop"
+group = "Chat"
 name = "Vesktop"
 description = "Discord client with better Wayland screen sharing."
 requires = ["aur-helper"]
@@ -107,6 +120,7 @@ aur = ["vesktop-bin"]
 
 [[module]]
 id = "lact"
+group = "Performance & overlays"
 name = "LACT (GPU control)"
 description = "Monitor, overclock and set fan curves on AMD, NVIDIA and Intel GPUs."
 when = ["!virt"]
@@ -115,12 +129,14 @@ enable = ["lactd.service"]
 
 [[module]]
 id = "emulators"
+group = "Emulation & streaming"
 name = "Emulators"
 description = "RetroArch, Dolphin (GameCube/Wii) and PPSSPP (PSP)."
 packages = ["retroarch", "dolphin-emu", "ppsspp"]
 
 [[module]]
 id = "pcsx2"
+group = "Emulation & streaming"
 name = "PCSX2"
 description = "PlayStation 2 emulator."
 requires = ["aur-helper"]
@@ -128,6 +144,7 @@ aur = ["pcsx2"]
 
 [[module]]
 id = "azahar"
+group = "Emulation & streaming"
 name = "Azahar"
 description = "Nintendo 3DS emulator (successor to Citra)."
 requires = ["aur-helper"]
@@ -135,18 +152,21 @@ aur = ["azahar"]
 
 [[module]]
 id = "moonlight"
+group = "Emulation & streaming"
 name = "Moonlight"
 description = "Stream games from a Sunshine or GeForce host."
 packages = ["moonlight-qt"]
 
 [[module]]
 id = "prismlauncher"
+group = "Wine & launchers"
 name = "Prism Launcher"
 description = "Minecraft launcher with multiple instances and mod pack support."
 packages = ["prismlauncher"]
 
 [[module]]
 id = "romforge"
+group = "Emulation & streaming"
 name = "romforge (ROM library)"
 description = "Identifies, tidies, enriches and plays your ROM collection. By asafelobotomy."
 packages = ["fuse2"]
@@ -159,6 +179,7 @@ name = "romforge"
 
 [[module]]
 id = "reshadelinux"
+group = "Performance & overlays"
 name = "ReShadeLinux"
 description = "Installs the official ReShade runtime for Wine and Proton games. By asafelobotomy."
 packages = ["fuse2"]

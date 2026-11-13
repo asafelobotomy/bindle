@@ -6,66 +6,77 @@ order = 45
 
 [[module]]
 id = "gimp"
+group = "Images & drawing"
 name = "GIMP"
 description = "Raster image editor."
 packages = ["gimp"]
 
 [[module]]
 id = "krita"
+group = "Images & drawing"
 name = "Krita"
 description = "Digital painting and illustration."
 packages = ["krita"]
 
 [[module]]
 id = "inkscape"
+group = "Images & drawing"
 name = "Inkscape"
 description = "Vector graphics editor."
 packages = ["inkscape"]
 
 [[module]]
 id = "darktable"
+group = "Photography"
 name = "darktable"
 description = "RAW photo developer and photo library."
 packages = ["darktable"]
 
 [[module]]
 id = "rawtherapee"
+group = "Photography"
 name = "RawTherapee"
 description = "RAW photo processing."
 packages = ["rawtherapee"]
 
 [[module]]
 id = "digikam"
+group = "Photography"
 name = "digiKam"
 description = "Photo management."
 packages = ["digikam"]
 
 [[module]]
 id = "kdenlive"
+group = "Video & audio"
 name = "Kdenlive"
 description = "Video editor."
 packages = ["kdenlive"]
 
 [[module]]
 id = "handbrake"
+group = "Video & audio"
 name = "HandBrake"
 description = "Video transcoder."
 packages = ["handbrake"]
 
 [[module]]
 id = "obs-studio"
+group = "Video & audio"
 name = "OBS Studio"
 description = "Screen recording and live streaming."
 packages = ["obs-studio"]
 
 [[module]]
 id = "audacity"
+group = "Video & audio"
 name = "Audacity"
 description = "Audio editor and recorder."
 packages = ["audacity"]
 
 [[module]]
 id = "blender"
+group = "3D"
 name = "Blender"
 description = "3D modelling, animation and rendering."
 packages = ["blender"]
@@ -77,6 +88,7 @@ packages = ["blender"]
 
 [[module]]
 id = "photocraft"
+group = "ArtCraft suite"
 name = "PhotoCraft (alpha)"
 description = "ArtCraft's open-source take on Photoshop. Early alpha: expect missing features and bugs, especially on Wayland."
 risk = "moderate"
@@ -90,6 +102,7 @@ name = "ai.storyteller.photocraft"
 
 [[module]]
 id = "lightcraft"
+group = "ArtCraft suite"
 name = "LightCraft (alpha)"
 description = "ArtCraft's open-source take on Lightroom. Early alpha: expect missing features and bugs, especially on Wayland."
 risk = "moderate"
@@ -103,6 +116,7 @@ name = "ai.storyteller.lightcraft"
 
 [[module]]
 id = "filmcraft"
+group = "ArtCraft suite"
 name = "FilmCraft (alpha)"
 description = "ArtCraft's open-source take on Premiere Pro. Early alpha: expect missing features and bugs, especially on Wayland."
 risk = "moderate"
@@ -116,6 +130,7 @@ name = "ai.storyteller.filmcraft"
 
 [[module]]
 id = "vectorcraft"
+group = "ArtCraft suite"
 name = "VectorCraft (alpha)"
 description = "ArtCraft's open-source take on Illustrator. Early alpha: expect missing features and bugs, especially on Wayland."
 risk = "moderate"
@@ -129,6 +144,7 @@ name = "ai.storyteller.vectorcraft"
 
 [[module]]
 id = "effectcraft"
+group = "ArtCraft suite"
 name = "EffectCraft (alpha)"
 description = "ArtCraft's open-source take on After Effects. Early alpha: expect missing features and bugs, especially on Wayland."
 risk = "moderate"
@@ -142,6 +158,7 @@ name = "ai.storyteller.effectcraft"
 
 [[module]]
 id = "designcraft"
+group = "ArtCraft suite"
 name = "DesignCraft (alpha)"
 description = "ArtCraft's open-source take on InDesign. Early alpha: expect missing features and bugs, especially on Wayland."
 risk = "moderate"
@@ -155,6 +172,7 @@ name = "ai.storyteller.designcraft"
 
 [[module]]
 id = "pdfcraft"
+group = "ArtCraft suite"
 name = "PdfCraft (alpha)"
 description = "ArtCraft's open-source take on Acrobat. Early alpha: expect missing features and bugs, especially on Wayland."
 risk = "moderate"
@@ -168,6 +186,7 @@ name = "ai.storyteller.pdfcraft"
 
 [[module]]
 id = "wordcraft"
+group = "ArtCraft suite"
 name = "WordCraft (alpha)"
 description = "ArtCraft's open-source take on Word. Early alpha: expect missing features and bugs, especially on Wayland."
 risk = "moderate"
@@ -181,6 +200,7 @@ name = "ai.storyteller.wordcraft"
 
 [[module]]
 id = "deckcraft"
+group = "ArtCraft suite"
 name = "DeckCraft (alpha)"
 description = "ArtCraft's open-source take on PowerPoint. Early alpha: expect missing features and bugs, especially on Wayland."
 risk = "moderate"
@@ -194,6 +214,7 @@ name = "ai.storyteller.deckcraft"
 
 [[module]]
 id = "gridcraft"
+group = "ArtCraft suite"
 name = "GridCraft (alpha)"
 description = "ArtCraft's open-source take on Excel. Early alpha: expect missing features and bugs, especially on Wayland."
 risk = "moderate"

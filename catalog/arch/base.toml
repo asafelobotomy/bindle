@@ -6,6 +6,7 @@ order = 10
 
 [[module]]
 id = "pacman-qol"
+group = "Package manager"
 name = "Pacman quality-of-life"
 description = "Colour, parallel downloads, verbose package lists and a weekly package-cache cleanup."
 default = true
@@ -15,6 +16,7 @@ enable = ["paccache.timer"]
 
 [[module]]
 id = "mirrors"
+group = "Package manager"
 name = "Fast mirrors (reflector)"
 description = "Rank recent HTTPS mirrors weekly with reflector."
 default = true
@@ -36,6 +38,7 @@ content = '''
 
 [[module]]
 id = "multilib"
+group = "Package manager"
 name = "32-bit packages (multilib)"
 description = "32-bit repository required by Steam, Wine and lib32 graphics drivers."
 profiles = ["gaming"]
@@ -43,6 +46,7 @@ repos = ["multilib"]
 
 [[module]]
 id = "build-tools"
+group = "Building & AUR"
 name = "Build tools"
 description = "base-devel and git, needed for the AUR and most development."
 default = true
@@ -50,6 +54,7 @@ packages = ["base-devel", "git"]
 
 [[module]]
 id = "aur-helper"
+group = "Building & AUR"
 name = "AUR helper (paru)"
 description = "paru, to install community packages from the AUR."
 risk = "moderate"
@@ -59,6 +64,7 @@ builtin = "aur-helper"
 
 [[module]]
 id = "microcode"
+group = "Firmware & upkeep"
 name = "CPU microcode"
 description = "intel-ucode or amd-ucode for your CPU."
 default = true
@@ -67,6 +73,7 @@ builtin = "microcode"
 
 [[module]]
 id = "firmware-updates"
+group = "Firmware & upkeep"
 name = "Firmware updates (fwupd)"
 description = "Update device firmware from LVFS."
 profiles = ["desktop", "gaming", "developer"]
@@ -75,6 +82,7 @@ packages = ["fwupd"]
 
 [[module]]
 id = "fstrim"
+group = "Firmware & upkeep"
 name = "Weekly SSD TRIM"
 description = "Enable fstrim.timer to keep SSD performance steady."
 default = true
@@ -83,6 +91,7 @@ enable = ["fstrim.timer"]
 
 [[module]]
 id = "man-pages"
+group = "Documentation"
 name = "Manual pages"
 description = "man and the Linux man pages, plus pkgfile to find which package provides a command."
 profiles = ["desktop", "gaming", "developer"]

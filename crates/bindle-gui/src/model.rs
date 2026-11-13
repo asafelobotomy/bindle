@@ -3,10 +3,11 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use bindle_core::catalog::Risk;
 use bindle_core::{Catalog, Facts, Plan, Selection, Step, plan};
 use bindle_run::present;
 use serde_json::{Value, json};
+
+mod choose;
 
 pub struct Wizard {
     catalog: Catalog,
@@ -51,21 +52,6 @@ impl Wizard {
             self.profile = id.to_string();
             self.selected = self.base();
         }
-    }
-
-    /// Select or deselect a module. Selecting one of a conflicting pair drops
-    /// the other; the returned line says so.
-    pub fn toggle(&mut self, id: &str) -> Option<String> {
-        let m = self.catalog.module(id)?;
-        // Set up already, or the plan would skip it: nothing to toggle.
-        if self.provided.contains_key(id) || self.facts.matches(&m.when).is_err() || self.selected.remove(id) {
-            return None;
-        }
-        let dropped: Vec<&str> =
-            m.conflicts.iter().filter(|r| self.selected.remove(r.as_str())).map(String::as_str).collect();
-        self.selected.insert(id.to_string());
-        (!dropped.is_empty())
-            .then(|| format!("{} replaces {} (they can't be combined)", m.name, names(&self.catalog, &dropped)))
     }
 
     pub fn selection(&self) -> Selection {
@@ -115,50 +101,30 @@ impl Wizard {
             .profiles
             .iter()
             .map(|p| {
-                let count = Selection { profile: Some(p.id.clone()), ..Default::default() }
+                let picks = Selection { profile: Some(p.id.clone()), ..Default::default() }
                     .initial(&self.catalog)
-                    .map_or(0, |s| s.len());
-                json!({ "id": p.id, "name": p.name, "description": p.description, "count": count })
-            })
-            .collect();
-        json!(profiles)
-    }
-
-    pub fn categories(&self) -> Value {
-        let cats: Vec<Value> = self
-            .catalog
-            .categories
-            .iter()
-            .map(|c| {
-                let modules: Vec<Value> = self.catalog.modules_in(&c.id).map(|m| self.module(m)).collect();
-                let picked = modules.iter().filter(|m| m["selected"] == true).count();
+                    .unwrap_or_default();
+                // What the profile holds, by category: the card shows it. Only
+                // what can be ticked here counts, as on the screens that follow.
+                let here = |m: &&bindle_core::catalog::Module| {
+                    picks.contains(&m.id) && self.available(m) && !self.provided.contains_key(&m.id)
+                };
+                let holds: Vec<Value> = self
+                    .catalog
+                    .categories
+                    .iter()
+                    .filter_map(|c| {
+                        let n = self.catalog.modules_in(&c.id).filter(here).count();
+                        (n > 0).then(|| json!({ "id": c.id, "name": c.name, "count": n }))
+                    })
+                    .collect();
                 json!({
-                    "id": c.id, "name": c.name, "description": c.description,
-                    "selected": picked, "total": modules.len(), "modules": modules,
+                    "id": p.id, "name": p.name, "description": p.description,
+                    "count": holds.iter().map(|h| h["count"].as_u64().unwrap_or(0)).sum::<u64>(), "holds": holds,
                 })
             })
             .collect();
-        json!(cats)
-    }
-
-    fn module(&self, m: &bindle_core::catalog::Module) -> Value {
-        let risk = match m.risk {
-            Risk::Safe => "",
-            Risk::Moderate => "moderate",
-            Risk::Advanced => "advanced",
-        };
-        let unavailable = self.facts.matches(&m.when).err();
-        json!({
-            "id": m.id, "name": m.name, "description": m.description, "risk": risk,
-            // A profile may include it, but the plan skips it here: show it off.
-            "selected": unavailable.is_none() && self.selected.contains(&m.id),
-            "provided": self.provided.get(&m.id),
-            "unavailable": unavailable,
-            "notes": m.notes,
-            "details": present::module_details(m, &self.facts),
-            "requires": names(&self.catalog, &m.requires.iter().map(String::as_str).collect::<Vec<_>>()),
-            "conflicts": names(&self.catalog, &m.conflicts.iter().map(String::as_str).collect::<Vec<_>>()),
-        })
+        json!(profiles)
     }
 
     pub fn facts(&self) -> &Facts {
@@ -244,14 +210,14 @@ fn review_json(p: &Plan, catalog: &Catalog) -> Value {
 }
 
 #[cfg(test)]
-mod tests {
+pub(super) mod tests {
     use super::*;
 
-    fn wizard(f: Facts) -> Wizard {
+    pub fn wizard(f: Facts) -> Wizard {
         Wizard::new(Catalog::arch().unwrap(), f)
     }
 
-    fn arch() -> Facts {
+    pub fn arch() -> Facts {
         Facts { distro_id: "arch".into(), desktops: vec!["gnome".into()], laptop: true, ..Default::default() }
     }
 
@@ -262,18 +228,6 @@ mod tests {
         assert_eq!(wizard(Facts::default()).profile(), "minimal");
         let sel = w.selection();
         assert!(sel.include.is_empty() && sel.exclude.is_empty());
-    }
-
-    #[test]
-    fn toggling_a_rival_drops_the_other() {
-        let mut w = wizard(arch());
-        assert!(w.selected.contains("power-profiles"));
-        let notice = w.toggle("tlp").unwrap();
-        assert!(notice.contains("replaces Power profiles"), "{notice}");
-        assert!(w.selected.contains("tlp") && !w.selected.contains("power-profiles"));
-        assert_eq!(w.toggle("tlp"), None);
-        assert!(!w.selected.contains("tlp"));
-        assert_eq!(w.toggle("no-such-module"), None);
     }
 
     #[test]
@@ -289,34 +243,15 @@ mod tests {
     #[test]
     fn screens_get_the_fields_they_show() {
         let w = wizard(arch());
-        let cats = w.categories();
-        let hw = cats.as_array().unwrap().iter().find(|c| c["id"] == "hardware").unwrap();
-        let tlp = hw["modules"].as_array().unwrap().iter().find(|m| m["id"] == "tlp").unwrap();
-        assert_eq!(tlp["risk"], "moderate");
-        assert_eq!(tlp["conflicts"], "Power profiles (power-profiles-daemon)");
-        assert!(hw["selected"].as_u64().unwrap() > 0);
         let profiles = w.profiles();
-        assert!(profiles.as_array().unwrap().iter().all(|p| p["count"].as_u64().unwrap() > 0));
+        for p in profiles.as_array().unwrap() {
+            let held: u64 = p["holds"].as_array().unwrap().iter().map(|h| h["count"].as_u64().unwrap()).sum();
+            assert!(held > 0 && held == p["count"].as_u64().unwrap(), "{p}");
+        }
         assert!(w.header().contains("laptop"));
         let vm = wizard(Facts { virt: "kvm".into(), gpus: vec!["virtual".into()], ..arch() });
         assert!(vm.header().ends_with("GiB · virtual machine"), "{}", vm.header());
         assert!(w.welcome()["rows"].is_array());
-    }
-
-    #[test]
-    fn modules_that_dont_apply_here_are_not_ticked() {
-        // Reflector needs Arch; the desktop profile includes it.
-        let mut w = wizard(Facts { distro_id: "manjaro".into(), ..arch() });
-        assert!(w.selected.contains("mirrors"));
-        let cats = w.categories();
-        let sys = cats.as_array().unwrap().iter().find(|c| c["id"] == "base").unwrap();
-        let r = sys["modules"].as_array().unwrap().iter().find(|m| m["id"] == "mirrors").unwrap();
-        assert_eq!(r["selected"], false);
-        assert!(r["unavailable"].is_string());
-        let ticked = sys["modules"].as_array().unwrap().iter().filter(|m| m["selected"] == true).count();
-        assert_eq!(sys["selected"].as_u64().unwrap() as usize, ticked);
-        assert_eq!(w.toggle("mirrors"), None);
-        assert!(w.selected.contains("mirrors"), "toggling an unavailable module changes nothing");
     }
 
     #[test]

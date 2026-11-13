@@ -36,6 +36,15 @@ QtObject {
     readonly property color warning: pick("warning", sys(win, "neutralTextColor", "#f67400"))
     readonly property color error: pick("error", sys(win, "negativeTextColor", "#da4453"))
 
+    // Breeze icon names per catalog category, outline style (Glyph draws them
+    // in one colour; a full-colour icon would become a solid square).
+    readonly property var categoryIcons: ({
+        base: "configure", hardware: "computer", performance: "speedometer",
+        desktop: "view-list-icons", internet: "applications-internet",
+        creative: "draw-brush", development: "format-text-code",
+        ai: "tools-wizard", gaming: "input-gamepad", security: "security-high"
+    })
+
     readonly property int radius: uq ? tokens.radius : 6
     readonly property string fontUi: uq ? tokens.fontUi : ""
     readonly property string fontMono: uq && tokens.fontMono ? tokens.fontMono : "monospace"

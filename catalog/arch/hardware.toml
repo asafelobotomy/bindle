@@ -6,6 +6,7 @@ order = 20
 
 [[module]]
 id = "gpu-driver"
+group = "Graphics & sound"
 name = "Graphics drivers"
 description = "Mesa and Vulkan for AMD and Intel; NVIDIA's own driver (nvidia-open) for Turing and newer cards on Arch. Keeps a driver you already have."
 default = true
@@ -15,6 +16,7 @@ builtin = "gpu"
 # on the cards that need this branch, and unticking it keeps nouveau.
 [[module]]
 id = "nvidia-legacy"
+group = "Graphics & sound"
 name = "NVIDIA driver for older cards (580xx)"
 description = "NVIDIA's own driver for GTX 700 (Maxwell), 900 and 10 series and Titan V cards, which the current driver no longer supports. Recommended over the open-source nouveau driver: full speed, video decoding and power management."
 default = true
@@ -25,6 +27,7 @@ builtin = "nvidia-legacy"
 
 [[module]]
 id = "audio-firmware"
+group = "Graphics & sound"
 name = "Audio firmware"
 description = "Sound Open Firmware and ALSA profiles: many Intel and AMD laptops have no sound without them."
 default = true
@@ -33,6 +36,7 @@ packages = ["sof-firmware", "alsa-firmware", "alsa-ucm-conf"]
 
 [[module]]
 id = "audio-pipewire"
+group = "Graphics & sound"
 name = "PipeWire audio"
 description = "PipeWire with PulseAudio, ALSA and JACK compatibility, managed by WirePlumber."
 profiles = ["desktop", "gaming", "developer"]
@@ -44,6 +48,7 @@ package_conflicts = ["pulseaudio", "pulseaudio-alsa", "pulseaudio-bluetooth", "p
 
 [[module]]
 id = "bluetooth"
+group = "Peripherals"
 name = "Bluetooth"
 description = "BlueZ, with the Bluetooth service enabled."
 profiles = ["desktop", "gaming", "developer"]
@@ -53,6 +58,7 @@ enable = ["bluetooth.service"]
 
 [[module]]
 id = "power-profiles"
+group = "Laptop & power"
 name = "Power profiles (power-profiles-daemon)"
 description = "Balanced, performance and power-saver modes that desktops switch between."
 profiles = ["desktop", "gaming", "developer"]
@@ -64,6 +70,7 @@ enable = ["power-profiles-daemon.service"]
 
 [[module]]
 id = "tlp"
+group = "Laptop & power"
 name = "Laptop power tuning (TLP)"
 description = "Aggressive battery tuning in place of power-profiles-daemon; tlp-pd keeps the desktop's power-mode switch working."
 risk = "moderate"
@@ -77,6 +84,7 @@ root_commands = [{ argv = ["systemctl", "mask", "systemd-rfkill.service", "syste
 
 [[module]]
 id = "tlp-rdw"
+group = "Laptop & power"
 name = "Radio switching (tlp-rdw)"
 description = "Turns Wi-Fi, Bluetooth and WWAN on and off on network events."
 risk = "moderate"
@@ -87,6 +95,7 @@ enable = ["NetworkManager-dispatcher.service"]
 
 [[module]]
 id = "thermald"
+group = "Laptop & power"
 name = "Intel thermal control (thermald)"
 description = "Manages cooling on Intel laptops before the firmware has to throttle."
 when = ["cpu:intel", "laptop", "!virt"]
@@ -96,6 +105,7 @@ notes = ["Some laptops' firmware already does this well; turn it off again if fa
 
 [[module]]
 id = "fingerprint"
+group = "Laptop & power"
 name = "Fingerprint login (fprintd)"
 description = "Fingerprint reader support. Enrol with `fprintd-enroll`; GNOME and Plasma offer it in their settings."
 when = ["laptop", "!virt"]
@@ -103,6 +113,7 @@ packages = ["fprintd"]
 
 [[module]]
 id = "printing"
+group = "Printing & scanning"
 name = "Printing (CUPS)"
 description = "CUPS with network printer discovery (Avahi, cups-browsed) and driverless USB printing."
 notes = ["HP printers may also want hplip. Scanners: see the Scanning modules."]
@@ -113,6 +124,7 @@ enable = ["cups.socket", "cups-browsed.service", "avahi-daemon.socket"]
 
 [[module]]
 id = "scanning-qt"
+group = "Printing & scanning"
 name = "Scanning (Skanpage)"
 description = "SANE with driverless network scanning (eSCL/WSD) and KDE's Skanpage."
 when = ["toolkit:qt"]
@@ -120,6 +132,7 @@ packages = ["sane", "sane-airscan", "skanpage"]
 
 [[module]]
 id = "scanning-gtk"
+group = "Printing & scanning"
 name = "Scanning (Document Scanner)"
 description = "SANE with driverless network scanning (eSCL/WSD) and GNOME's Document Scanner."
 when = ["!toolkit:qt"]
@@ -127,6 +140,7 @@ packages = ["sane", "sane-airscan", "simple-scan"]
 
 [[module]]
 id = "solaar"
+group = "Peripherals"
 name = "Solaar (Logitech devices)"
 description = "Pair and configure Logitech Unifying and Bolt receivers and devices."
 when = ["!virt"]
@@ -134,6 +148,7 @@ packages = ["solaar"]
 
 [[module]]
 id = "piper"
+group = "Peripherals"
 name = "Piper (gaming mice)"
 description = "Configure buttons, DPI and LEDs on gaming mice through libratbag."
 when = ["!virt"]
@@ -141,6 +156,7 @@ packages = ["piper"]
 
 [[module]]
 id = "openrgb"
+group = "Peripherals"
 name = "OpenRGB"
 description = "Control RGB lighting on motherboards, RAM, GPUs and peripherals from one app."
 when = ["!virt"]
@@ -149,6 +165,7 @@ notes = ["Some motherboard and RAM lighting needs the i2c-dev module: `echo i2c-
 
 [[module]]
 id = "android-tools"
+group = "Peripherals"
 name = "Android tools"
 description = "adb and fastboot for phones and tablets."
 packages = ["android-tools"]

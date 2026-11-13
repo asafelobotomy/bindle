@@ -6,6 +6,7 @@ order = 50
 
 [[module]]
 id = "rustup"
+group = "Languages"
 name = "Rust (rustup)"
 description = "Rust via rustup, with the stable toolchain."
 profiles = ["developer"]
@@ -16,6 +17,7 @@ user_commands = [{ argv = ["rustup", "default", "stable"], before_aur = true, un
 
 [[module]]
 id = "python"
+group = "Languages"
 name = "Python tooling"
 description = "pip, pipx, uv and ruff."
 profiles = ["developer"]
@@ -23,6 +25,7 @@ packages = ["python", "python-pip", "python-pipx", "uv", "ruff"]
 
 [[module]]
 id = "nodejs"
+group = "Languages"
 name = "Node.js"
 description = "Node.js LTS runtime with npm."
 profiles = ["developer"]
@@ -32,18 +35,21 @@ package_conflicts = ["nodejs", "nodejs-lts-jod", "nodejs-lts-iron", "nodejs-lts-
 
 [[module]]
 id = "js-runtimes"
+group = "Languages"
 name = "pnpm, Bun and Deno"
 description = "Extra JavaScript package managers and runtimes."
 packages = ["pnpm", "bun", "deno"]
 
 [[module]]
 id = "go"
+group = "Languages"
 name = "Go"
 description = "The Go toolchain."
 packages = ["go"]
 
 [[module]]
 id = "c-cpp"
+group = "Languages"
 name = "C/C++ toolchain"
 description = "CMake, Clang and GDB (GCC and make come with base-devel)."
 profiles = ["developer"]
@@ -52,6 +58,7 @@ packages = ["cmake", "clang", "gdb"]
 
 [[module]]
 id = "java"
+group = "Languages"
 name = "Java (JDK 21 LTS)"
 description = "OpenJDK 21, the current long-term-support release."
 packages = ["jdk21-openjdk"]
@@ -59,18 +66,21 @@ notes = ["Newer JDKs: jdk-openjdk. Switch with archlinux-java."]
 
 [[module]]
 id = "dotnet"
+group = "Languages"
 name = ".NET SDK"
 description = "The .NET SDK."
 packages = ["dotnet-sdk"]
 
 [[module]]
 id = "zig"
+group = "Languages"
 name = "Zig"
 description = "The Zig compiler."
 packages = ["zig"]
 
 [[module]]
 id = "mise"
+group = "Languages"
 name = "mise"
 description = "Per-project tool versions (Node, Python, Go, …) from one config file."
 packages = ["mise"]
@@ -78,6 +88,7 @@ notes = ["Activate it in your shell: see `mise activate --help`."]
 
 [[module]]
 id = "git-tools"
+group = "Version control & CLI"
 name = "Git tools"
 description = "GitHub CLI, lazygit and delta (better diffs)."
 profiles = ["developer"]
@@ -85,12 +96,14 @@ packages = ["github-cli", "lazygit", "git-delta"]
 
 [[module]]
 id = "jujutsu"
+group = "Version control & CLI"
 name = "Jujutsu (jj)"
 description = "Git-compatible version control with a simpler model."
 packages = ["jujutsu"]
 
 [[module]]
 id = "cli-tools"
+group = "Version control & CLI"
 name = "Modern CLI tools"
 description = "fzf, ripgrep, fd, bat, eza, zoxide, btop and fastfetch."
 profiles = ["developer"]
@@ -98,6 +111,7 @@ packages = ["fzf", "ripgrep", "fd", "bat", "eza", "zoxide", "btop", "fastfetch"]
 
 [[module]]
 id = "neovim"
+group = "Editors"
 name = "Neovim"
 description = "Terminal text editor."
 profiles = ["developer"]
@@ -105,12 +119,14 @@ packages = ["neovim"]
 
 [[module]]
 id = "helix"
+group = "Editors"
 name = "Helix"
 description = "Modal terminal editor with built-in LSP support."
 packages = ["helix"]
 
 [[module]]
 id = "code-oss"
+group = "Editors"
 name = "Code - OSS"
 description = "Arch's open-source build of VS Code, using Open VSX extensions."
 conflicts = ["vscode"]
@@ -118,6 +134,7 @@ packages = ["code"]
 
 [[module]]
 id = "vscodium"
+group = "Editors"
 name = "VSCodium"
 description = "VS Code without Microsoft telemetry, using the Open VSX extension store."
 requires = ["aur-helper"]
@@ -125,6 +142,7 @@ aur = ["vscodium-bin"]
 
 [[module]]
 id = "vscode"
+group = "Editors"
 name = "Visual Studio Code"
 description = "Microsoft's build of VS Code, with its extension marketplace."
 risk = "moderate"
@@ -134,42 +152,49 @@ aur = ["visual-studio-code-bin"]
 
 [[module]]
 id = "zed"
+group = "Editors"
 name = "Zed"
 description = "Fast, collaborative code editor."
 packages = ["zed"]
 
 [[module]]
 id = "ghostty"
+group = "Terminals & shells"
 name = "Ghostty"
 description = "GPU-accelerated terminal emulator."
 packages = ["ghostty"]
 
 [[module]]
 id = "kitty"
+group = "Terminals & shells"
 name = "kitty"
 description = "GPU-accelerated terminal."
 packages = ["kitty"]
 
 [[module]]
 id = "alacritty"
+group = "Terminals & shells"
 name = "Alacritty"
 description = "Minimal GPU-accelerated terminal."
 packages = ["alacritty"]
 
 [[module]]
 id = "fish"
+group = "Terminals & shells"
 name = "fish"
 description = "Friendly interactive shell. Installed only; switch with `chsh -s /usr/bin/fish`."
 packages = ["fish"]
 
 [[module]]
 id = "zsh"
+group = "Terminals & shells"
 name = "Zsh"
 description = "Z shell with extra completions. Installed only; switch with `chsh -s /usr/bin/zsh`."
 packages = ["zsh", "zsh-completions"]
 
 [[module]]
 id = "docker"
+group = "Containers & VMs"
 name = "Docker"
 description = "Docker engine with compose and buildx; adds you to the docker group."
 risk = "moderate"
@@ -181,12 +206,14 @@ notes = ["Membership of the docker group is root-equivalent."]
 
 [[module]]
 id = "podman"
+group = "Containers & VMs"
 name = "Podman"
 description = "Daemonless, rootless containers."
 packages = ["podman", "podman-compose", "buildah"]
 
 [[module]]
 id = "distrobox"
+group = "Containers & VMs"
 name = "Distrobox"
 description = "Other distros' userlands in containers, integrated with your desktop."
 requires = ["podman"]
@@ -194,6 +221,7 @@ packages = ["distrobox"]
 
 [[module]]
 id = "virt-manager"
+group = "Containers & VMs"
 name = "Virtual machines (virt-manager)"
 description = "QEMU/KVM virtual machines with libvirt and a GUI, including UEFI and TPM for Windows 11 guests."
 risk = "moderate"

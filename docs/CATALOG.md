@@ -15,6 +15,7 @@ order = 30                      # wizard ordering
 [[module]]
 id = "io-schedulers"            # unique across the catalog
 name = "I/O schedulers"
+group = "Disks"                 # heading within the category; groups show in first-appearance order
 description = "…"
 risk = "safe"                   # safe | moderate | advanced
 default = true                  # pre-selected in every profile
@@ -181,10 +182,10 @@ their own, recommended or not.
 | System | pacman-qol, mirrors, multilib, build-tools, aur-helper, microcode, firmware-updates, fstrim, man-pages |
 | Hardware | gpu-driver, nvidia-legacy, audio-firmware, audio-pipewire, bluetooth, power-profiles, tlp, tlp-rdw, thermald, fingerprint, printing, scanning-qt, scanning-gtk, solaar, piper, openrgb, android-tools |
 | Performance | zram, xzram, oomd, earlyoom, io-schedulers, scdr, scdr-sched-ext, scdr-devbox, scx-schedulers, kernel-zen, makepkg-parallel, makepkg-native |
-| Desktop & apps | desktop-essentials, uq, noti-fi, crumbs, uq-dev, fonts, nerd-fonts, codecs, archives, user-dirs, flatpak, flatpak-discover, flatpak-gnome-software, media-players, spotify, libreoffice, obsidian, keepassxc, bitwarden, backup-gtk, backup-deja-dup, text-editor, yakuake, kyko, emobie |
+| Desktop & apps | desktop-essentials, uq, noti-fi, crumbs, uq-dev, fonts, nerd-fonts, codecs, archives, user-dirs, flatpak, flatpak-discover, flatpak-gnome-software, media-players, spotify, libreoffice, obsidian, text-editor, yakuake, kyko, emobie |
 | Internet | firefox, chromium, brave, brave-origin, vivaldi, zen-browser, google-chrome, thunderbird, signal, telegram, element, proton-mail, proton-mail-bridge, proton-pass, proton-pass-cli, proton-vpn, proton-authenticator, proton-drive-cli, syncthing, nextcloud-client, tailscale, qbittorrent, qbittorrent-enhanced, qbit-plugin-dl, hauler, av-morning-star |
 | Creative | gimp, krita, inkscape, darktable, rawtherapee, digikam, kdenlive, handbrake, obs-studio, audacity, blender, photocraft, lightcraft, filmcraft, vectorcraft, effectcraft, designcraft, pdfcraft, wordcraft, deckcraft, gridcraft |
 | Development | rustup, python, nodejs, js-runtimes, go, c-cpp, java, dotnet, zig, mise, git-tools, jujutsu, cli-tools, neovim, helix, code-oss, vscodium, vscode, zed, ghostty, kitty, alacritty, fish, zsh, docker, podman, distrobox, virt-manager |
 | AI tools | claude-code, codex, gemini-cli, grok-build, copilot-cli, opencode, claude-desktop, cursor, ollama, ollama-cuda, ollama-rocm, lmstudio |
 | Gaming | steam, gamemode, mangohud, goverlay, gamescope, wine, protontricks, protonup-qt, lutris, heroic, bottles, discord, vesktop, lact, emulators, pcsx2, azahar, moonlight, prismlauncher, romforge, reshadelinux |
-| Security | ufw, firewalld, opensnitch, snapper, grub-btrfs, timeshift, btrfs-maintenance, secure-boot-tools, oysterav |
+| Security | ufw, firewalld, opensnitch, snapper, grub-btrfs, timeshift, btrfs-maintenance, secure-boot-tools, oysterav, keepassxc, bitwarden, backup-gtk, backup-deja-dup |

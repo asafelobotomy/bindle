@@ -26,7 +26,7 @@ QQC2.ScrollView {
                 color: Theme.text
             }
             QQC2.Label {
-                text: "You can change any module on the next screen."
+                text: "Each one pre-selects a set of features. The next screens go through them one category at a time."
                 color: Theme.textMuted
             }
         }
@@ -45,6 +45,7 @@ QQC2.ScrollView {
                     readonly property bool active: modelData.id === page.current
 
                     Layout.fillWidth: true
+                    Layout.fillHeight: true
                     implicitHeight: body.implicitHeight + 2 * padding
                     edge: active || activeFocus ? Theme.accent : Theme.border
                     border.width: active || activeFocus ? 2 : 1
@@ -85,8 +86,21 @@ QQC2.ScrollView {
                             color: Theme.textMuted
                             wrapMode: Text.Wrap
                         }
+                        // What it pre-selects, by category.
+                        Flow {
+                            Layout.fillWidth: true
+                            spacing: Kirigami.Units.smallSpacing
+                            Repeater {
+                                model: card.modelData.holds
+                                Pill {
+                                    required property var modelData
+                                    text: modelData.name + " " + modelData.count
+                                    tone: card.active ? "accent" : "muted"
+                                }
+                            }
+                        }
                         QQC2.Label {
-                            text: card.modelData.count + " modules"
+                            text: card.modelData.count + " features selected to start with"
                             color: Theme.textMuted
                             font.pointSize: Theme.smallSize
                         }

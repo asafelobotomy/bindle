@@ -192,6 +192,9 @@ pub struct Module {
     #[serde(default)]
     pub category: String,
     pub name: String,
+    /// Heading the module sits under within its category ("Browsers").
+    #[serde(default)]
+    pub group: String,
     pub description: String,
     #[serde(default)]
     pub risk: Risk,
@@ -332,24 +335,6 @@ mod tests {
         assert!(c.modules.len() > 20);
         assert!(c.module("zram").is_some());
         assert_eq!(c.categories.first().unwrap().id, "base");
-    }
-
-    #[test]
-    fn rejects_unknown_requires() {
-        let file = r#"
-            [category]
-            id = "x"
-            name = "X"
-            description = ""
-            [[module]]
-            id = "a"
-            name = "A"
-            description = ""
-            requires = ["missing"]
-        "#;
-        let profiles = "[[profile]]\nid = \"p\"\nname = \"P\"\ndescription = \"\"\n";
-        let err = Catalog::from_sources("t", &[("x", file)], profiles).unwrap_err();
-        assert!(err.to_string().contains("unknown module `missing`"));
     }
 
     const PROFILES: &str = "[[profile]]\nid = \"p\"\nname = \"P\"\ndescription = \"\"\n";

@@ -7,17 +7,20 @@ import org.bindle.wizard
 QQC2.ApplicationWindow {
     id: root
 
-    // 0 Welcome, 1 Profile, 2 Choose, 3 Review, 4 Apply.
+    // 0 Welcome, 1 Profile, 2 Choose (one category at a time), 3 Summary,
+    // 4 Review, 5 Apply.
     property int page: 0
     readonly property var apply: JSON.parse(backend.applyJson || '{"state": "idle"}')
     readonly property bool running: apply.state === "running"
     property string footerNote: ""
-    readonly property var steps: ["Welcome", "Profile", "Choose", "Review", "Apply"]
-    readonly property var nextLabels: ["Get started", "Continue", "Review changes", "Apply changes"]
+    readonly property var steps: ["Welcome", "Profile", "Choose", "Summary", "Review", "Apply"]
+    readonly property var catalog: JSON.parse(backend.catalogJson || "[]")
+    readonly property var selection: JSON.parse(backend.stateJson || "{}")
+    readonly property int picked: selection.total || 0
 
     title: "Bindle"
     visible: true
-    width: Kirigami.Units.gridUnit * 54
+    width: Kirigami.Units.gridUnit * 60
     height: Kirigami.Units.gridUnit * 36
     minimumWidth: Kirigami.Units.gridUnit * 38
     minimumHeight: Kirigami.Units.gridUnit * 26
@@ -73,9 +76,50 @@ QQC2.ApplicationWindow {
 
     function go(to) {
         root.footerNote = "";
-        if (to === 3)
+        if (to === 4)
             backend.refreshReview();
-        root.page = Math.max(0, Math.min(4, to));
+        root.page = Math.max(0, Math.min(5, to));
+    }
+    // Where the primary button leads, as its label.
+    function nextLabel() {
+        switch (root.page) {
+        case 0:
+            return "Get started";
+        case 1:
+            return "Continue";
+        case 2:
+            return choose.last ? "See your selections" : "Next: " + choose.nextName;
+        case 3:
+            return "Go to final review";
+        case 4:
+            return "Apply changes";
+        }
+        if (root.apply.state === "done")
+            return "Close";
+        return root.apply.noAgent ? "Continue in a terminal" : "Try again";
+    }
+    function next() {
+        if (root.page === 1) {
+            choose.open(0);
+            root.go(2);
+        } else if (root.page === 2 && !choose.last) {
+            choose.open(choose.categoryIndex + 1);
+        } else if (root.page < 4) {
+            root.go(root.page + 1);
+        } else if (root.page === 4 || (root.apply.state !== "done" && !root.apply.noAgent)) {
+            root.go(5);
+            backend.startApply();
+        } else if (root.apply.noAgent) {
+            backend.continueInTerminal();
+        } else {
+            Qt.quit();
+        }
+    }
+    function back() {
+        if (root.page === 2 && choose.categoryIndex > 0 && choose.query === "")
+            choose.open(choose.categoryIndex - 1);
+        else
+            root.go(root.page - 1);
     }
 
     header: Rectangle {
@@ -129,9 +173,19 @@ QQC2.ApplicationWindow {
         }
         ChoosePage {
             id: choose
-            categories: JSON.parse(backend.categoriesJson || "[]")
-            notice: backend.notice
+            categories: root.catalog
+            selection: root.selection
+            feedback: JSON.parse(backend.feedbackJson || "{}")
             onToggled: id => backend.toggle(id)
+        }
+        SummaryPage {
+            categories: root.catalog
+            selection: root.selection
+            onEdit: index => {
+                choose.open(index);
+                root.go(2);
+            }
+            onConfirmed: root.go(4)
         }
         ReviewPage {
             id: reviewPage
@@ -162,39 +216,24 @@ QQC2.ApplicationWindow {
             anchors.rightMargin: Kirigami.Units.largeSpacing
 
             ActionButton {
-                text: root.page === 4 ? "Back to review" : "Back"
+                text: root.page === 5 ? "Back to review" : "Back"
                 visible: root.page > 0 && !root.running && root.apply.state !== "done"
-                onClicked: root.go(root.page === 4 ? 3 : root.page - 1)
+                onClicked: root.back()
             }
             QQC2.Label {
                 Layout.fillWidth: true
                 horizontalAlignment: Text.AlignRight
-                text: root.running ? "Keep the computer on until this finishes." : (backend.notice !== "" && root.page === 4 ? backend.notice : root.footerNote)
+                text: root.running ? "Keep the computer on until this finishes." : (backend.notice !== "" && root.page === 5 ? backend.notice
+                    : root.page === 2 || root.page === 3 ? root.picked + (root.picked === 1 ? " feature selected" : " features selected")
+                    : root.footerNote)
                 color: Theme.textMuted
                 elide: Text.ElideLeft
             }
             ActionButton {
                 visible: !root.running
                 primary: true
-                text: {
-                    if (root.page < 4)
-                        return root.nextLabels[root.page];
-                    if (root.apply.state === "done")
-                        return "Close";
-                    return root.apply.noAgent ? "Continue in a terminal" : "Try again";
-                }
-                onClicked: {
-                    if (root.page < 3) {
-                        root.go(root.page + 1);
-                    } else if (root.page === 3 || (root.page === 4 && root.apply.state !== "done" && !root.apply.noAgent)) {
-                        root.go(4);
-                        backend.startApply();
-                    } else if (root.apply.noAgent) {
-                        backend.continueInTerminal();
-                    } else {
-                        Qt.quit();
-                    }
-                }
+                text: root.nextLabel()
+                onClicked: root.next()
             }
         }
     }
@@ -207,13 +246,18 @@ QQC2.ApplicationWindow {
         readonly property var plan: [
             { page: 0, name: "1-welcome" },
             { page: 1, name: "2-profile" },
-            { page: 2, name: "3-choose", category: 0 },
-            { page: 2, name: "4-choose-hardware", category: 1, module: 1 },
-            { page: 3, name: "5-review" },
-            { page: 3, name: "5b-review-details", details: true },
+            { page: 2, name: "3-choose-grid", category: 0, view: "grid" },
+            // A category with "choose one" sets, in each view.
+            { page: 2, name: "3b-choose-one", category: 2, view: "grid", toggle: "earlyoom" },
+            { page: 2, name: "3c-choose-list", category: 4, view: "list", toggle: "brave" },
+            { page: 2, name: "3d-choose-compact", category: 6, view: "compact" },
+            { page: 2, name: "3e-choose-selected", category: 1, view: "grid", filter: "selected" },
+            { page: 3, name: "4-summary" },
+            { page: 4, name: "5-review" },
+            { page: 4, name: "5b-review-details", details: true },
             // Only with --sandbox: apply for real (recording commands) and wait.
-            { page: 4, name: "6-applied", apply: true },
-            { page: 4, name: "6b-applied-details", details: true }
+            { page: 5, name: "6-applied", apply: true },
+            { page: 5, name: "6b-applied-details", details: true }
         ]
         property bool waiting: false
 
@@ -237,7 +281,7 @@ QQC2.ApplicationWindow {
             }
             if (s.details) {
                 // Open the current page's details, scrolled to show them.
-                if (s.page === 3) {
+                if (s.page === 4) {
                     reviewPage.detailsOpen = true;
                     reviewPage.showDetails();
                 } else {
@@ -250,8 +294,14 @@ QQC2.ApplicationWindow {
                 backend.startApply();
                 waiting = true;
             }
-            if (s.category !== undefined)
-                choose.show(s.category, s.module === undefined ? -1 : s.module);
+            if (s.category !== undefined) {
+                choose.open(s.category);
+                choose.view = s.view;
+                if (s.toggle)
+                    backend.toggle(s.toggle);
+                choose.setFilter(s.filter || "all");
+                choose.moduleId = s.toggle || "";
+            }
             step += 1;
         }
     }

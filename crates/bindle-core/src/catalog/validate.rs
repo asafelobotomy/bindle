@@ -188,6 +188,31 @@ mod tests {
     }
 
     #[test]
+    fn rejects_unknown_requires() {
+        let file = r#"
+            [category]
+            id = "x"
+            name = "X"
+            description = ""
+            [[module]]
+            id = "a"
+            name = "A"
+            description = ""
+            requires = ["missing"]
+        "#;
+        let profiles = "[[profile]]\nid = \"p\"\nname = \"P\"\ndescription = \"\"\n";
+        let err = Catalog::from_sources("t", &[("x", file)], profiles).unwrap_err();
+        assert!(err.to_string().contains("unknown module `missing`"));
+    }
+
+    #[test]
+    fn every_shipped_module_sits_in_a_group() {
+        let c = Catalog::arch().unwrap();
+        let ungrouped: Vec<&str> = c.modules.iter().filter(|m| m.group.is_empty()).map(|m| m.id.as_str()).collect();
+        assert!(ungrouped.is_empty(), "modules without a `group`: {ungrouped:?}");
+    }
+
+    #[test]
     fn rejects_each_kind_of_broken_module() {
         let file =
             |path: &str, mode: &str| format!("[[module.files]]\npath = \"{path}\"\ncontent = \"\"\nmode = {mode}\n");

@@ -1,11 +1,12 @@
 [category]
 id = "security"
 name = "Security"
-description = "Firewalls, snapshots and backups."
+description = "Firewalls, snapshots, password managers and backups."
 order = 70
 
 [[module]]
 id = "ufw"
+group = "Firewall"
 name = "Firewall (ufw)"
 description = "Blocks incoming connections and allows outgoing ones."
 profiles = ["desktop", "gaming", "developer"]
@@ -25,6 +26,7 @@ notes = ["Ports published by Docker (`-p`) bypass ufw: Docker inserts its own ip
 
 [[module]]
 id = "firewalld"
+group = "Firewall"
 name = "Firewall (firewalld)"
 description = "Zone-based firewall; preferred if you use NetworkManager zones or libvirt."
 conflicts = ["ufw"]
@@ -33,6 +35,7 @@ enable = ["firewalld.service"]
 
 [[module]]
 id = "opensnitch"
+group = "Firewall"
 name = "Application firewall (OpenSnitch)"
 description = "Asks before each app makes a new outgoing connection."
 risk = "moderate"
@@ -42,6 +45,7 @@ notes = ["Start the OpenSnitch UI (opensnitch-ui) so it can show the prompts."]
 
 [[module]]
 id = "snapper"
+group = "Snapshots"
 name = "Btrfs snapshots (snapper)"
 description = "Snapshots / before and after every pacman transaction."
 risk = "moderate"
@@ -73,6 +77,7 @@ notes = ["To boot into snapshots from GRUB, add grub-btrfs too."]
 
 [[module]]
 id = "grub-btrfs"
+group = "Snapshots"
 name = "Boot into snapshots (grub-btrfs)"
 description = "Adds snapper snapshots to the GRUB menu and keeps them current as snapshots come and go."
 risk = "moderate"
@@ -84,6 +89,7 @@ root_commands = [["grub-mkconfig", "-o", "/boot/grub/grub.cfg"]]
 
 [[module]]
 id = "timeshift"
+group = "Snapshots"
 name = "System snapshots (Timeshift)"
 description = "Scheduled system snapshots with a GUI, on ext4 (rsync) or Btrfs."
 conflicts = ["snapper"]
@@ -92,6 +98,7 @@ notes = ["Open Timeshift once to pick the snapshot location and schedule."]
 
 [[module]]
 id = "btrfs-maintenance"
+group = "Snapshots"
 name = "Btrfs scrub"
 description = "Monthly scrub of the root filesystem to find (and, with redundancy, repair) silent corruption."
 when = ["fs:btrfs"]
@@ -101,6 +108,7 @@ notes = ["Schedules and mount points are in /etc/default/btrfsmaintenance."]
 
 [[module]]
 id = "secure-boot-tools"
+group = "Hardening & scans"
 name = "Secure Boot tools (sbctl)"
 description = "sbctl, to create and enroll your own Secure Boot keys. Nothing is enrolled automatically."
 risk = "advanced"
@@ -110,8 +118,38 @@ notes = ["Put the firmware in Setup Mode, then: sbctl create-keys; sbctl enroll-
 
 [[module]]
 id = "oysterav"
+group = "Hardening & scans"
 name = "oysterAV (security scans)"
 description = "One GUI and CLI over ClamAV, rkhunter, Lynis and friends. By asafelobotomy."
 requires = ["aur-helper"]
 aur = ["oysterav"]
 notes = ["Set it up with `oyst-cli setup run`, or open oysterAV from your app menu."]
+
+[[module]]
+id = "keepassxc"
+group = "Passwords"
+name = "KeePassXC"
+description = "Offline password manager with browser integration."
+packages = ["keepassxc"]
+
+[[module]]
+id = "bitwarden"
+group = "Passwords"
+name = "Bitwarden"
+description = "Desktop client for the Bitwarden password manager."
+packages = ["bitwarden"]
+
+[[module]]
+id = "backup-gtk"
+group = "Backups"
+name = "Backups (Pika Backup)"
+description = "Deduplicated, encrypted backups of your home folder (BorgBackup)."
+when = ["toolkit:gtk"]
+packages = ["pika-backup"]
+
+[[module]]
+id = "backup-deja-dup"
+group = "Backups"
+name = "Backups (Déjà Dup)"
+description = "Simple scheduled backups to a drive or the cloud."
+packages = ["deja-dup"]

@@ -31,11 +31,16 @@ pub mod qobject {
         #[qproperty(QString, welcome_json)]
         #[qproperty(QString, profiles_json)]
         #[qproperty(QString, profile)]
-        #[qproperty(QString, categories_json)]
+        /// Categories, groups and modules: fixed for the run (`Wizard::catalog`).
+        #[qproperty(QString, catalog_json)]
+        /// What is ticked right now (`Wizard::state`).
+        #[qproperty(QString, state_json)]
+        /// The last click's effect: `{"text", "tone", "seq"}`.
+        #[qproperty(QString, feedback_json)]
         #[qproperty(QString, review_json)]
         /// uQ's theme tokens, or `{"present": false}` off uQ.
         #[qproperty(QString, theme_json)]
-        /// A one-line message after a toggle (a rival module was dropped).
+        /// A one-line message for the footer (the terminal couldn't open).
         #[qproperty(QString, notice)]
         /// `--screenshots <dir>`: QML walks the screens and saves each here.
         #[qproperty(QString, screenshot_dir)]
@@ -81,7 +86,10 @@ pub struct BackendRust {
     welcome_json: QString,
     profiles_json: QString,
     profile: QString,
-    categories_json: QString,
+    catalog_json: QString,
+    state_json: QString,
+    feedback_json: QString,
+    clicks: u32,
     review_json: QString,
     theme_json: QString,
     notice: QString,
@@ -111,6 +119,7 @@ impl cxx_qt::Initialize for Backend {
         self.as_mut().set_header(QString::from(&wizard.header()));
         self.as_mut().set_welcome_json(json(&wizard.welcome()));
         self.as_mut().set_profiles_json(json(&wizard.profiles()));
+        self.as_mut().set_catalog_json(json(&wizard.catalog()));
         self.as_mut().rust_mut().wizard = Some(wizard);
         self.as_mut().refresh_selection();
         if let Some(dir) = crate::arg("--screenshots") {
@@ -156,23 +165,29 @@ impl Backend {
 
     /// The properties that depend on the selection.
     fn refresh_selection(mut self: Pin<&mut Self>) {
-        let (profile, categories) = {
+        let (profile, state) = {
             let w = self.wizard();
-            (QString::from(w.profile()), json(&w.categories()))
+            (QString::from(w.profile()), json(&w.state()))
         };
         self.as_mut().set_profile(profile);
-        self.as_mut().set_categories_json(categories);
+        self.as_mut().set_state_json(state);
     }
 
     fn choose_profile(mut self: Pin<&mut Self>, id: &QString) {
         self.as_mut().wizard_mut().set_profile(&id.to_string());
-        self.as_mut().set_notice(QString::default());
+        self.as_mut().set_feedback_json(QString::default());
         self.refresh_selection();
     }
 
     fn toggle(mut self: Pin<&mut Self>, id: &QString) {
-        let notice = self.as_mut().wizard_mut().toggle(&id.to_string()).unwrap_or_default();
-        self.as_mut().set_notice(QString::from(&notice));
+        let Some(change) = self.as_mut().wizard_mut().toggle(&id.to_string()) else {
+            return;
+        };
+        // `seq` makes two identical lines in a row still count as a change.
+        self.as_mut().rust_mut().get_mut().clicks += 1;
+        let seq = self.rust().clicks;
+        let feedback = serde_json::json!({ "text": change.text, "tone": change.tone, "seq": seq });
+        self.as_mut().set_feedback_json(json(&feedback));
         self.refresh_selection();
     }
 

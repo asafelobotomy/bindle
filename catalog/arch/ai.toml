@@ -6,6 +6,7 @@ order = 55
 
 [[module]]
 id = "claude-code"
+group = "Coding agents"
 name = "Claude Code"
 description = "Anthropic's coding agent for the terminal."
 requires = ["aur-helper"]
@@ -14,18 +15,21 @@ notes = ["Sign in with `claude` after installing."]
 
 [[module]]
 id = "codex"
+group = "Coding agents"
 name = "Codex CLI"
 description = "OpenAI's coding agent for the terminal."
 packages = ["openai-codex"]
 
 [[module]]
 id = "gemini-cli"
+group = "Coding agents"
 name = "Gemini CLI"
 description = "Google's Gemini agent for the terminal."
 packages = ["gemini-cli"]
 
 [[module]]
 id = "grok-build"
+group = "Coding agents"
 name = "Grok Build"
 description = "xAI's coding agent for the terminal."
 requires = ["aur-helper"]
@@ -33,6 +37,7 @@ aur = ["grok-build-bin"]
 
 [[module]]
 id = "copilot-cli"
+group = "Coding agents"
 name = "GitHub Copilot CLI"
 description = "GitHub's Copilot agent for the terminal."
 requires = ["aur-helper"]
@@ -40,12 +45,14 @@ aur = ["github-copilot-cli"]
 
 [[module]]
 id = "opencode"
+group = "Coding agents"
 name = "opencode"
 description = "Open-source coding agent for the terminal; works with many model providers."
 packages = ["opencode"]
 
 [[module]]
 id = "claude-desktop"
+group = "AI apps"
 name = "Claude Desktop"
 description = "Anthropic's desktop app: chat, Cowork and Claude Code."
 risk = "moderate"
@@ -55,6 +62,7 @@ notes = ["Pulls in QEMU and OVMF, which Cowork uses for its sandbox VM."]
 
 [[module]]
 id = "cursor"
+group = "AI apps"
 name = "Cursor"
 description = "AI code editor based on VS Code."
 risk = "moderate"
@@ -63,6 +71,7 @@ aur = ["cursor-bin"]
 
 [[module]]
 id = "ollama"
+group = "Local models"
 name = "Ollama"
 description = "Runs open models locally on the CPU; add the GPU module for your card."
 packages = ["ollama"]
@@ -70,6 +79,7 @@ enable = ["ollama.service"]
 
 [[module]]
 id = "ollama-cuda"
+group = "Local models"
 name = "Ollama on NVIDIA (CUDA)"
 description = "CUDA backend for Ollama."
 when = ["gpu:nvidia"]
@@ -79,6 +89,7 @@ notes = ["Needs the proprietary NVIDIA driver; CUDA is a large download."]
 
 [[module]]
 id = "ollama-rocm"
+group = "Local models"
 name = "Ollama on AMD (ROCm)"
 description = "ROCm backend for Ollama."
 when = ["gpu:amd"]
@@ -88,6 +99,7 @@ notes = ["ROCm supports recent Radeon cards; others can use the Vulkan backend (
 
 [[module]]
 id = "lmstudio"
+group = "Local models"
 name = "LM Studio"
 description = "Desktop app to download and chat with local models."
 requires = ["aur-helper"]

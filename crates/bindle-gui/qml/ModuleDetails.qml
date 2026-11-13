@@ -9,7 +9,18 @@ Panel {
     id: panel
 
     property var module: null
-    property string notice
+    property bool selected: false
+    property string neededBy
+
+    QQC2.Label {
+        anchors.centerIn: parent
+        width: parent.width
+        visible: panel.module === null
+        horizontalAlignment: Text.AlignHCenter
+        wrapMode: Text.Wrap
+        text: "Point at anything to see what it installs and changes."
+        color: Theme.textMuted
+    }
 
     QQC2.ScrollView {
         anchors.fill: parent
@@ -22,17 +33,35 @@ Panel {
 
             QQC2.Label {
                 Layout.fillWidth: true
-                visible: panel.notice !== ""
-                text: panel.notice
-                wrapMode: Text.Wrap
-                color: Theme.warning
-            }
-            QQC2.Label {
-                Layout.fillWidth: true
                 text: panel.module ? panel.module.name : ""
                 wrapMode: Text.Wrap
                 color: Theme.text
                 font.weight: Font.DemiBold
+            }
+            Flow {
+                Layout.fillWidth: true
+                spacing: Kirigami.Units.smallSpacing
+                visible: panel.module !== null
+                Pill {
+                    visible: panel.selected
+                    text: "Selected"
+                    tone: "accent"
+                    filled: true
+                }
+                Pill {
+                    visible: !panel.selected && panel.neededBy !== ""
+                    text: "Needed by " + panel.neededBy
+                    tone: "accent"
+                }
+                Pill {
+                    visible: panel.module !== null && !!panel.module.risk
+                    text: panel.module && panel.module.risk === "advanced" ? "Advanced" : "Moderate"
+                    tone: panel.module && panel.module.risk === "advanced" ? "error" : "warning"
+                }
+                Pill {
+                    visible: panel.module !== null && !!panel.module.source
+                    text: panel.module ? "From " + panel.module.source : ""
+                }
             }
             QQC2.Label {
                 Layout.fillWidth: true
@@ -92,16 +121,16 @@ Panel {
                 Layout.fillWidth: true
                 Layout.topMargin: Kirigami.Units.smallSpacing
                 visible: panel.module !== null && panel.module.requires !== ""
-                text: panel.module ? "Needs: " + panel.module.requires : ""
+                text: panel.module ? "Adds with it: " + panel.module.requires : ""
                 wrapMode: Text.Wrap
                 color: Theme.textMuted
             }
             QQC2.Label {
                 Layout.fillWidth: true
                 visible: panel.module !== null && panel.module.conflicts !== ""
-                text: panel.module ? "Can't be combined with: " + panel.module.conflicts : ""
+                text: panel.module ? "Choose one: can't be installed with " + panel.module.conflicts : ""
                 wrapMode: Text.Wrap
-                color: Theme.textMuted
+                color: Theme.warning
             }
         }
     }

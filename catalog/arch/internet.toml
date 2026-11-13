@@ -6,6 +6,7 @@ order = 42
 
 [[module]]
 id = "firefox"
+group = "Browsers"
 name = "Firefox"
 description = "Mozilla's web browser."
 profiles = ["desktop", "gaming", "developer"]
@@ -13,12 +14,14 @@ packages = ["firefox"]
 
 [[module]]
 id = "chromium"
+group = "Browsers"
 name = "Chromium"
 description = "Open-source base of Google Chrome."
 packages = ["chromium"]
 
 [[module]]
 id = "brave"
+group = "Browsers"
 name = "Brave"
 description = "Privacy-focused Chromium browser with built-in ad blocking."
 requires = ["aur-helper"]
@@ -26,6 +29,7 @@ aur = ["brave-bin"]
 
 [[module]]
 id = "brave-origin"
+group = "Browsers"
 name = "Brave Origin"
 description = "Brave without extras such as Rewards, Wallet and Leo."
 requires = ["aur-helper"]
@@ -33,12 +37,14 @@ aur = ["brave-origin-bin"]
 
 [[module]]
 id = "vivaldi"
+group = "Browsers"
 name = "Vivaldi"
 description = "Highly customisable Chromium-based browser."
 packages = ["vivaldi"]
 
 [[module]]
 id = "zen-browser"
+group = "Browsers"
 name = "Zen Browser"
 description = "Firefox-based browser with vertical tabs and workspaces."
 requires = ["aur-helper"]
@@ -46,6 +52,7 @@ aur = ["zen-browser-bin"]
 
 [[module]]
 id = "google-chrome"
+group = "Browsers"
 name = "Google Chrome"
 description = "Google's Chrome browser."
 risk = "moderate"
@@ -54,30 +61,35 @@ aur = ["google-chrome"]
 
 [[module]]
 id = "thunderbird"
+group = "Mail & messaging"
 name = "Thunderbird"
 description = "Mail, calendar and contacts."
 packages = ["thunderbird"]
 
 [[module]]
 id = "signal"
+group = "Mail & messaging"
 name = "Signal"
 description = "Signal messenger."
 packages = ["signal-desktop"]
 
 [[module]]
 id = "telegram"
+group = "Mail & messaging"
 name = "Telegram"
 description = "Telegram messenger."
 packages = ["telegram-desktop"]
 
 [[module]]
 id = "element"
+group = "Mail & messaging"
 name = "Element"
 description = "Matrix chat client."
 packages = ["element-desktop"]
 
 [[module]]
 id = "proton-mail"
+group = "Proton"
 name = "Proton Mail"
 description = "Proton Mail and Calendar desktop app."
 requires = ["aur-helper"]
@@ -85,12 +97,14 @@ aur = ["proton-mail-bin"]
 
 [[module]]
 id = "proton-mail-bridge"
+group = "Proton"
 name = "Proton Mail Bridge"
 description = "Use Proton Mail from Thunderbird or any IMAP/SMTP client."
 packages = ["protonmail-bridge"]
 
 [[module]]
 id = "proton-pass"
+group = "Proton"
 name = "Proton Pass"
 description = "Proton's password manager."
 requires = ["aur-helper"]
@@ -98,6 +112,7 @@ aur = ["proton-pass-bin"]
 
 [[module]]
 id = "proton-pass-cli"
+group = "Proton"
 name = "Proton Pass (CLI)"
 description = "Proton Pass on the command line (`pass-cli`), from Proton's own releases."
 requires = ["aur-helper"]
@@ -107,12 +122,14 @@ notes = ["Sign in with `pass-cli login`.", "The AUR package named `pass-cli` is 
 
 [[module]]
 id = "proton-vpn"
+group = "Proton"
 name = "Proton VPN"
 description = "Proton VPN app."
 packages = ["proton-vpn-gtk-app"]
 
 [[module]]
 id = "proton-authenticator"
+group = "Proton"
 name = "Proton Authenticator"
 description = "Proton's 2FA code app, with encrypted sync."
 requires = ["aur-helper"]
@@ -120,6 +137,7 @@ aur = ["proton-authenticator-bin"]
 
 [[module]]
 id = "proton-drive-cli"
+group = "Proton"
 name = "Proton Drive (CLI)"
 description = "Proton Drive command-line client; there is no Proton Drive desktop app for Linux yet."
 requires = ["aur-helper"]
@@ -127,6 +145,7 @@ aur = ["proton-drive-cli-bin"]
 
 [[module]]
 id = "syncthing"
+group = "Sync & networking"
 name = "Syncthing"
 description = "Peer-to-peer file sync between your devices, running as your user."
 packages = ["syncthing"]
@@ -135,12 +154,14 @@ notes = ["Open http://127.0.0.1:8384 to pair devices."]
 
 [[module]]
 id = "nextcloud-client"
+group = "Sync & networking"
 name = "Nextcloud client"
 description = "Desktop sync client for Nextcloud servers."
 packages = ["nextcloud-client"]
 
 [[module]]
 id = "tailscale"
+group = "Sync & networking"
 name = "Tailscale"
 description = "WireGuard mesh VPN between your devices."
 packages = ["tailscale"]
@@ -149,6 +170,7 @@ notes = ["Run `sudo tailscale up` afterwards to sign in."]
 
 [[module]]
 id = "scale_tail"
+group = "Sync & networking"
 name = "scale_tail (Tailscale tray)"
 description = "System-tray control centre for Tailscale: connect, switch exit nodes and accounts, start on login. By asafelobotomy."
 requires = ["tailscale"]
@@ -162,6 +184,7 @@ name = "scale_tail"
 
 [[module]]
 id = "qbittorrent"
+group = "Downloads"
 name = "qBittorrent"
 description = "BitTorrent client."
 conflicts = ["qbittorrent-enhanced"]
@@ -169,6 +192,7 @@ packages = ["qbittorrent"]
 
 [[module]]
 id = "qbittorrent-enhanced"
+group = "Downloads"
 name = "qBittorrent Enhanced Edition"
 description = "qBittorrent fork that blocks leeching clients and auto-updates trackers."
 requires = ["aur-helper"]
@@ -179,6 +203,7 @@ notes = ["Builds from source, which takes a while."]
 
 [[module]]
 id = "qbit-plugin-dl"
+group = "Downloads"
 name = "qbit Plugin Manager"
 description = "Finds and installs qBittorrent search plugins from allowlisted catalogs. By asafelobotomy."
 packages = ["fuse2"]
@@ -192,6 +217,7 @@ name = "qbit-plugin-dl"
 
 [[module]]
 id = "hauler"
+group = "Downloads"
 name = "hauler (download manager)"
 description = "Fast, resumable downloads over parallel connections; CLI, daemon and Kirigami app. By asafelobotomy."
 [[module.release]]
@@ -203,6 +229,7 @@ name = "hauler"
 
 [[module]]
 id = "av-morning-star"
+group = "Downloads"
 name = "AV Morning Star (video downloader)"
 description = "Downloads video and audio from YouTube, Odysee and 1000+ sites (a yt-dlp front end). By asafelobotomy."
 packages = ["fuse2", "yt-dlp"]

@@ -15,15 +15,6 @@ Panel {
     property bool done: false
     readonly property int shown: 3
 
-    // Breeze icon names, outline style (Glyph draws them in one colour; a
-    // full-colour icon would become a solid square). A missing one draws nothing.
-    readonly property var icons: ({
-        base: "configure", hardware: "computer", performance: "speedometer",
-        desktop: "view-list-icons", internet: "applications-internet",
-        creative: "draw-brush", development: "format-text-code",
-        ai: "tools-wizard", gaming: "input-gamepad", security: "security-high"
-    })
-
     padding: Kirigami.Units.mediumSpacing
     implicitHeight: body.implicitHeight + 2 * padding
 
@@ -36,7 +27,7 @@ Panel {
             Layout.fillWidth: true
             spacing: Kirigami.Units.smallSpacing
             Glyph {
-                name: card.done ? "dialog-ok-apply" : (card.icons[card.categoryId] || "")
+                name: card.done ? "dialog-ok-apply" : (Theme.categoryIcons[card.categoryId] || "")
                 tint: card.done ? Theme.success : Theme.accent
             }
             QQC2.Label {
