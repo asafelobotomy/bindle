@@ -18,6 +18,7 @@ pub fn label(tag: &str) -> String {
             "kdeconnect" => "KDE Connect",
             "snapshots-mount" => "a separate /.snapshots mount",
             "hybrid-gpu" => "hybrid graphics",
+            "bare-desktop" => "a desktop without its own everyday apps (uQ, a tiling window manager)",
             other => other,
         }
         .into();

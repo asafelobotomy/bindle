@@ -63,6 +63,11 @@ pub struct Desktop {
     /// (uQ's own apps); they stay ordinary modules the user can untick.
     #[serde(default)]
     pub apps: Vec<String>,
+    /// `qt` or `gtk`: the desktop ships no file manager, viewers or
+    /// calculator of its own, so the `everyday` builtin offers that
+    /// toolkit's set (a tiling window manager, uQ).
+    #[serde(default)]
+    pub everyday: Option<String>,
     #[serde(default)]
     pub status: Option<Status>,
 }
@@ -141,6 +146,12 @@ pub fn check(desktops: &[Desktop]) -> Result<()> {
         bail!("more than one recommended desktop: {}", recommended.join(", "));
     }
     for d in desktops {
+        if let Some(e) = &d.everyday
+            && e != "qt"
+            && e != "gtk"
+        {
+            bail!("desktop `{}` has everyday = \"{e}\"; use \"qt\" or \"gtk\"", d.id);
+        }
         if d.status == Some(Status::Recommended) && d.broken.is_some() {
             bail!("desktop `{}` is recommended but broken", d.id);
         }

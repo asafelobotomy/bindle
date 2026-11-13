@@ -50,6 +50,8 @@ name = "Btrfs snapshots (snapper)"
 description = "Snapshots / before and after every pacman transaction."
 risk = "moderate"
 when = ["fs:btrfs"]
+# On by default where the disk is Btrfs; Timeshift stays a choice elsewhere.
+profiles = ["desktop", "gaming", "developer"]
 conflicts = ["timeshift"]
 packages = ["snapper", "snap-pac"]
 # snapper creates /.snapshots itself; when the installer already mounts an

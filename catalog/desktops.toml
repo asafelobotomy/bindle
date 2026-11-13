@@ -8,6 +8,8 @@
 #   essentials    what Bindle adds to round the desktop out
 #   nm / bt       extra packages when NetworkManager / Bluetooth hardware is present
 #   includes      desktops shipped as a component of this one (not separate choices)
+#   everyday      "qt" or "gtk": the desktop ships no file manager, viewers or calculator,
+#                 so the `everyday-apps` module offers that toolkit's set
 #   broken        archinstall's profile is known to fail; `bindle iso` won't offer it
 #   base          archinstall has no profile for this desktop: `bindle iso` installs
 #                 base's profile, and `module` (a catalog module) finishes it on first login
@@ -30,11 +32,13 @@ status = "recommended"
 base = "hyprland"
 includes = ["hyprland"]
 module = "uq"
-# uQ's own apps: pre-selected with it on first login, each one can be unticked.
-apps = ["scdr", "crumbs", "noti-fi", "text-editor"]
+# uQ's own apps and Marknote (notes): pre-selected with it on first login, each one can be unticked.
+apps = ["scdr", "crumbs", "noti-fi", "text-editor", "marknote"]
 # archinstall can't install uQ's own login screen (greetd + uq), so the install
 # boots into sddm once; the uq module then switches to uQ's (`uqctl greeter enable`).
 greeter = "sddm"
+# No file manager, viewers or calculator of its own: the `everyday-apps` module adds Qt's.
+everyday = "qt"
 # grim, satty, slurp and wl-clipboard are uQ's screenshot tool (Print); gnome-keyring keeps
 # saved passwords, unlocked at login. The text editor is its own module (`apps` above).
 essentials = ["kitty", "papirus-icon-theme", "ttf-jetbrains-mono", "inter-font", "wireplumber", "playerctl", "networkmanager", "grim", "satty", "slurp", "wl-clipboard", "gnome-keyring"]
@@ -50,7 +54,7 @@ toolkit = "qt"
 detect = "plasma-workspace"
 archinstall = ["plasma-meta"]
 greeter = "plasma-login-manager"
-essentials = ["konsole", "dolphin", "ark", "kate", "spectacle", "gwenview", "okular", "kcalc", "ffmpegthumbs", "kdegraphics-thumbnailers", "kdeconnect", "filelight", "kwalletmanager"]
+essentials = ["konsole", "dolphin", "ark", "kate", "spectacle", "gwenview", "okular", "kcalc", "ffmpegthumbs", "kdegraphics-thumbnailers", "kdeconnect", "filelight", "kwalletmanager", "print-manager"]
 notes = ["plasma-meta ships the desktop shell but no applications; Bindle adds the core KDE apps."]
 
 [[desktop]]
@@ -174,10 +178,12 @@ detect = "hyprland"
 apps = ["text-editor"]
 archinstall = ["hyprland", "dunst", "kitty", "uwsm", "dolphin", "wofi", "xdg-desktop-portal-hyprland", "qt5-wayland", "qt6-wayland", "polkit-kde-agent", "grim", "slurp"]
 greeter = "sddm"
-essentials = ["waybar", "hyprpaper", "hyprlock", "hypridle", "hyprpolkitagent", "xdg-desktop-portal-gtk", "pavucontrol", "brightnessctl", "wl-clipboard", "cliphist", "nwg-look"]
+# Only Dolphin of its own: the `everyday-apps` module adds the rest of Qt's set.
+everyday = "qt"
+essentials = ["waybar", "hyprpaper", "hyprlock", "hypridle", "hyprpolkitagent", "xdg-desktop-portal-gtk", "pavucontrol", "brightnessctl", "wl-clipboard", "cliphist", "nwg-look", "satty"]
 nm = ["network-manager-applet"]
 bt = ["blueman"]
-notes = ["archinstall's Hyprland is bare: no bar, wallpaper, lock or idle daemon. Bindle adds the Hypr* ecosystem."]
+notes = ["archinstall's Hyprland is bare: no bar, wallpaper, lock or idle daemon. Bindle adds the Hypr* ecosystem.", "Print takes no screenshot until you bind it: `grim -g \"$(slurp)\" - | satty -f -` (Bindle adds grim, slurp and satty)."]
 
 [[desktop]]
 id = "sway"
@@ -188,9 +194,12 @@ toolkit = "other"
 detect = "sway"
 archinstall = ["sway", "swaybg", "swaylock", "swayidle", "waybar", "wmenu", "brightnessctl", "grim", "slurp", "pavucontrol", "foot", "xorg-xwayland"]
 greeter = "lightdm-gtk-greeter"
-essentials = ["mako", "wl-clipboard", "xdg-desktop-portal-wlr", "xdg-desktop-portal-gtk", "polkit-gnome"]
+# No file manager, viewers or calculator of its own: the `everyday-apps` module adds GTK's.
+everyday = "gtk"
+essentials = ["mako", "wl-clipboard", "xdg-desktop-portal-wlr", "xdg-desktop-portal-gtk", "polkit-gnome", "satty"]
 nm = ["network-manager-applet"]
 bt = ["blueman"]
+notes = ["Print takes no screenshot until you bind it: `grim -g \"$(slurp)\" - | satty -f -` (Bindle adds grim, slurp and satty)."]
 
 [[desktop]]
 id = "niri"
@@ -201,6 +210,8 @@ toolkit = "other"
 detect = "niri"
 archinstall = ["niri", "alacritty", "fuzzel", "mako", "xorg-xwayland", "waybar", "swaybg", "swayidle", "swaylock", "xdg-desktop-portal-gnome"]
 greeter = "lightdm-gtk-greeter"
+# No file manager, viewers or calculator of its own: the `everyday-apps` module adds GTK's.
+everyday = "gtk"
 essentials = ["xwayland-satellite", "xdg-desktop-portal-gtk", "polkit-gnome", "wl-clipboard", "pavucontrol", "brightnessctl"]
 nm = ["network-manager-applet"]
 bt = ["blueman"]
@@ -217,6 +228,8 @@ includes = ["niri"]
 broken = "archinstall 4.5 installs dms-shell-niri and dms-greeter, which aren't in the Arch repos (pacstrap fails)"
 archinstall = ["niri", "dms-shell-niri", "polkit", "xdg-desktop-portal-gnome", "xorg-xwayland", "matugen", "cava", "kimageformats"]
 greeter = "dms-greeter"
+# No file manager, viewers or calculator of its own: the `everyday-apps` module adds GTK's.
+everyday = "gtk"
 essentials = ["xwayland-satellite", "wl-clipboard", "cliphist"]
 
 [[desktop]]
@@ -228,9 +241,12 @@ toolkit = "other"
 detect = "labwc"
 archinstall = ["alacritty", "labwc"]
 greeter = "lightdm-gtk-greeter"
-essentials = ["waybar", "fuzzel", "mako", "swaybg", "swaylock", "wl-clipboard", "xdg-desktop-portal-wlr", "xdg-desktop-portal-gtk", "polkit-gnome", "pavucontrol"]
+# No file manager, viewers or calculator of its own: the `everyday-apps` module adds GTK's.
+everyday = "gtk"
+essentials = ["waybar", "fuzzel", "mako", "swaybg", "swaylock", "wl-clipboard", "xdg-desktop-portal-wlr", "xdg-desktop-portal-gtk", "polkit-gnome", "pavucontrol", "grim", "slurp", "satty"]
 nm = ["network-manager-applet"]
 bt = ["blueman"]
+notes = ["Print takes no screenshot until you bind it: `grim -g \"$(slurp)\" - | satty -f -` (Bindle adds grim, slurp and satty)."]
 
 [[desktop]]
 id = "river"
@@ -241,9 +257,12 @@ toolkit = "other"
 detect = "river"
 archinstall = ["foot", "xdg-desktop-portal-wlr", "river"]
 greeter = "lightdm-gtk-greeter"
-essentials = ["waybar", "fuzzel", "mako", "swaybg", "swaylock", "wl-clipboard", "xdg-desktop-portal-gtk", "polkit-gnome", "pavucontrol"]
+# No file manager, viewers or calculator of its own: the `everyday-apps` module adds GTK's.
+everyday = "gtk"
+essentials = ["waybar", "fuzzel", "mako", "swaybg", "swaylock", "wl-clipboard", "xdg-desktop-portal-gtk", "polkit-gnome", "pavucontrol", "grim", "slurp", "satty"]
 nm = ["network-manager-applet"]
 bt = ["blueman"]
+notes = ["Print takes no screenshot until you bind it: `grim -g \"$(slurp)\" - | satty -f -` (Bindle adds grim, slurp and satty)."]
 
 [[desktop]]
 id = "i3"
@@ -254,9 +273,12 @@ toolkit = "other"
 detect = "i3-wm"
 archinstall = ["i3-wm", "i3lock", "i3status", "i3blocks", "xss-lock", "xterm", "lightdm-gtk-greeter", "lightdm", "dmenu"]
 greeter = "lightdm-gtk-greeter"
-essentials = ["picom", "rofi", "dunst", "feh", "arandr", "pavucontrol", "polkit-gnome"]
+# No file manager, viewers or calculator of its own: the `everyday-apps` module adds GTK's.
+everyday = "gtk"
+essentials = ["picom", "rofi", "dunst", "feh", "arandr", "pavucontrol", "polkit-gnome", "flameshot"]
 nm = ["network-manager-applet"]
 bt = ["blueman"]
+notes = ["Print takes no screenshot until you bind it: `flameshot gui` (Bindle adds Flameshot)."]
 
 [[desktop]]
 id = "awesome"
@@ -266,10 +288,12 @@ display = "xorg"
 toolkit = "other"
 detect = "awesome"
 archinstall = ["awesome", "alacritty", "xorg-xrandr", "xterm", "feh", "slock", "terminus-font", "gnu-free-fonts", "ttf-liberation", "xsel"]
-essentials = ["picom", "rofi", "pavucontrol", "polkit-gnome"]
+# No file manager, viewers or calculator of its own: the `everyday-apps` module adds GTK's.
+everyday = "gtk"
+essentials = ["picom", "rofi", "pavucontrol", "polkit-gnome", "flameshot"]
 nm = ["network-manager-applet"]
 bt = ["blueman"]
-notes = ["archinstall installs no greeter for Awesome; start it with startx or add a display manager."]
+notes = ["archinstall installs no greeter for Awesome; start it with startx or add a display manager.", "Print takes no screenshot until you bind it: `flameshot gui` (Bindle adds Flameshot)."]
 
 [[desktop]]
 id = "bspwm"
@@ -280,9 +304,12 @@ toolkit = "other"
 detect = "bspwm"
 archinstall = ["bspwm", "sxhkd", "dmenu", "xdo", "rxvt-unicode"]
 greeter = "lightdm-gtk-greeter"
-essentials = ["polybar", "picom", "rofi", "dunst", "feh", "pavucontrol", "polkit-gnome"]
+# No file manager, viewers or calculator of its own: the `everyday-apps` module adds GTK's.
+everyday = "gtk"
+essentials = ["polybar", "picom", "rofi", "dunst", "feh", "pavucontrol", "polkit-gnome", "flameshot"]
 nm = ["network-manager-applet"]
 bt = ["blueman"]
+notes = ["Print takes no screenshot until you bind it: `flameshot gui` (Bindle adds Flameshot)."]
 
 [[desktop]]
 id = "qtile"
@@ -293,9 +320,12 @@ toolkit = "other"
 detect = "qtile"
 archinstall = ["qtile", "alacritty"]
 greeter = "lightdm-gtk-greeter"
-essentials = ["picom", "rofi", "dunst", "feh", "pavucontrol", "polkit-gnome"]
+# No file manager, viewers or calculator of its own: the `everyday-apps` module adds GTK's.
+everyday = "gtk"
+essentials = ["picom", "rofi", "dunst", "feh", "pavucontrol", "polkit-gnome", "flameshot"]
 nm = ["network-manager-applet"]
 bt = ["blueman"]
+notes = ["Print takes no screenshot until you bind it: `flameshot gui` (Bindle adds Flameshot)."]
 
 [[desktop]]
 id = "xmonad"
@@ -306,6 +336,10 @@ toolkit = "other"
 detect = "xmonad"
 archinstall = ["xmonad", "xmonad-contrib", "xmonad-extras", "xterm", "dmenu"]
 greeter = "lightdm-gtk-greeter"
-essentials = ["xmobar", "picom", "rofi", "dunst", "feh", "pavucontrol", "polkit-gnome"]
+# No file manager, viewers or calculator of its own: the `everyday-apps` module adds GTK's.
+everyday = "gtk"
+essentials = ["xmobar", "picom", "rofi", "dunst", "feh", "pavucontrol", "polkit-gnome", "flameshot"]
 nm = ["network-manager-applet"]
 bt = ["blueman"]
+notes = ["Print takes no screenshot until you bind it: `flameshot gui` (Bindle adds Flameshot)."]
+

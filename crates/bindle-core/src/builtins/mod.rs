@@ -1,5 +1,6 @@
 //! Modules whose concrete steps depend on detected hardware.
 
+mod apps;
 pub mod drives;
 mod gpu;
 
@@ -11,7 +12,8 @@ use crate::catalog::FileSpec;
 use crate::desktops;
 use crate::detect::Facts;
 
-pub const KNOWN: &[&str] = &["aur-helper", "desktop", "gpu", "microcode", "nvidia-legacy", "zram"];
+pub const KNOWN: &[&str] =
+    &["aur-helper", "desktop", "everyday", "gpu", "microcode", "nvidia-legacy", "spellcheck", "zram"];
 
 /// AUR package bootstrapped by the `aur-helper` builtin.
 pub const AUR_HELPER: &str = "paru-bin";
@@ -25,6 +27,7 @@ pub const AUR_HELPER_PKGBUILD_SHA256: &str = "c148e2dfb9214cc6abefed9b34ffb47ebc
 /// Repo packages builtins can add outside desktops.toml, for
 /// scripts/check-packages.py (which parses these const lists).
 pub const PACKAGES: &[&str] = &["intel-ucode", "amd-ucode", "zram-generator"];
+pub use apps::PACKAGES as APP_PACKAGES;
 pub use gpu::PACKAGES as GPU_PACKAGES;
 
 #[derive(Debug, Default, Clone)]
@@ -52,9 +55,11 @@ pub fn expand(name: &str, ctx: &Ctx) -> Expansion {
     match name {
         "aur-helper" => aur_helper(ctx.facts),
         "desktop" => desktop(ctx.facts),
+        "everyday" => apps::everyday(ctx.facts),
         "gpu" => gpu::gpu(ctx),
         "microcode" => microcode(ctx.facts),
         "nvidia-legacy" => gpu::nvidia_legacy_extras(ctx),
+        "spellcheck" => apps::spellcheck(ctx.facts),
         "zram" => zram(ctx.facts),
         other => match other.strip_prefix(drives::BUILTIN_PREFIX) {
             Some(key) => drives::expand(key, ctx.facts),

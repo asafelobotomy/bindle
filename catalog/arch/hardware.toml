@@ -117,9 +117,11 @@ group = "Printing & scanning"
 name = "Printing (CUPS)"
 description = "CUPS with network printer discovery (Avahi, cups-browsed) and driverless USB printing."
 notes = ["HP printers may also want hplip. Scanners: see the Scanning modules."]
+profiles = ["desktop", "gaming", "developer"]
 # cups-browsed + Avahi find network (IPP Everywhere) printers; ipp-usb drives
-# driverless USB printers.
-packages = ["cups", "cups-pdf", "cups-browsed", "avahi", "ipp-usb"]
+# driverless USB printers. Gutenprint and Foomatic drive older printers;
+# system-config-printer is the settings window outside Plasma and GNOME.
+packages = ["cups", "cups-pdf", "cups-browsed", "avahi", "ipp-usb", "gutenprint", "foomatic-db", "foomatic-db-engine", "system-config-printer"]
 enable = ["cups.socket", "cups-browsed.service", "avahi-daemon.socket"]
 
 [[module]]
@@ -128,6 +130,7 @@ group = "Printing & scanning"
 name = "Scanning (Skanpage)"
 description = "SANE with driverless network scanning (eSCL/WSD) and KDE's Skanpage."
 when = ["toolkit:qt"]
+profiles = ["desktop", "gaming", "developer"]
 packages = ["sane", "sane-airscan", "skanpage"]
 
 [[module]]
@@ -136,6 +139,7 @@ group = "Printing & scanning"
 name = "Scanning (Document Scanner)"
 description = "SANE with driverless network scanning (eSCL/WSD) and GNOME's Document Scanner."
 when = ["!toolkit:qt"]
+profiles = ["desktop", "gaming", "developer"]
 packages = ["sane", "sane-airscan", "simple-scan"]
 
 [[module]]

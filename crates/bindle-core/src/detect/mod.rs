@@ -38,6 +38,8 @@ pub struct Facts {
     /// PCI device ids of NVIDIA GPUs (decides nvidia-open vs. nouveau).
     pub nvidia_devices: Vec<u16>,
     pub root_fs: String,
+    /// `LANG` from /etc/locale.conf ("en_GB.UTF-8"): picks spelling dictionaries.
+    pub lang: String,
     /// `/.snapshots` is its own mount (archinstall's `@.snapshots` subvolume).
     pub snapshots_mount: bool,
     pub ssd: bool,
@@ -72,8 +74,9 @@ pub struct Facts {
     pub install: InstallRecord,
     /// Desktop ids present (installer record ∪ live detection).
     pub desktops: Vec<String>,
-    /// Tags derived from the detected desktops: `toolkit:`, `display:`, and
-    /// `kdeconnect` when a desktop's essentials include KDE Connect.
+    /// Tags derived from the detected desktops: `toolkit:`, `display:`,
+    /// `kdeconnect` when a desktop's essentials include KDE Connect, and
+    /// `bare-desktop` when one brings no everyday apps (`Desktop::everyday`).
     pub desktop_tags: Vec<String>,
     /// Unit behind display-manager.service, e.g. `gdm`.
     pub display_manager: Option<String>,
@@ -105,6 +108,7 @@ pub const FLAG_TAGS: &[&str] = &[
     "kdeconnect",
     "snapshots-mount",
     "hybrid-gpu",
+    "bare-desktop",
 ];
 
 /// `prefix:value` tags; `None` means any value is accepted.
@@ -138,6 +142,9 @@ impl Facts {
             if d.essentials.iter().any(|p| p == "kdeconnect") {
                 desktop_tags.insert("kdeconnect".into());
             }
+            if d.everyday.is_some() {
+                desktop_tags.insert("bare-desktop".into());
+            }
         }
         let virt = hw::virt();
         let gpu = hw::gpus(&virt);
@@ -158,6 +165,7 @@ impl Facts {
             gpus: gpu.vendors,
             nvidia_devices: gpu.nvidia_devices,
             root_fs: root_fs(&mounts),
+            lang: os_field(&read("/etc/locale.conf"), "LANG").unwrap_or_default(),
             snapshots_mount: snapshots_mounted(&mounts),
             ssd: hw::has_ssd(),
             drives: drives::detect(&fstab),

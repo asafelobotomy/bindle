@@ -150,6 +150,58 @@ profiles = ["desktop", "gaming", "developer"]
 packages = ["xdg-user-dirs"]
 user_commands = [{ argv = ["xdg-user-dirs-update"], unless = [{ path = "~/.config/user-dirs.dirs" }] }]
 
+# For desktops that ship no apps of their own (desktops.toml `everyday`):
+# Qt's set on uQ and Hyprland, GTK's on the other window managers.
+[[module]]
+id = "everyday-apps"
+group = "Desktop basics"
+name = "Everyday apps"
+description = "File manager, archive manager, image and PDF viewers, calculator and a disk tool, matching your desktop."
+when = ["bare-desktop"]
+profiles = ["desktop", "gaming", "developer"]
+builtin = "everyday"
+
+[[module]]
+id = "spellcheck"
+group = "Desktop basics"
+name = "Spell checking"
+description = "Dictionaries for your system language, used by Firefox, Thunderbird and LibreOffice."
+profiles = ["desktop", "gaming", "developer"]
+builtin = "spellcheck"
+
+[[module]]
+id = "disk-formats"
+group = "Desktop basics"
+name = "USB drive formats"
+description = "Format and repair exFAT, FAT and NTFS drives: what USB sticks, SD cards and Windows disks use."
+profiles = ["desktop", "gaming", "developer"]
+packages = ["exfatprogs", "dosfstools", "ntfs-3g"]
+
+[[module]]
+id = "appimage"
+group = "Desktop basics"
+name = "AppImage support"
+description = "Lets downloaded AppImages run (they need FUSE 2)."
+profiles = ["desktop", "gaming", "developer"]
+packages = ["fuse2"]
+
+[[module]]
+id = "bash-completion"
+group = "Desktop basics"
+name = "Tab completion"
+description = "Tab completes commands, options and package names in the bash terminal."
+profiles = ["desktop", "gaming", "developer"]
+packages = ["bash-completion"]
+
+[[module]]
+id = "vpn-plugins"
+group = "Desktop basics"
+name = "VPN support"
+description = "Adds OpenVPN to the network settings, for work and commercial VPNs (WireGuard is built in)."
+when = ["nm"]
+profiles = ["desktop", "gaming", "developer"]
+packages = ["networkmanager-openvpn"]
+
 [[module]]
 id = "flatpak"
 group = "App stores"
@@ -206,6 +258,21 @@ group = "Office & notes"
 name = "Obsidian"
 description = "Markdown notes and knowledge base."
 packages = ["obsidian"]
+
+# uQ pre-selects it (desktops.toml `apps`).
+[[module]]
+id = "marknote"
+group = "Office & notes"
+name = "Marknote"
+description = "Simple notes in Markdown, organised in notebooks. KDE's notes app."
+packages = ["marknote"]
+
+[[module]]
+id = "xournalpp"
+group = "Office & notes"
+name = "Xournal++"
+description = "Handwritten notes and PDF annotation, for pen tablets and touch screens."
+packages = ["xournalpp"]
 
 # KWrite (from the kate package): a plain notepad that follows uQ's theme
 # through qt6ct. uQ and Hyprland pre-select it (desktops.toml `apps`).
