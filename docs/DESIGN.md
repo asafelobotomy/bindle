@@ -65,7 +65,7 @@ steps, with no side effects. That gives:
   in, byte-identical files and commands whose `unless` file checks already hold
   are dropped from the plan, so re-applying the same selection plans nothing;
 - fixed phase order: pacman.conf → one `pacman -Syu --needed` transaction → files →
-  units → groups → root commands → initramfs → AUR (as user) → user commands.
+  fstab → units → groups → root commands → initramfs → AUR (as user) → user commands.
 
 ### Privilege model
 
@@ -81,7 +81,8 @@ powerful as sudo; see [APPLY.md](APPLY.md#trust-model).
 
 - Prefer **drop-in files** (`sysctl.d`, `makepkg.conf.d`, `udev/rules.d`,
   `tmpfiles.d`) with a `# Managed by Bindle` header over editing distro files.
-- `pacman.conf` is the one in-place edit: line-level, comment-preserving, unit-tested.
+- `pacman.conf` and `/etc/fstab` are the two in-place edits, both line-level and unit-tested. fstab has
+  no drop-in directory, so drives mounted at startup go in one marked block ([DRIVES.md](DRIVES.md)).
 - Before applying, snapshot every file that will be touched (XZram pattern) under
   `/var/lib/bindle/snapshots/<timestamp>/` with a manifest, so `bindle undo` can restore it. Details: [APPLY.md](APPLY.md).
 - Respect existing setups: the zram builtin leaves an existing
@@ -115,7 +116,7 @@ offers. Details: [ARCHINSTALL.md](ARCHINSTALL.md).
 `/etc/os-release`, `/proc/{cpuinfo,meminfo,mounts,swaps,cmdline}`,
 `/sys/class/drm/*/device/{vendor,device}` (GPU vendor; NVIDIA device id decides
 nvidia-open vs. nouveau, since nvidia-open needs Turing, id ≥ 0x1e00),
-`/sys/block/*/queue/rotational`, `/sys/class/power_supply` (ignoring `scope=Device`
+`/sys/block/*/queue/rotational`, `lsblk --json` and `/etc/fstab` (other drives), `/sys/class/power_supply` (ignoring `scope=Device`
 peripheral batteries) and `/sys/class/dmi/id/chassis_type`, `/sys/class/bluetooth`,
 `systemd-detect-virt`, the `LoaderInfo` EFI variable (bootloader; `/boot` is often
 root-only, so installed grub/limine/refind packages are a fallback hint),

@@ -184,7 +184,7 @@ impl From<CommandRepr> for Command {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Module {
     pub id: String,
@@ -303,6 +303,13 @@ impl Catalog {
         let catalog = Self { distro: distro.into(), categories, profiles: profiles.profiles, modules };
         validate::validate(&catalog)?;
         Ok(catalog)
+    }
+
+    /// Plus one module per drive this machine could mount at startup
+    /// (`builtins::drives`). They are generated, not catalog data.
+    pub fn with_drives(mut self, facts: &crate::Facts) -> Self {
+        self.modules.extend(crate::builtins::drives::modules(facts));
+        self
     }
 
     pub fn module(&self, id: &str) -> Option<&Module> {

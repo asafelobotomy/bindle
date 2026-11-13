@@ -1,5 +1,6 @@
 //! Modules whose concrete steps depend on detected hardware.
 
+pub mod drives;
 mod gpu;
 
 pub use gpu::{nvidia_legacy, nvidia_open_supported};
@@ -34,6 +35,8 @@ pub struct Expansion {
     pub files: Vec<FileSpec>,
     /// systemd units to enable.
     pub enable: Vec<String>,
+    /// `/etc/fstab` lines for drives mounted at startup (`drives`).
+    pub mounts: Vec<crate::fstab::Entry>,
     pub aur_bootstrap: bool,
     pub rebuild_initramfs: bool,
     pub notes: Vec<String>,
@@ -53,7 +56,10 @@ pub fn expand(name: &str, ctx: &Ctx) -> Expansion {
         "microcode" => microcode(ctx.facts),
         "nvidia-legacy" => gpu::nvidia_legacy_extras(ctx),
         "zram" => zram(ctx.facts),
-        _ => Expansion::default(),
+        other => match other.strip_prefix(drives::BUILTIN_PREFIX) {
+            Some(key) => drives::expand(key, ctx.facts),
+            None => Expansion::default(),
+        },
     }
 }
 

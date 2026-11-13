@@ -111,6 +111,14 @@ fn fill(root: &Path, plan: &SnapshotPlan, id: &str, dir: &Path) -> Result<Manife
             }
         }
     }
+    for dir in &plan.dirs {
+        // `missing_dirs` lists a path's missing ancestors: ask about a file inside.
+        for d in missing_dirs(root, &format!("{dir}/x")) {
+            if !created_dirs.contains(&d) {
+                created_dirs.push(d);
+            }
+        }
+    }
     created_dirs.sort_by_key(|d: &String| std::cmp::Reverse(d.matches('/').count()));
     let manifest = Manifest {
         id,
@@ -329,6 +337,24 @@ mod tests {
         assert!(r.errors[0].starts_with("/etc/a.conf"));
         assert_eq!(fs::read_to_string(root.join("etc/b.conf")).unwrap(), "b\n");
         assert!(!root.join("etc/new.d").exists());
+    }
+
+    #[test]
+    fn mount_points_the_apply_creates_go_again_unless_something_is_in_them() {
+        let root = crate::sys::test_dir("snapshot-dirs");
+        fs::create_dir_all(root.join("mnt/Kept")).unwrap();
+        let plan = SnapshotPlan {
+            dirs: vec!["/mnt/Data".into(), "/mnt/Games".into(), "/mnt/Kept".into()],
+            ..Default::default()
+        };
+        let m = create(&root, &plan).unwrap();
+        assert_eq!(m.created_dirs, ["/mnt/Data", "/mnt/Games"]);
+        fs::create_dir_all(root.join("mnt/Data")).unwrap();
+        fs::create_dir_all(root.join("mnt/Games")).unwrap();
+        fs::write(root.join("mnt/Games/save"), "x").unwrap();
+        restore_files(&root, &m);
+        assert!(!root.join("mnt/Data").exists());
+        assert!(root.join("mnt/Games/save").exists() && root.join("mnt/Kept").exists());
     }
 
     #[test]

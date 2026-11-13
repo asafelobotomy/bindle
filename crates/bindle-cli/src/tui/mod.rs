@@ -320,6 +320,50 @@ mod tests {
     }
 
     #[test]
+    fn a_detected_drive_can_be_ticked_and_the_review_shows_its_fstab_line() {
+        use bindle_core::detect::Drive;
+        let drive = |uuid: &str, fstype: &str, label: &str| Drive {
+            device: "/dev/sdb1".into(),
+            uuid: uuid.into(),
+            fstype: fstype.into(),
+            label: label.into(),
+            size: 500 << 30,
+            ..Default::default()
+        };
+        let locked = Drive { blocked: Some("encrypted with LUKS".into()), ..drive("cc", "crypto_LUKS", "") };
+        let facts = Facts {
+            distro_id: "arch".into(),
+            drives: vec![drive("aa-1", "ext4", "Data"), locked],
+            ..Default::default()
+        };
+        let catalog = Catalog::arch().unwrap().with_drives(&facts);
+        let mut app = new_app(&catalog, &facts, None);
+        app.screen = Screen::Pick;
+        app.category.select(catalog.categories.iter().position(|c| c.id == "hardware"));
+        let at = |id: &str| catalog.modules_in("hardware").position(|m| m.id == id);
+        app.module.select(at("mount-aa-1"));
+        app.focus_modules = true;
+        app.on_key(KeyCode::Char(' '));
+        assert!(app.selected.contains("mount-aa-1"));
+        let text = screen_text(&mut app, 120, 60);
+        assert!(text.contains("[x] Mount Data (500 GiB ext4)"), "{text}");
+        assert!(text.contains("/mnt/Data every time the computer"), "{text}");
+        assert!(text.contains("Adds to /etc/fstab: UUID=aa-1 /mnt/Data"), "{text}");
+        // An encrypted volume is listed, says why, and can't be ticked.
+        app.module.select(at("mount-cc"));
+        app.on_key(KeyCode::Char(' '));
+        assert!(!app.selected.contains("mount-cc"));
+        assert!(screen_text(&mut app, 120, 60).contains("Not available here: encrypted with LUKS"));
+        app.on_key(KeyCode::Enter);
+        let review = app.review.join("\n");
+        assert!(review.contains("add to /etc/fstab, to mount at startup: /mnt/Data"), "{review}");
+        assert!(
+            review.contains("│ UUID=aa-1  /mnt/Data  ext4  defaults,nofail,x-systemd.device-timeout=30s  0 2"),
+            "{review}"
+        );
+    }
+
+    #[test]
     fn picking_one_of_a_conflicting_pair_drops_the_other() {
         let catalog = Catalog::arch().unwrap();
         let facts = Facts { distro_id: "arch".into(), laptop: true, ..Default::default() };

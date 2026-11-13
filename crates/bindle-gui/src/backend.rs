@@ -106,8 +106,9 @@ fn json(v: &Value) -> QString {
 
 impl cxx_qt::Initialize for Backend {
     fn initialize(mut self: Pin<&mut Self>) {
-        let catalog = Catalog::arch().expect("the built-in catalog is validated by the tests");
-        let mut wizard = Wizard::new(catalog, Facts::detect());
+        let facts = Facts::detect();
+        let catalog = Catalog::arch().expect("the built-in catalog is validated by the tests").with_drives(&facts);
+        let mut wizard = Wizard::new(catalog, facts);
         // Like the terminal wizard: carry on from the last selection (not in
         // screenshot or sandbox runs, which must not depend on this machine).
         let real = crate::arg("--screenshots").is_none() && crate::arg("--sandbox").is_none();

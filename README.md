@@ -64,4 +64,5 @@ without it, run `./Bindle-*.AppImage --appimage-extract-and-run`.
 - [Applying changes, snapshots and undo](docs/APPLY.md)
 - [End-to-end VM test](docs/VM-TEST.md)
 - [Catalog format](docs/CATALOG.md)
+- [Mounting other drives](docs/DRIVES.md)
 - [Roadmap](docs/ROADMAP.md)

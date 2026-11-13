@@ -6,7 +6,7 @@ Fresh-install setup wizard for Linux (Arch first). Rust workspace; TUI-first; Ap
 
 | Path | What |
 |---|---|
-| `crates/bindle-core` | `detect` (facts, no root), `install` (archinstall log / pacman.log reconstruction), `desktops`, `catalog` (TOML, validated), `builtins` (hardware-computed modules), `plan` (pure resolver), `pacman_conf` |
+| `crates/bindle-core` | `detect` (facts, no root), `install` (archinstall log / pacman.log reconstruction), `desktops`, `catalog` (TOML, validated), `builtins` (hardware-computed modules; `drives` generates one module per mountable drive), `plan` (pure resolver), `pacman_conf`, `fstab` |
 | `crates/bindle-run` | apply engine shared by frontends: `apply` (orchestrator, `Progress` trait), root `helper`, JSON `protocol`, `client`, `snapshot`, `sys`, `selection`, `present` (text every frontend shows) |
 | `crates/bindle-gui` | `bindle-gui`: desktop wizard, cxx-qt + Kirigami (`qml/`, `src/model.rs` holds the wizard state without Qt, `src/theme.rs` reads uQ's tokens). Not a default workspace member: needs Qt 6 and Kirigami |
 | `crates/bindle-cli` | `bindle` binary: clap CLI, ratatui wizard (`src/tui`), `apply.rs` (terminal frontend over `bindle-run`), `firstlogin.rs`, `terminal.rs` |
@@ -17,7 +17,7 @@ Fresh-install setup wizard for Linux (Arch first). Rust workspace; TUI-first; Ap
 | `crates/bindle-cli/src/iso.rs`, `tui/iso.rs` | live-ISO installer flow; preset in `bindle-core/src/install/preset.rs` |
 | `tests/vm/` | QEMU end-to-end install test (`run.sh`, guest scripts); artifacts in git-ignored `.work/` |
 | `branding/` | `bindle.svg` (the icon) and `png/` sizes from `scripts/icons.sh`; rerun it after editing the SVG (a unit test checks) |
-| `docs/` | DESIGN (why), CATALOG (schema), ROADMAP, ISO, ARCHINSTALL (detection, first login, welcome apps), APPLY, VM-TEST |
+| `docs/` | DESIGN (why), CATALOG (schema), ROADMAP, ISO, ARCHINSTALL (detection, first login, welcome apps), APPLY, DRIVES (fstab, mounting other drives), VM-TEST |
 
 ## Verify
 

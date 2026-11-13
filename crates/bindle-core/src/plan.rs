@@ -6,8 +6,9 @@ use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
 
 use crate::builtins::{self, Ctx};
-use crate::catalog::{AssetKind, Catalog, Command, FileSpec, ReleaseAsset};
+use crate::catalog::{Catalog, Command, FileSpec, ReleaseAsset};
 use crate::detect::Facts;
+use checks::{already_done, dedup, release_installed};
 
 #[derive(Debug, Clone, Default)]
 pub struct Selection {
@@ -28,7 +29,7 @@ impl Selection {
             bail!("unknown profile `{p}`");
         }
         for id in self.include.iter().chain(&self.exclude) {
-            if catalog.module(id).is_none() {
+            if catalog.module(id).is_none() && !mounts::absent(catalog, id) {
                 bail!("unknown module `{id}`");
             }
         }
@@ -38,7 +39,7 @@ impl Selection {
             .filter(|m| m.default || self.profile.as_ref().is_some_and(|p| m.profiles.contains(p)))
             .map(|m| m.id.clone())
             .collect();
-        set.extend(self.include.iter().cloned());
+        set.extend(self.include.iter().filter(|id| catalog.module(id).is_some()).cloned());
         set.retain(|id| !self.exclude.contains(id));
         Ok(set)
     }
@@ -75,6 +76,10 @@ pub enum Step {
     /// Unmodified files Bindle wrote for a conflicting module.
     RemoveFiles {
         paths: Vec<String>,
+    },
+    /// Add drives to Bindle's block in /etc/fstab and create their mount points.
+    MountAtBoot {
+        entries: Vec<crate::fstab::Entry>,
     },
     AddToGroups {
         user: String,
@@ -148,6 +153,7 @@ pub fn resolve(
 ) -> Result<Plan> {
     let mut plan = Plan::default();
     let mut chosen = selection.initial(catalog)?;
+    plan.skipped.extend(mounts::skipped(catalog, selection));
 
     // Pull in requirements transitively.
     let mut queue: Vec<String> = chosen.iter().cloned().collect();
@@ -239,6 +245,7 @@ pub fn resolve(
     let mut late_removed = Vec::new();
     let mut aur = Vec::new();
     let mut releases: Vec<ReleaseAsset> = Vec::new();
+    let mut mounts = Vec::new();
     let mut bootstrap = false;
     let mut initramfs = false;
 
@@ -272,6 +279,7 @@ pub fn resolve(
             aur.extend(e.aur);
             files.extend(e.files.into_iter().map(|f| (id.clone(), f)));
             units.extend(e.enable);
+            mounts.extend(e.mounts);
             bootstrap |= e.aur_bootstrap;
             initramfs |= e.rebuild_initramfs;
             plan.notes.extend(e.notes.into_iter().map(|n| (id.clone(), n)));
@@ -306,6 +314,7 @@ pub fn resolve(
             plan.steps.push(Step::WriteFile { module, file });
         }
     }
+    plan.steps.extend(mounts::step(mounts, current_file));
     // A replaced rival goes once its replacement's packages and files are in.
     plan.steps.extend(retired.steps);
     let enabled = |u: &String| !facts.enabled_units.contains(u);
@@ -363,38 +372,8 @@ pub fn resolve(
     Ok(plan)
 }
 
-/// Every `unless` check holds, so the command's effect is already in place.
-/// `~/` paths resolve against the user's home (unknown home: not done).
-fn already_done(c: &Command, facts: &Facts, current_file: &dyn Fn(&str) -> Option<String>) -> bool {
-    !c.unless.is_empty()
-        && c.unless.iter().all(|u| {
-            let path = match u.path.strip_prefix("~/") {
-                Some(_) if facts.home.is_empty() => return false,
-                Some(rest) => format!("{}/{rest}", facts.home.trim_end_matches('/')),
-                None => u.path.clone(),
-            };
-            u.holds(current_file(&path).as_deref())
-        })
-}
-
-/// A package by name; an AppImage by its desktop entry naming this asset.
-fn release_installed(r: &ReleaseAsset, facts: &Facts, current_file: &dyn Fn(&str) -> Option<String>) -> bool {
-    match r.kind() {
-        Some(AssetKind::Package) => facts.installed.contains(&r.name),
-        Some(AssetKind::AppImage) if !facts.home.is_empty() => {
-            let entry = r.desktop_entry();
-            let path = format!("{}/{}", facts.home.trim_end_matches('/'), entry.trim_start_matches("~/"));
-            current_file(&path).is_some_and(|c| c.contains(&format!("X-Bindle-Asset={}", r.asset)))
-        }
-        _ => false,
-    }
-}
-
-fn dedup(items: impl IntoIterator<Item = String>) -> Vec<String> {
-    let mut seen = BTreeSet::new();
-    items.into_iter().filter(|i| seen.insert(i.clone())).collect()
-}
-
+mod checks;
+mod mounts;
 pub mod retire;
 #[cfg(test)]
 mod tests;

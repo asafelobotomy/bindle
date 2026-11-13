@@ -287,5 +287,46 @@ mod tests {
         assert!(w.selected.contains("mirrors"), "toggling an unavailable module changes nothing");
     }
 
+    #[test]
+    fn detected_drives_are_cards_of_their_own_group_with_the_line_they_add() {
+        use bindle_core::detect::Drive;
+        let drive = |uuid: &str, fstype: &str, blocked: Option<&str>| Drive {
+            device: "/dev/sdb1".into(),
+            uuid: uuid.into(),
+            fstype: fstype.into(),
+            label: "Data".into(),
+            size: 500 << 30,
+            blocked: blocked.map(String::from),
+            ..Default::default()
+        };
+        let facts = Facts {
+            drives: vec![drive("aa-1", "ext4", None), drive("bb", "ntfs", Some("already in /etc/fstab"))],
+            ..arch()
+        };
+        let mut w = Wizard::new(bindle_core::Catalog::arch().unwrap().with_drives(&facts), facts);
+        let cats = w.catalog();
+        let hw = cats.as_array().unwrap().iter().find(|c| c["id"] == "hardware").unwrap();
+        let group = hw["groups"].as_array().unwrap().last().unwrap();
+        assert_eq!(group["name"], "Drives to mount at startup");
+        assert_eq!(group["items"].as_array().unwrap().len(), 2);
+        let (_, data) = find(&cats, "hardware", "mount-aa-1");
+        assert_eq!(data["name"], "Mount Data (500 GiB ext4)");
+        assert!(data["description"].as_str().unwrap().contains("Mounted at /mnt/Data"));
+        let details = data["details"].as_array().unwrap();
+        assert!(
+            details.iter().any(|d| d.as_str().unwrap().starts_with("Adds to /etc/fstab: UUID=aa-1 /mnt/Data ext4"))
+        );
+        assert_eq!(find(&cats, "hardware", "mount-bb").1["unavailable"], "already in /etc/fstab");
+        // Not chosen for anyone: ticking it is the user's call, and the review shows the line.
+        assert!(w.state()["selected"].get("mount-aa-1").is_none());
+        assert_eq!(w.toggle("mount-aa-1").unwrap().text, "Added Mount Data (500 GiB ext4)");
+        assert_eq!(w.toggle("mount-bb"), None);
+        let review = w.review(std::path::Path::new("/nonexistent"));
+        let step =
+            review["steps"].as_array().unwrap().iter().find(|s| s["text"].as_str().unwrap().contains("/etc/fstab"));
+        let step = step.unwrap_or_else(|| panic!("{review}"));
+        assert!(step["content"][0].as_str().unwrap().starts_with("UUID=aa-1  /mnt/Data  ext4  defaults,nofail"));
+    }
+
     use bindle_core::Facts;
 }

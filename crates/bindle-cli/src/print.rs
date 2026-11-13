@@ -7,6 +7,8 @@ pub use bindle_run::present::{describe, install_lines, module_details, plan_line
 
 pub fn facts(f: &Facts) {
     let yes = |b: bool| if b { "yes" } else { "no" };
+    let drives: Vec<String> =
+        f.drives.iter().map(|d| format!("{} {} {}", d.device, d.fstype, d.label).trim_end().to_string()).collect();
     let rows = [
         ("Distro", format!("{} ({})", f.pretty_name, f.distro_id)),
         ("Kernel", f.kernel.clone()),
@@ -27,6 +29,7 @@ pub fn facts(f: &Facts) {
         ("Desktops", if f.desktops.is_empty() { "none".into() } else { f.desktops.join(", ") }),
         ("Display mgr", f.display_manager.clone().unwrap_or_else(|| "none".into())),
         ("Packages", f.installed_count.to_string()),
+        ("Other drives", if f.drives.is_empty() { "none".into() } else { drives.join("; ") }),
     ];
     for (k, v) in rows {
         println!("{k:>12}  {v}");

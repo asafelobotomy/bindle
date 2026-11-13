@@ -288,8 +288,10 @@ echo; printf 'Press Enter to close. '; read -r _"#;
         _ => {}
     }
 
-    let catalog = Catalog::arch()?;
     let facts = Facts::detect();
+    // Drives to mount are offered on the installed system, not from the live ISO.
+    let live = matches!(command, Cmd::Iso { .. } | Cmd::Install { .. });
+    let catalog = if live { Catalog::arch()? } else { Catalog::arch()?.with_drives(&facts) };
     match command {
         Cmd::Wizard { sandbox } => {
             if !std::io::stdout().is_terminal() {

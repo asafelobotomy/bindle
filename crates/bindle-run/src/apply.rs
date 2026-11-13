@@ -245,6 +245,13 @@ pub fn snapshot_plan(plan: &Plan, facts: &Facts) -> SnapshotPlan {
             Step::WriteFile { file, .. } => s.files.push(file.path.clone()),
             Step::EnableUnits { units } => s.units.extend(units.iter().cloned()),
             Step::RemoveFiles { paths } => s.files.extend(paths.iter().cloned()),
+            Step::MountAtBoot { entries } => {
+                s.files.push(bindle_core::fstab::PATH.into());
+                s.dirs.extend(entries.iter().map(|e| e.dir.clone()));
+                let dirs: Vec<&str> = entries.iter().map(|e| e.dir.as_str()).collect();
+                s.manual
+                    .push(format!("drives mounted now stay mounted until you restart (or: umount {})", dirs.join(" ")));
+            }
             Step::DisableUnits { units } => {
                 s.manual.push(format!("disabled {} (to restore: systemctl enable --now {0})", units.join(" ")))
             }

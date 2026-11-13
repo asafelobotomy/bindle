@@ -52,5 +52,7 @@
 - ~~NVIDIA generation detection by PCI device id~~ ✅ pre-Turing cards get nouveau; next: legacy AUR driver as an opt-in module
 - Optional XZram install hand-off; zswap-vs-zram choice
 
+- ~~Mount other drives at startup~~ ✅ one module per detected drive, written to a managed block in `/etc/fstab` ([DRIVES.md](DRIVES.md)); next: encrypted volumes (`/etc/crypttab`), Btrfs subvolume choice
+
 ## Phase 5: more distros
 - Fedora, Debian/Ubuntu, openSUSE catalogs + package-manager backends

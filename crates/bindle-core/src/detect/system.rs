@@ -159,6 +159,12 @@ pub(super) fn current_user() -> String {
         .unwrap_or_else(|| std::env::var("USER").unwrap_or_default())
 }
 
+/// uid and gid this process runs as.
+pub(super) fn current_ids() -> (u32, u32) {
+    use std::os::unix::fs::MetadataExt;
+    std::fs::metadata("/proc/self").map_or((0, 0), |m| (m.uid(), m.gid()))
+}
+
 fn passwd_name(getent: &str) -> Option<String> {
     getent.lines().next()?.split(':').next().filter(|n| !n.is_empty()).map(String::from)
 }

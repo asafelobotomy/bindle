@@ -4,6 +4,7 @@
 //! command line, `system` packages, services, users and config files.
 
 mod boot;
+mod drives;
 mod hw;
 mod system;
 mod tags;
@@ -20,6 +21,7 @@ use crate::install::InstallRecord;
 use crate::pacman_conf;
 
 pub use boot::{bootloader_from, loader_from_info};
+pub use drives::{Drive, MOUNTABLE, drives_from};
 pub use hw::{GpuInfo, TURING_FIRST_DEVICE, classify_gpus, cpu_vendor, is_portable, mem_total_mib, pci_vendor_name};
 pub use system::{aur_helper, os_field, root_fs, snapshots_mounted, sysctl_owner, zram_config_paths};
 
@@ -39,6 +41,10 @@ pub struct Facts {
     /// `/.snapshots` is its own mount (archinstall's `@.snapshots` subvolume).
     pub snapshots_mount: bool,
     pub ssd: bool,
+    /// Filesystems on drives the system doesn't use itself (see `drives`).
+    pub drives: Vec<Drive>,
+    /// Every mount point `/etc/fstab` already names.
+    pub fstab_dirs: Vec<String>,
     pub laptop: bool,
     pub bluetooth: bool,
     pub virt: String,
@@ -55,6 +61,9 @@ pub struct Facts {
     pub multilib_enabled: bool,
     pub aur_helper: Option<String>,
     pub user: String,
+    /// Numeric ids of `user`, for filesystems without owners (NTFS, exFAT, FAT).
+    pub uid: u32,
+    pub gid: u32,
     /// Home directory of `user` (from the passwd database).
     pub home: String,
     /// Groups `user` already belongs to.
@@ -134,6 +143,8 @@ impl Facts {
         let gpu = hw::gpus(&virt);
         let user = system::current_user();
         let mounts = read("/proc/mounts");
+        let fstab = read(crate::fstab::PATH);
+        let (uid, gid) = system::current_ids();
         let mut f = Facts {
             distro_id: os_field(&os, "ID").unwrap_or_default(),
             distro_like: os_field(&os, "ID_LIKE")
@@ -149,6 +160,10 @@ impl Facts {
             root_fs: root_fs(&mounts),
             snapshots_mount: snapshots_mounted(&mounts),
             ssd: hw::has_ssd(),
+            drives: drives::detect(&fstab),
+            fstab_dirs: crate::fstab::lines(&fstab).iter().map(|l| l.dir.to_string()).collect(),
+            uid,
+            gid,
             laptop: hw::has_battery(),
             bluetooth: dir_nonempty("/sys/class/bluetooth"),
             virt,
@@ -256,9 +271,14 @@ impl Facts {
         let tags = self.tags();
         for c in conditions {
             let (negate, tag) = c.strip_prefix('!').map_or((false, c.as_str()), |t| (true, t));
-            let holds = match tag.strip_prefix("installed:") {
-                Some(pkg) => self.installed.contains(pkg),
-                None => tags.contains(tag),
+            let holds = match tag.split_once(':') {
+                Some(("installed", pkg)) => self.installed.contains(pkg),
+                // A drive module (`builtins::drives`): the reason is the drive's own.
+                Some(("mountable", key)) => match self.drives.iter().find(|d| d.key() == key) {
+                    Some(d) => d.blocked.clone().map_or(Ok(true), Err)?,
+                    None => return Err("that drive is not connected".into()),
+                },
+                _ => tags.contains(tag),
             };
             if holds == negate {
                 return Err(tags::reason(tag, negate));

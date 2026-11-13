@@ -53,6 +53,7 @@ to do unasked.
 | replace conflicts | root | `pacman -Rdd --noconfirm -- …` (only after you confirm; the next step installs the replacements) |
 | install packages | root | `pacman -Syu --needed --noconfirm -- …` (a full system upgrade) |
 | write file | root | atomic write: exclusive temp file created with the final mode, keeps the owner, refuses to replace a symlink |
+| mount drives at startup | root | add lines to Bindle's block in `/etc/fstab`, create the mount points, `systemctl daemon-reload`, `mount` what isn't mounted ([DRIVES.md](DRIVES.md)) |
 | retire a rival | root | `systemctl disable --now -- …` for units a conflicting module enabled, and removal of the files Bindle wrote for it (only unedited ones; the rest are reported) |
 | enable units | root | `systemctl enable --now -- …` |
 | groups | root | `usermod -aG … <you>` |
@@ -74,7 +75,8 @@ umask, so `bindle undo` can list snapshots as you.
 
 `bindle undo [ID]` restores each snapshotted file byte-for-byte (removing ones
 that didn't exist before, then the directories apply created for them), with
-their original owner and mode, and stops and
+their original owner and mode (`/etc/fstab` included: drives added to it stay mounted
+until restart or `umount`, which undo says), and stops and
 disables (`systemctl disable --now`) the units that apply enabled. Units that
 were already enabled are never in the plan, so they're never disabled. Packages
 are left installed: removing them automatically is too risky. Undo prints the

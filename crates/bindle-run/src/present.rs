@@ -21,6 +21,7 @@ pub fn module_details(m: &Module, facts: &Facts) -> Vec<String> {
         }
         add("Installs (for this machine)", &e.packages);
         add("Writes", &e.files.iter().map(|f| f.path.clone()).collect::<Vec<_>>());
+        add("Adds to /etc/fstab", &e.mounts.iter().map(|m| m.line().replace('\t', " ")).collect::<Vec<_>>());
         add("Enables", &e.enable);
     }
     add("Installs", &m.packages);
@@ -71,11 +72,7 @@ pub fn plan_lines(p: &Plan) -> Vec<String> {
     for (i, step) in p.steps.iter().enumerate() {
         let who = if step.privileged() { "root" } else { "user" };
         out.push(format!("{:>2}. [{who}] {}", i + 1, describe(step)));
-        if let Step::WriteFile { file, .. } = step {
-            out.extend(
-                file.content.lines().filter(|l| *l != "# Managed by Bindle").map(|l| format!("           │ {l}")),
-            );
-        }
+        out.extend(written(step).iter().map(|l| format!("           │ {l}")));
     }
     if !p.notes.is_empty() {
         out.push(String::new());
@@ -85,6 +82,17 @@ pub fn plan_lines(p: &Plan) -> Vec<String> {
     out.push(String::new());
     out.push(format!("Modules: {}", p.modules.join(", ")));
     out
+}
+
+/// The exact lines a step writes, for the review.
+pub fn written(step: &Step) -> Vec<String> {
+    match step {
+        Step::WriteFile { file, .. } => {
+            file.content.lines().filter(|l| *l != "# Managed by Bindle").map(String::from).collect()
+        }
+        Step::MountAtBoot { entries } => entries.iter().map(|e| e.line().replace('\t', "  ")).collect(),
+        _ => Vec::new(),
+    }
 }
 
 pub fn describe(step: &Step) -> String {
@@ -108,6 +116,10 @@ pub fn describe(step: &Step) -> String {
             format!("systemctl disable {} (replaced by the modules above)", units.join(" "))
         }
         Step::RemoveFiles { paths } => format!("remove {} (written for a module you replaced)", paths.join(" ")),
+        Step::MountAtBoot { entries } => {
+            let dirs: Vec<&str> = entries.iter().map(|e| e.dir.as_str()).collect();
+            format!("add to /etc/fstab, to mount at startup: {}", dirs.join(", "))
+        }
         Step::AddToGroups { user, groups } => format!("usermod -aG {} {user}", groups.join(",")),
         Step::RunAsRoot { module, argv } | Step::RunAsUser { module, argv, .. } => {
             format!("{} [{module}]", argv.join(" "))

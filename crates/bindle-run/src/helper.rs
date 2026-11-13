@@ -10,6 +10,7 @@ use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
+use bindle_core::fstab::{self, Entry};
 use bindle_core::{Step, pacman_conf};
 
 use crate::protocol::{Event, Request, VERSION};
@@ -177,7 +178,7 @@ impl Helper {
     fn handle(&mut self, req: Request) -> Result<Option<Event>> {
         match req {
             Request::Snapshot { plan } => {
-                for f in &plan.files {
+                for f in plan.files.iter().chain(&plan.dirs) {
                     check_system_path(f)?;
                 }
                 let m = snapshot::create(self.root(), &plan)?;
@@ -203,6 +204,12 @@ impl Helper {
                     self.output(line);
                 }
                 let mut errors = report.errors;
+                // systemd made mount units from the fstab that was just put back.
+                if m.files.iter().any(|f| f.path == fstab::PATH)
+                    && let Err(e) = self.cmd(&["systemctl", "daemon-reload"])
+                {
+                    errors.push(format!("reload systemd: {e:#}"));
+                }
                 if !m.units.is_empty() {
                     let units = m.units.clone();
                     let disabled = check_names(&units).and_then(|()| {
@@ -332,6 +339,7 @@ impl Helper {
                 }
                 Ok(())
             }
+            Step::MountAtBoot { entries } => self.mount_at_boot(&entries),
             Step::AddToGroups { user, groups } => {
                 if user == "root" || !valid_name(&user) || !groups.iter().all(|g| valid_name(g)) {
                     bail!("refusing group change for `{user}`");
@@ -345,5 +353,39 @@ impl Helper {
             | Step::InstallReleases { .. }
             | Step::RunAsUser { .. } => unreachable!(),
         }
+    }
+
+    /// Put the drives' lines in Bindle's fstab block, create their mount
+    /// points and mount what isn't mounted yet. A drive that won't mount now
+    /// doesn't fail the apply: its line is `nofail` and is tried at startup.
+    fn mount_at_boot(&mut self, entries: &[Entry]) -> Result<()> {
+        for e in entries {
+            e.check().map_err(anyhow::Error::msg)?;
+            check_system_path(&e.dir)?;
+        }
+        self.capture_late(fstab::PATH)?;
+        let path = host(self.root(), fstab::PATH);
+        let text = match fs::read_to_string(&path) {
+            Ok(t) => t,
+            Err(e) if e.kind() == io::ErrorKind::NotFound => String::new(),
+            Err(e) => return Err(e).context("read /etc/fstab"),
+        };
+        let mode = fs::metadata(&path).map_or(0o644, |m| m.permissions().mode() & 0o7777);
+        write_atomic(&path, fstab::merge(&text, entries).as_bytes(), mode)?;
+        for e in entries {
+            create_dirs(&host(self.root(), &e.dir))?;
+            self.output(&format!("added to /etc/fstab: {}", e.line().replace('\t', " ")));
+        }
+        // In the new system from the ISO there is no systemd to tell yet.
+        if crate::sys::in_chroot() {
+            return Ok(());
+        }
+        self.cmd(&["systemctl", "daemon-reload"])?;
+        for e in entries.iter().filter(|e| e.mount_now) {
+            if let Err(err) = self.cmd(&["mount", "--", &e.dir]) {
+                self.output(&format!("could not mount {} now ({err:#}); it is tried again at every start", e.dir));
+            }
+        }
+        Ok(())
     }
 }

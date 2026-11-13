@@ -56,4 +56,8 @@ pub struct SnapshotPlan {
     pub aur: Vec<String>,
     #[serde(default)]
     pub manual: Vec<String>,
+    /// Directories the apply creates (mount points); undo removes the ones
+    /// that didn't exist, once they are empty.
+    #[serde(default)]
+    pub dirs: Vec<String>,
 }

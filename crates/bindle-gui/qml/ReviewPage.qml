@@ -200,7 +200,10 @@ QQC2.ScrollView {
                         QQC2.Label {
                             required property string modelData
                             Layout.leftMargin: Kirigami.Units.gridUnit + Kirigami.Units.mediumSpacing
+                            Layout.fillWidth: true
                             text: modelData
+                            // A long line (an fstab entry) wraps: every field stays readable.
+                            wrapMode: Text.WrapAnywhere
                             color: Theme.textMuted
                             font.family: Theme.fontMono
                             font.pointSize: Theme.smallSize

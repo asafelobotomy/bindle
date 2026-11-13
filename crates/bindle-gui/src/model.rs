@@ -173,7 +173,7 @@ fn review_json(p: &Plan, catalog: &Catalog) -> Value {
             Step::InstallPackages { packages: p } | Step::InstallAur { packages: p } => packages += p.len(),
             Step::InstallReleases { assets } => packages += assets.len(),
             Step::BootstrapAurHelper { .. } => packages += 1,
-            Step::WriteFile { .. } => files += 1,
+            Step::WriteFile { .. } | Step::MountAtBoot { .. } => files += 1,
             Step::EnableUnits { units } => services += units.len(),
             _ => {}
         }
@@ -181,13 +181,7 @@ fn review_json(p: &Plan, catalog: &Catalog) -> Value {
     let steps: Vec<Value> = p
         .steps
         .iter()
-        .map(|s| {
-            let content: Vec<&str> = match s {
-                Step::WriteFile { file, .. } => file.content.lines().filter(|l| *l != "# Managed by Bindle").collect(),
-                _ => Vec::new(),
-            };
-            json!({ "root": s.privileged(), "text": present::describe(s), "content": content })
-        })
+        .map(|s| json!({ "root": s.privileged(), "text": present::describe(s), "content": present::written(s) }))
         .collect();
     let pair = |v: &[(String, String)], f: &dyn Fn(&str, &str) -> String| -> Vec<String> {
         v.iter().map(|(a, b)| f(a, b)).collect()

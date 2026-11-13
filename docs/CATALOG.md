@@ -124,6 +124,13 @@ installed now). Prefix with `!` to negate.
 Modules the installer already set up (see [ARCHINSTALL.md](ARCHINSTALL.md)) are
 reported as provided and never planned.
 
+## Generated modules
+
+Drives to mount at startup are not catalog data: `Catalog::with_drives(&facts)` adds one
+module per detected drive (`mount-<uuid>`, Hardware → "Drives to mount at startup", builtin
+`mount:<uuid>`, `when = ["mountable:<uuid>"]`). They are never in a profile. See
+[DRIVES.md](DRIVES.md).
+
 ## Desktops
 
 `catalog/desktops.toml` describes each archinstall desktop: how to recognise it
