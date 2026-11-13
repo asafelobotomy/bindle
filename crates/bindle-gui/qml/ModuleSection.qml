@@ -5,7 +5,8 @@ import org.kde.kirigami as Kirigami
 
 // One group of a category ("Browsers"): a heading, then its modules in the
 // current view. Modules that can't be combined sit together in a framed
-// "Choose one" box, drawn with radio marks.
+// "Choose one" box, drawn with radio marks. The heading can select or clear
+// the whole group; a card's details open under the group.
 Column {
     id: section
 
@@ -17,6 +18,9 @@ Column {
     property string currentId
     signal toggled(string id)
     signal inspected(string id)
+    signal setAll(var ids, bool on)
+    // Details opened under the group: the page scrolls them into view.
+    signal detailsShown(var item)
 
     readonly property int gap: view === "compact" ? 2 : Kirigami.Units.mediumSpacing
     readonly property real cardWidth: Kirigami.Units.gridUnit * 13
@@ -29,6 +33,25 @@ Column {
         return n;
     }
     readonly property int count: items.reduce((n, item) => n + item.modules.length, 0)
+    // Modules "Select all" acts on: not in a "choose one" set, and tickable.
+    readonly property var togglable: {
+        const out = [];
+        for (const item of items)
+            if (!item.choice)
+                for (const m of item.modules)
+                    if (!m.provided && !m.unavailable)
+                        out.push(m.id);
+        return out;
+    }
+    readonly property bool allOn: togglable.length > 0 && togglable.every(id => selected[id] === true)
+    // The module whose details are open, when it is in this group.
+    readonly property var current: {
+        for (const item of items)
+            for (const m of item.modules)
+                if (m.id === currentId)
+                    return m;
+        return null;
+    }
 
     // Cards across `width`, and the width each gets.
     function cell(width) {
@@ -59,6 +82,22 @@ Column {
             Layout.alignment: Qt.AlignVCenter
             height: 1
             color: Theme.border
+        }
+        QQC2.AbstractButton {
+            id: all
+            visible: section.togglable.length > 1
+            hoverEnabled: true
+            padding: Kirigami.Units.smallSpacing
+            onClicked: section.setAll(section.togglable, !section.allOn)
+            Accessible.role: Accessible.Button
+            Accessible.name: text + " in " + section.title
+            text: section.allOn ? "Select none" : "Select all"
+            contentItem: QQC2.Label {
+                text: all.text
+                color: Theme.accent
+                font.pointSize: Theme.smallSize
+                font.underline: all.hovered
+            }
         }
     }
 
@@ -118,7 +157,7 @@ Column {
                                 selected: section.selected[modelData.id] === true
                                 neededBy: section.needed[modelData.id] || ""
                                 current: section.currentId === modelData.id
-                                onToggled: section.toggled(modelData.id)
+                                onPicked: section.toggled(modelData.id)
                                 onInspected: section.inspected(modelData.id)
                             }
                         }
@@ -126,5 +165,16 @@ Column {
                 }
             }
         }
+    }
+
+    ModuleDetails {
+        id: details
+        width: parent.width
+        onModuleChanged: if (module !== null) section.detailsShown(details)
+        visible: section.current !== null
+        module: section.current
+        selected: section.current !== null && section.selected[section.current.id] === true
+        neededBy: section.current !== null ? (section.needed[section.current.id] || "") : ""
+        onClosed: section.inspected(section.currentId)
     }
 }

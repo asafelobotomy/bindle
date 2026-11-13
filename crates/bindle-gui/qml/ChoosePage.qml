@@ -4,8 +4,9 @@ import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 
 // One category at a time: its groups of modules as cards or rows, with
-// search, filters and a view switch above, the hovered module's details
-// beside, and a line under the list saying what the last click changed.
+// search, filters and a view switch in one row above, a card's details
+// opening under its group, and a line under the list saying what the last
+// click changed.
 RowLayout {
     id: page
 
@@ -23,6 +24,9 @@ RowLayout {
     property bool hideUnavailable: false
     property bool safeOnly: false
     signal toggled(string id)
+    signal groupSet(var ids, bool on, string group)
+    // Categories the user has opened: ticked in the list.
+    property var visited: ({})
 
     readonly property var selected: selection.selected || ({})
     readonly property var needed: selection.needed || ({})
@@ -82,10 +86,23 @@ RowLayout {
     function open(index) {
         search.text = "";
         categoryIndex = Math.max(0, Math.min(categories.length - 1, index));
+        const v = Object.assign({}, visited);
+        v[categoryIndex] = true;
+        visited = v;
         moduleId = "";
         freeze();
         toast.stop();
         list.contentItem.contentY = 0;
+    }
+    // Scroll the list so `item` (opened details) is in view.
+    function reveal(item) {
+        const flick = list.contentItem;
+        const top = item.mapToItem(flick.contentItem, 0, 0).y;
+        const bottom = top + item.height + Kirigami.Units.largeSpacing;
+        if (bottom > flick.contentY + flick.height)
+            flick.contentY = Math.min(bottom - flick.height, Math.max(0, flick.contentHeight - flick.height));
+        else if (top < flick.contentY)
+            flick.contentY = top;
     }
     function setFilter(name) {
         freeze();
@@ -128,6 +145,13 @@ RowLayout {
                     text: cat.modelData.name
                     elide: Text.ElideRight
                     color: cat.active ? Theme.accentText : Theme.text
+                }
+                QQC2.Label {
+                    visible: !cat.active && page.visited[cat.index] === true
+                    text: "✓"
+                    color: Theme.accent
+                    font.pointSize: Theme.smallSize
+                    Accessible.name: "visited"
                 }
                 Rectangle {
                     visible: cat.picked > 0
@@ -175,61 +199,66 @@ RowLayout {
                     elide: Text.ElideRight
                 }
             }
-            QQC2.Label {
-                visible: page.query === ""
-                text: "Step " + (page.categoryIndex + 1) + " of " + page.categories.length
-                color: Theme.textMuted
-                font.pointSize: Theme.smallSize
-            }
-        }
 
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: Kirigami.Units.smallSpacing
-            QQC2.TextField {
-                id: search
-                Layout.fillWidth: true
-                placeholderText: "Search every category"
-                onTextChanged: list.contentItem.contentY = 0
-            }
-            Repeater {
-                model: [["grid", "Grid"], ["list", "List"], ["compact", "Compact"]]
-                Chip {
-                    required property var modelData
-                    text: modelData[1]
-                    active: page.view === modelData[0]
-                    onClicked: page.view = modelData[0]
-                }
-            }
         }
 
         Flow {
             Layout.fillWidth: true
             spacing: Kirigami.Units.smallSpacing
-            Repeater {
-                model: [["all", "All"], ["selected", "Selected"], ["suggested", "Suggested"]]
-                Chip {
-                    required property var modelData
-                    text: modelData[1]
-                    count: page.size(page.sectionsFor(modelData[0]))
-                    active: page.filter === modelData[0]
-                    onClicked: page.setFilter(modelData[0])
+            QQC2.TextField {
+                id: search
+                width: Math.max(Kirigami.Units.gridUnit * 9, parent.width - filters.width - more.width - views.width - 3 * parent.spacing - 1)
+                placeholderText: "Search every category"
+                onTextChanged: list.contentItem.contentY = 0
+            }
+            Row {
+                id: filters
+                spacing: 2
+                Repeater {
+                    model: [["all", "All"], ["selected", "Selected"], ["suggested", "Recommended"]]
+                    Chip {
+                        required property var modelData
+                        text: modelData[1]
+                        count: page.size(page.sectionsFor(modelData[0]))
+                        active: page.filter === modelData[0]
+                        onClicked: page.setFilter(modelData[0])
+                    }
                 }
             }
-            Rectangle {
-                width: 1
-                height: parent.height
-                color: Theme.border
-            }
             Chip {
-                text: "Hide unavailable"
-                active: page.hideUnavailable
-                onClicked: page.hideUnavailable = !page.hideUnavailable
+                id: more
+                text: "More filters" + (page.hideUnavailable || page.safeOnly ? " ●" : "") + " ▾"
+                active: menu.visible
+                onClicked: menu.open()
+                QQC2.Menu {
+                    id: menu
+                    y: more.height
+                    QQC2.MenuItem {
+                        text: "Hide what isn't available here"
+                        checkable: true
+                        checked: page.hideUnavailable
+                        onTriggered: page.hideUnavailable = checked
+                    }
+                    QQC2.MenuItem {
+                        text: "Only safe changes (no Moderate or Advanced)"
+                        checkable: true
+                        checked: page.safeOnly
+                        onTriggered: page.safeOnly = checked
+                    }
+                }
             }
-            Chip {
-                text: "Safe only"
-                active: page.safeOnly
-                onClicked: page.safeOnly = !page.safeOnly
+            Row {
+                id: views
+                spacing: 2
+                Repeater {
+                    model: [["grid", "Grid"], ["list", "List"], ["compact", "Compact"]]
+                    Chip {
+                        required property var modelData
+                        text: modelData[1]
+                        active: page.view === modelData[0]
+                        onClicked: page.view = modelData[0]
+                    }
+                }
             }
         }
 
@@ -257,7 +286,10 @@ RowLayout {
                         needed: page.needed
                         currentId: page.moduleId
                         onToggled: id => page.toggled(id)
-                        onInspected: id => page.moduleId = id
+                        onInspected: id => page.moduleId = page.moduleId === id ? "" : id
+                        onSetAll: (ids, on) => page.groupSet(ids, on, modelData.title)
+                        // After layout, so the details have their height.
+                        onDetailsShown: item => revealTimer.reveal(item)
                     }
                 }
 
@@ -286,6 +318,17 @@ RowLayout {
             }
         }
 
+        Timer {
+            id: revealTimer
+            property var item: null
+            function reveal(it) {
+                item = it;
+                restart();
+            }
+            interval: 50
+            onTriggered: if (item) page.reveal(item)
+        }
+
         // What the last click did; fades after a few seconds.
         Notice {
             id: toastBand
@@ -305,13 +348,5 @@ RowLayout {
                 interval: 6000
             }
         }
-    }
-
-    ModuleDetails {
-        Layout.preferredWidth: Kirigami.Units.gridUnit * 14
-        Layout.fillHeight: true
-        module: page.current
-        selected: page.current !== null && page.selected[page.current.id] === true
-        neededBy: page.current !== null ? (page.needed[page.current.id] || "") : ""
     }
 }

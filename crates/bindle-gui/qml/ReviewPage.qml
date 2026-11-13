@@ -3,14 +3,16 @@ import QtQuick.Controls as QQC2
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 
-// What applying will do, at a glance: one sentence, counts, the features by
-// category and anything that needs attention. Every step, with the files
-// it writes, sits under "Technical details".
+// The final check before anything runs: what it costs (password, restart,
+// undo), then what gets installed, what gets changed and what is left alone,
+// each with its reason. Every step, with its files, is under the details.
 QQC2.ScrollView {
     id: page
 
     property var review: ({})
     readonly property var counts: review.counts || {}
+    readonly property bool ready: review.ok === true && review.empty !== true
+    readonly property int leftAlone: (review.provided || []).length + (review.skipped || []).length + (review.notes || []).length
     property alias detailsOpen: details.open
 
     contentWidth: availableWidth
@@ -20,38 +22,15 @@ QQC2.ScrollView {
         Qt.callLater(() => page.contentItem.contentY = Math.max(0, details.y - Kirigami.Units.largeSpacing));
     }
 
-    // "Bindle will add 25 features. You'll be asked for your password once…"
-    function summary() {
-        const n = page.counts.modules || 0;
-        let s = "Bindle will add " + n + (n === 1 ? " feature" : " features") + " to this computer.";
-        if (page.review.password)
-            s += " You'll be asked for your password once.";
-        if (page.review.needsReboot)
-            s += " Restart afterwards to finish.";
-        else if (page.review.relogin)
-            s += " Log out and back in afterwards.";
-        return s;
-    }
-
     ColumnLayout {
         width: page.availableWidth
         spacing: Kirigami.Units.mediumSpacing
 
-        ColumnLayout {
-            spacing: Kirigami.Units.smallSpacing
-            QQC2.Label {
-                font.pointSize: Theme.headingSize
-                font.weight: Font.DemiBold
-                text: "Review your changes"
-                color: Theme.text
-            }
-            QQC2.Label {
-                Layout.fillWidth: true
-                visible: page.review.ok === true && page.review.empty !== true
-                wrapMode: Text.Wrap
-                text: page.summary()
-                color: Theme.textMuted
-            }
+        QQC2.Label {
+            font.pointSize: Theme.headingSize
+            font.weight: Font.DemiBold
+            text: "Final review"
+            color: Theme.text
         }
 
         Notice {
@@ -69,94 +48,112 @@ QQC2.ScrollView {
             text: "Nothing to do: this system already matches the selection."
         }
 
-        // Counts.
-        RowLayout {
+        // What applying costs.
+        GridLayout {
             Layout.fillWidth: true
-            visible: page.review.ok === true && page.review.empty !== true
-            spacing: Kirigami.Units.mediumSpacing
+            visible: page.ready
+            columns: page.availableWidth > Kirigami.Units.gridUnit * 36 ? 3 : 1
+            columnSpacing: Kirigami.Units.mediumSpacing
+            rowSpacing: Kirigami.Units.smallSpacing
             Repeater {
-                model: [["Features", page.counts.modules, "plugins"],
-                    ["Packages", page.counts.packages, "package-x-generic"],
-                    ["Settings files", page.counts.files, "document-edit"],
-                    ["Services", page.counts.services, "system-run"]]
+                model: [
+                    [page.review.password ? "Password once" : "No password", page.review.password
+                        ? "Bindle asks when it starts, then runs every step." : "Nothing here needs admin rights.", page.review.password ? Theme.warning : Theme.success],
+                    [page.review.needsReboot ? "Restart afterwards" : page.review.relogin ? "Log out afterwards" : "No restart needed",
+                        page.review.needsReboot ? "For the new kernel, microcode or drivers." : page.review.relogin
+                        ? "For the new group memberships." : "Everything takes effect right away.",
+                        page.review.needsReboot || page.review.relogin ? Theme.warning : Theme.success],
+                    ["Can be undone", "Changed files are saved first; \"bindle undo\" puts them back.", Theme.success]
+                ]
                 Rectangle {
                     required property var modelData
                     Layout.fillWidth: true
-                    implicitHeight: tile.implicitHeight + 2 * Kirigami.Units.mediumSpacing
+                    Layout.fillHeight: true
+                    implicitHeight: cost.implicitHeight + 2 * Kirigami.Units.mediumSpacing
                     radius: Theme.radius
-                    color: Theme.surface
-                    ColumnLayout {
-                        id: tile
-                        anchors.centerIn: parent
-                        spacing: 0
-                        RowLayout {
-                            Layout.alignment: Qt.AlignHCenter
-                            spacing: Kirigami.Units.smallSpacing
-                            Glyph {
-                                name: modelData[2]
-                                tint: Theme.textMuted
-                            }
+                    color: Theme.surfaceAlt
+                    RowLayout {
+                        id: cost
+                        anchors.fill: parent
+                        anchors.margins: Kirigami.Units.mediumSpacing
+                        spacing: Kirigami.Units.mediumSpacing
+                        Rectangle {
+                            Layout.alignment: Qt.AlignTop
+                            Layout.topMargin: 4
+                            width: 10
+                            height: 10
+                            radius: 5
+                            color: modelData[2]
+                        }
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 0
                             QQC2.Label {
                                 text: modelData[0]
+                                color: Theme.text
+                                font.weight: Font.DemiBold
+                            }
+                            QQC2.Label {
+                                Layout.fillWidth: true
+                                text: modelData[1]
+                                wrapMode: Text.Wrap
                                 color: Theme.textMuted
                                 font.pointSize: Theme.smallSize
                             }
                         }
-                        QQC2.Label {
-                            Layout.alignment: Qt.AlignHCenter
-                            font.pointSize: Theme.headingSize
-                            font.weight: Font.DemiBold
-                            text: modelData[1] === undefined ? "0" : modelData[1]
-                            color: Theme.text
-                        }
                     }
                 }
             }
         }
 
-        // What you get, by category.
+        // Replacements need attention; what a pick pulled in is news.
+        Repeater {
+            model: (page.review.replaced || []).map(t => [t, "warning", "exchange-positions"])
+                .concat((page.review.pulled_in || []).map(t => [t, "accent", "list-add"]))
+            Notice {
+                required property var modelData
+                Layout.fillWidth: true
+                text: modelData[0]
+                tone: modelData[1]
+                icon: modelData[2]
+            }
+        }
+
         GridLayout {
             Layout.fillWidth: true
-            columns: Math.max(1, Math.floor(page.availableWidth / (Kirigami.Units.gridUnit * 14)))
+            visible: page.ready
+            columns: page.availableWidth > Kirigami.Units.gridUnit * 36 ? 3 : 1
             columnSpacing: Kirigami.Units.mediumSpacing
             rowSpacing: Kirigami.Units.mediumSpacing
-            Repeater {
-                model: page.review.groups || []
-                CategoryCard {
-                    required property var modelData
-                    Layout.fillWidth: true
-                    Layout.preferredWidth: Kirigami.Units.gridUnit * 13
-                    Layout.alignment: Qt.AlignTop
-                    categoryId: modelData.id
-                    name: modelData.name
-                    modules: modelData.modules
-                }
-            }
-        }
-
-        // Anything that needs attention: one band per line.
-        Repeater {
-            model: [[page.review.replaced, "warning", "exchange-positions"],
-                [page.review.pulled_in, "accent", "list-add"],
-                [page.review.provided, "success", "emblem-success"],
-                [page.review.skipped, "muted", "list-remove"],
-                [page.review.notes, "muted", "help-about"]]
-            ColumnLayout {
-                required property var modelData
-                readonly property var kind: modelData
+            ReviewList {
                 Layout.fillWidth: true
-                visible: (modelData[0] || []).length > 0
-                spacing: 2
-                Repeater {
-                    model: kind[0] || []
-                    Notice {
-                        required property string modelData
-                        Layout.fillWidth: true
-                        text: modelData
-                        tone: kind[1]
-                        icon: kind[2]
-                    }
-                }
+                Layout.alignment: Qt.AlignTop
+                title: "Will install"
+                count: (page.review.install || []).length + ((page.review.install || []).length === 1 ? " package" : " packages")
+                rows: page.review.install || []
+                mono: true
+                empty: "No new packages."
+            }
+            ReviewList {
+                Layout.fillWidth: true
+                Layout.alignment: Qt.AlignTop
+                title: "Will change"
+                count: (page.counts.files === 1 ? "1 file, " : (page.counts.files || 0) + " files, ")
+                    + (page.counts.services === 1 ? "1 service" : (page.counts.services || 0) + " services")
+                rows: page.review.change || []
+                mono: true
+                empty: "No settings change."
+            }
+            ReviewList {
+                Layout.fillWidth: true
+                Layout.alignment: Qt.AlignTop
+                title: "Left alone"
+                count: page.leftAlone
+                quiet: true
+                rows: (page.review.provided || []).map(r => ({ what: r.what, why: "already set up: " + r.why }))
+                    .concat((page.review.skipped || []).map(r => ({ what: r.what, why: "not here: " + r.why })))
+                    .concat((page.review.notes || []).map(r => ({ what: r.what, why: r.why })))
+                empty: "Nothing: every pick runs."
             }
         }
 
@@ -193,6 +190,10 @@ QQC2.ScrollView {
                             color: Theme.text
                             font.family: Theme.fontMono
                             font.pointSize: Theme.smallSize
+                        }
+                        Pill {
+                            text: step.modelData.root ? "as admin" : "as you"
+                            tone: step.modelData.root ? "warning" : "muted"
                         }
                     }
                     Repeater {

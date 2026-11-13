@@ -54,6 +54,15 @@ pub mod qobject {
         fn choose_profile(self: Pin<&mut Backend>, id: &QString);
         #[qinvokable]
         fn toggle(self: Pin<&mut Backend>, id: &QString);
+        /// Tick or untick an add-on profile (Gaming, Developer).
+        #[qinvokable]
+        fn toggle_addon(self: Pin<&mut Backend>, id: &QString);
+        /// "Select all" / "Select none" for a group: `ids` is a JSON array.
+        #[qinvokable]
+        fn set_group(self: Pin<&mut Backend>, ids: &QString, on: bool, group: &QString);
+        /// Open `bindle undo` in a terminal (it asks for the password there).
+        #[qinvokable]
+        fn undo_in_terminal(self: Pin<&mut Backend>);
         /// Resolve the plan for the Review screen.
         #[qinvokable]
         fn refresh_review(self: Pin<&mut Backend>);
@@ -166,12 +175,14 @@ impl Backend {
 
     /// The properties that depend on the selection.
     fn refresh_selection(mut self: Pin<&mut Self>) {
-        let (profile, state) = {
+        let (profile, state, profiles) = {
             let w = self.wizard();
-            (QString::from(w.profile()), json(&w.state()))
+            (QString::from(w.profile()), json(&w.state()), json(&w.profiles()))
         };
         self.as_mut().set_profile(profile);
         self.as_mut().set_state_json(state);
+        // The add-on ticks and the "you've edited" flag follow the selection.
+        self.as_mut().set_profiles_json(profiles);
     }
 
     fn choose_profile(mut self: Pin<&mut Self>, id: &QString) {
@@ -181,7 +192,33 @@ impl Backend {
     }
 
     fn toggle(mut self: Pin<&mut Self>, id: &QString) {
-        let Some(change) = self.as_mut().wizard_mut().toggle(&id.to_string()) else {
+        let change = self.as_mut().wizard_mut().toggle(&id.to_string());
+        self.publish(change);
+    }
+
+    fn toggle_addon(mut self: Pin<&mut Self>, id: &QString) {
+        self.as_mut().wizard_mut().toggle_addon(&id.to_string());
+        self.refresh_selection();
+    }
+
+    fn set_group(mut self: Pin<&mut Self>, ids: &QString, on: bool, group: &QString) {
+        let ids: Vec<String> = serde_json::from_str(&ids.to_string()).unwrap_or_default();
+        let change = self.as_mut().wizard_mut().set_all(&ids, on, &group.to_string());
+        self.publish(change);
+    }
+
+    fn undo_in_terminal(mut self: Pin<&mut Self>) {
+        let sandbox = self.rust().sandbox.to_string();
+        let note = match crate::apply::undo_in_terminal((!sandbox.is_empty()).then_some(sandbox.as_str())) {
+            Ok(()) => String::new(),
+            Err(e) => format!("Couldn't open a terminal: {e:#}"),
+        };
+        self.as_mut().set_notice(QString::from(&note));
+    }
+
+    /// Show what a click changed, then refresh what depends on the selection.
+    fn publish(mut self: Pin<&mut Self>, change: Option<crate::model::Change>) {
+        let Some(change) = change else {
             return;
         };
         // `seq` makes two identical lines in a row still count as a change.

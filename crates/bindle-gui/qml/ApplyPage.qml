@@ -3,9 +3,9 @@ import QtQuick.Controls as QQC2
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 
-// The plan running (crate::apply::ApplyState), then how it ended. Done shows
-// a result banner, what to do next and the features by category; the steps
-// and log fold away under "Steps and log".
+// The plan running (crate::apply::ApplyState): the current step large, with
+// the steps and the log below. Done: a result banner, actions (restart,
+// undo, the log) and a few things to try first; the steps and log fold away.
 ColumnLayout {
     id: page
 
@@ -14,6 +14,8 @@ ColumnLayout {
     property var review: ({})
     property alias detailsOpen: details.open
     signal restart
+    signal undo
+    signal openLog(string path)
 
     readonly property var steps: apply.steps || []
     readonly property int finished: steps.filter(s => s.status === "done").length
@@ -22,6 +24,11 @@ ColumnLayout {
     readonly property bool done: state === "done"
     readonly property bool ended: done || state === "failed" || state === "error"
     readonly property int features: (review.counts || {}).modules || 0
+    readonly property var current: steps.find(s => s.status === "running") || null
+    // Apps the run added, to point at: the categories that hold apps.
+    readonly property var apps: (review.groups || [])
+        .filter(g => ["internet", "creative", "gaming", "ai", "development"].includes(g.id))
+        .reduce((all, g) => all.concat(g.modules), [])
 
     spacing: Kirigami.Units.mediumSpacing
 
@@ -106,23 +113,86 @@ ColumnLayout {
         value: page.finished
     }
 
-    // What was set up, by category.
-    GridLayout {
+    // While running: the step under way, large.
+    QQC2.Label {
+        Layout.fillWidth: true
+        visible: page.state === "running" && page.current !== null
+        text: page.current ? page.current.text : ""
+        elide: Text.ElideRight
+        color: Theme.text
+        font.pointSize: Math.round(Theme.bodySize * 1.2)
+        font.family: Theme.fontMono
+    }
+
+    // Done: what to do next.
+    Flow {
         Layout.fillWidth: true
         visible: page.done
-        columns: Math.max(1, Math.floor(page.width / (Kirigami.Units.gridUnit * 14)))
-        columnSpacing: Kirigami.Units.mediumSpacing
-        rowSpacing: Kirigami.Units.mediumSpacing
+        spacing: Kirigami.Units.mediumSpacing
         Repeater {
-            model: page.done ? (page.review.groups || []) : []
-            CategoryCard {
+            model: [
+                ["Undo these changes", "Opens a terminal that puts the changed files back.", page.apply.snapshot ? "undo" : ""],
+                ["Open the log", (page.apply.logPath || "").split("/").pop(), page.apply.logPath ? "log" : ""],
+                ["Run Bindle again later", "Your picks are kept, and it only does what's new.", ""]
+            ]
+            QQC2.AbstractButton {
+                id: act
                 required property var modelData
+                width: Math.max(Kirigami.Units.gridUnit * 13, (page.width - 2 * Kirigami.Units.mediumSpacing) / 3 - 1)
+                enabled: modelData[2] !== ""
+                visible: modelData[0] !== "Undo these changes" || modelData[2] !== ""
+                hoverEnabled: true
+                padding: Kirigami.Units.mediumSpacing
+                onClicked: modelData[2] === "undo" ? page.undo() : page.openLog(page.apply.logPath)
+                Accessible.role: Accessible.Button
+                Accessible.name: modelData[0]
+                background: Rectangle {
+                    radius: Theme.radius
+                    color: act.hovered && act.enabled ? Theme.surfaceAlt : Theme.surface
+                    border.color: Theme.border
+                }
+                contentItem: ColumnLayout {
+                    spacing: 2
+                    QQC2.Label {
+                        text: act.modelData[0]
+                        color: Theme.text
+                        font.weight: Font.DemiBold
+                    }
+                    QQC2.Label {
+                        Layout.fillWidth: true
+                        text: act.modelData[1]
+                        wrapMode: Text.Wrap
+                        color: Theme.textMuted
+                        font.pointSize: Theme.smallSize
+                    }
+                }
+            }
+        }
+    }
+
+    Panel {
+        Layout.fillWidth: true
+        visible: page.done && page.apps.length > 0
+        implicitHeight: tips.implicitHeight + 2 * padding
+        ColumnLayout {
+            id: tips
+            width: parent.width
+            spacing: Kirigami.Units.smallSpacing
+            QQC2.Label {
+                text: "Try these first"
+                color: Theme.text
+                font.weight: Font.DemiBold
+            }
+            QQC2.Label {
                 Layout.fillWidth: true
-                Layout.preferredWidth: Kirigami.Units.gridUnit * 13
-                categoryId: modelData.id
-                name: modelData.name
-                modules: modelData.modules
-                done: true
+                wrapMode: Text.Wrap
+                text: {
+                    const n = page.apps.length;
+                    const names = n > 6 ? page.apps.slice(0, 6).join(", ") + " and " + (n - 6) + " more"
+                        : n > 1 ? page.apps.slice(0, -1).join(", ") + " and " + page.apps[n - 1] : page.apps.join("");
+                    return names + (n === 1 ? " is" : " are") + " in your app launcher.";
+                }
+                color: Theme.textMuted
             }
         }
     }
@@ -217,10 +287,9 @@ ColumnLayout {
 
     QQC2.Label {
         Layout.fillWidth: true
-        visible: page.ended && page.state !== "error"
+        visible: page.ended && !page.done && page.state !== "error"
         wrapMode: Text.Wrap
         color: Theme.textMuted
-        text: (page.apply.snapshot ? "Changed your mind? Run \"bindle undo\" in a terminal to put the changed files back. " : "")
-            + (page.apply.logPath ? "Log: " + page.apply.logPath : "")
+        text: page.apply.logPath ? "Log: " + page.apply.logPath : ""
     }
 }

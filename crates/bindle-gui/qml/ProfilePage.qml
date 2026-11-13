@@ -3,19 +3,41 @@ import QtQuick.Controls as QQC2
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 
-// Pick a starting set of modules; the next screen fine-tunes it.
+// A base (Minimal, Desktop) and any add-ons on top (Gaming, Developer), each
+// naming what it brings. Changing the base after editing asks first.
 QQC2.ScrollView {
     id: page
 
-    property var profiles: []
-    property string current
+    // Wizard::profiles: {bases, addons, base, edited}.
+    property var profiles: ({})
     signal chosen(string id)
+    signal addon(string id)
+
+    readonly property var bases: profiles.bases || []
+    readonly property var addons: profiles.addons || []
+    // A base waiting for "Replace my picks".
+    property string pending
+
+    function pick(id) {
+        if (id === profiles.base)
+            return;
+        if (profiles.edited) {
+            pending = id;
+            return;
+        }
+        chosen(id);
+    }
+    // "Steam, Wine, GameMode and 4 more".
+    function preview(names, n) {
+        const shown = names.slice(0, n).join(", ");
+        return names.length > n ? shown + " and " + (names.length - n) + " more" : shown;
+    }
 
     contentWidth: availableWidth
 
     ColumnLayout {
         width: page.availableWidth
-        spacing: Kirigami.Units.largeSpacing
+        spacing: Kirigami.Units.mediumSpacing
 
         ColumnLayout {
             spacing: Kirigami.Units.smallSpacing
@@ -26,89 +48,83 @@ QQC2.ScrollView {
                 color: Theme.text
             }
             QQC2.Label {
-                text: "Each one pre-selects a set of features. The next screens go through them one category at a time."
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                text: "Pick a base, then add what you use this computer for. Everything stays editable on the next screens."
                 color: Theme.textMuted
             }
         }
 
+        QQC2.Label {
+            text: "1 · Base"
+            color: Theme.textMuted
+            font.weight: Font.DemiBold
+        }
         GridLayout {
             Layout.fillWidth: true
             columns: page.availableWidth > Kirigami.Units.gridUnit * 30 ? 2 : 1
             columnSpacing: Kirigami.Units.mediumSpacing
             rowSpacing: Kirigami.Units.mediumSpacing
-
             Repeater {
-                model: page.profiles
-                Panel {
-                    id: card
+                model: page.bases
+                ProfileCard {
                     required property var modelData
-                    readonly property bool active: modelData.id === page.current
-
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    implicitHeight: body.implicitHeight + 2 * padding
-                    edge: active || activeFocus ? Theme.accent : Theme.border
-                    border.width: active || activeFocus ? 2 : 1
+                    radio: true
+                    active: modelData.id === page.profiles.base
+                    title: modelData.name
+                    count: modelData.count + " features"
+                    text: modelData.description
+                    onClicked: page.pick(modelData.id)
+                }
+            }
+        }
 
-                    // Tab to a card, Space or Enter to choose it.
-                    activeFocusOnTab: true
-                    Keys.onSpacePressed: page.chosen(card.modelData.id)
-                    Keys.onReturnPressed: page.chosen(card.modelData.id)
-                    Keys.onEnterPressed: page.chosen(card.modelData.id)
-                    Accessible.role: Accessible.RadioButton
-                    Accessible.name: card.modelData.name
-                    Accessible.description: card.modelData.description
-                    Accessible.checkable: true
-                    Accessible.checked: card.active
-                    Accessible.onPressAction: page.chosen(card.modelData.id)
-
-                    ColumnLayout {
-                        id: body
-                        width: parent.width
-                        spacing: Kirigami.Units.smallSpacing
-                        RowLayout {
-                            Layout.fillWidth: true
-                            QQC2.Label {
-                                Layout.fillWidth: true
-                                text: card.modelData.name
-                                color: Theme.text
-                                font.weight: Font.DemiBold
-                            }
-                            Pill {
-                                visible: card.active
-                                text: "Selected"
-                                tone: "accent"
-                            }
-                        }
-                        QQC2.Label {
-                            Layout.fillWidth: true
-                            text: card.modelData.description
-                            color: Theme.textMuted
-                            wrapMode: Text.Wrap
-                        }
-                        // What it pre-selects, by category.
-                        Flow {
-                            Layout.fillWidth: true
-                            spacing: Kirigami.Units.smallSpacing
-                            Repeater {
-                                model: card.modelData.holds
-                                Pill {
-                                    required property var modelData
-                                    text: modelData.name + " " + modelData.count
-                                    tone: card.active ? "accent" : "muted"
-                                }
-                            }
-                        }
-                        QQC2.Label {
-                            text: card.modelData.count + " features selected to start with"
-                            color: Theme.textMuted
-                            font.pointSize: Theme.smallSize
-                        }
+        Notice {
+            Layout.fillWidth: true
+            visible: page.pending !== ""
+            tone: "warning"
+            icon: "dialog-warning"
+            text: "You've changed some picks. Switching the base starts over from its suggestions."
+            Row {
+                spacing: Kirigami.Units.smallSpacing
+                ActionButton {
+                    text: "Keep my picks"
+                    onClicked: page.pending = ""
+                }
+                ActionButton {
+                    text: "Start over"
+                    onClicked: {
+                        page.chosen(page.pending);
+                        page.pending = "";
                     }
+                }
+            }
+        }
 
-                    TapHandler {
-                        onTapped: page.chosen(card.modelData.id)
-                    }
+        QQC2.Label {
+            Layout.topMargin: Kirigami.Units.smallSpacing
+            text: "2 · Add on top, any or none"
+            color: Theme.textMuted
+            font.weight: Font.DemiBold
+        }
+        GridLayout {
+            Layout.fillWidth: true
+            columns: page.availableWidth > Kirigami.Units.gridUnit * 30 ? 2 : 1
+            columnSpacing: Kirigami.Units.mediumSpacing
+            rowSpacing: Kirigami.Units.mediumSpacing
+            Repeater {
+                model: page.addons
+                ProfileCard {
+                    required property var modelData
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    active: modelData.on === true
+                    title: modelData.name
+                    count: "adds " + modelData.count
+                    text: page.preview(modelData.names, 7)
+                    onClicked: page.addon(modelData.id)
                 }
             }
         }

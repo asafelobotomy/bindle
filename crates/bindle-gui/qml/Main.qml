@@ -10,6 +10,8 @@ QQC2.ApplicationWindow {
     // 0 Welcome, 1 Profile, 2 Choose (one category at a time), 3 Summary,
     // 4 Review, 5 Apply.
     property int page: 0
+    // The furthest screen visited: the step bar goes back to any of them.
+    property int reached: 0
     readonly property var apply: JSON.parse(backend.applyJson || '{"state": "idle"}')
     readonly property bool running: apply.state === "running"
     property string footerNote: ""
@@ -17,6 +19,7 @@ QQC2.ApplicationWindow {
     readonly property var catalog: JSON.parse(backend.catalogJson || "[]")
     readonly property var selection: JSON.parse(backend.stateJson || "{}")
     readonly property int picked: selection.total || 0
+    readonly property var welcome: JSON.parse(backend.welcomeJson || "{}")
 
     title: "Bindle"
     visible: true
@@ -79,6 +82,13 @@ QQC2.ApplicationWindow {
         if (to === 4)
             backend.refreshReview();
         root.page = Math.max(0, Math.min(5, to));
+        root.reached = Math.max(root.reached, root.page);
+    }
+    // The step bar: going back to Choose resumes where the user was.
+    function jump(to) {
+        if (to === 2)
+            choose.open(choose.categoryIndex);
+        root.go(to);
     }
     // Where the primary button leads, as its label.
     function nextLabel() {
@@ -138,15 +148,17 @@ QQC2.ApplicationWindow {
                 font.weight: Font.DemiBold
                 color: Theme.accent
             }
-            QQC2.Label {
+            Item {
                 Layout.fillWidth: true
-                text: backend.header
-                color: Theme.textMuted
-                elide: Text.ElideRight
             }
             StepBar {
                 steps: root.steps
                 current: root.page
+                // Apply is reached only through Review's button.
+                reached: Math.min(root.reached, root.apply.state === "idle" ? 4 : 5)
+                detail: root.page === 2 && choose.query === "" ? (choose.categoryIndex + 1) + "/" + root.catalog.length : ""
+                locked: root.running || root.apply.state === "done"
+                onPicked: index => root.jump(index)
             }
         }
 
@@ -164,12 +176,19 @@ QQC2.ApplicationWindow {
         currentIndex: root.page
 
         WelcomePage {
-            summary: JSON.parse(backend.welcomeJson || "{}")
+            summary: root.welcome
+            machine: backend.header
+            categories: root.catalog
+            selection: root.selection
+            onOpen: index => {
+                choose.open(index);
+                root.go(2);
+            }
         }
         ProfilePage {
-            profiles: JSON.parse(backend.profilesJson || "[]")
-            current: backend.profile
+            profiles: JSON.parse(backend.profilesJson || "{}")
             onChosen: id => backend.chooseProfile(id)
+            onAddon: id => backend.toggleAddon(id)
         }
         ChoosePage {
             id: choose
@@ -177,15 +196,17 @@ QQC2.ApplicationWindow {
             selection: root.selection
             feedback: JSON.parse(backend.feedbackJson || "{}")
             onToggled: id => backend.toggle(id)
+            onGroupSet: (ids, on, group) => backend.setGroup(JSON.stringify(ids), on, group)
         }
         SummaryPage {
             categories: root.catalog
             selection: root.selection
+            alreadySetUp: (root.welcome.working || []).length
             onEdit: index => {
                 choose.open(index);
                 root.go(2);
             }
-            onConfirmed: root.go(4)
+            onRemove: id => backend.toggle(id)
         }
         ReviewPage {
             id: reviewPage
@@ -196,6 +217,8 @@ QQC2.ApplicationWindow {
             apply: root.apply
             review: reviewPage.review
             onRestart: backend.reboot()
+            onUndo: backend.undoInTerminal()
+            onOpenLog: path => Qt.openUrlExternally("file://" + path)
         }
     }
 
@@ -225,9 +248,15 @@ QQC2.ApplicationWindow {
                 horizontalAlignment: Text.AlignRight
                 text: root.running ? "Keep the computer on until this finishes." : (backend.notice !== "" && root.page === 5 ? backend.notice
                     : root.page === 2 || root.page === 3 ? root.picked + (root.picked === 1 ? " feature selected" : " features selected")
+                        + (Object.keys(root.selection.needed || {}).length > 0 ? " · " + Object.keys(root.selection.needed).length + " added for them" : "")
                     : root.footerNote)
                 color: Theme.textMuted
                 elide: Text.ElideLeft
+            }
+            ActionButton {
+                visible: root.page === 2 && !choose.last
+                text: "Skip to summary"
+                onClicked: root.go(3)
             }
             ActionButton {
                 visible: !root.running

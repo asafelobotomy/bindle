@@ -5,6 +5,12 @@ One TOML file per category under `catalog/<distro>/`, registered in
 `catalog/profiles.toml`. The catalog is validated at load time; `cargo test` fails
 on a broken reference.
 
+A profile with `addon = true` (Gaming, Developer) is offered by the desktop
+wizard as a tick on top of a base profile (Minimal, Desktop) instead of on
+its own. Its own modules are the ones that list it in `profiles` and list no
+base profile; ticking it adds just those, and the saved selection is the base
+profile plus `include`s. The terminal wizard still lists every profile.
+
 ```toml
 [category]
 id = "performance"

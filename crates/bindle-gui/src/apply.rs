@@ -175,6 +175,19 @@ pub fn continue_in_terminal(sel: &Selection) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// `bindle undo` in a terminal, where it can ask for the password and
+/// show what it puts back. `sandbox`: the hidden `--sandbox` of a test run.
+pub fn undo_in_terminal(sandbox: Option<&str>) -> anyhow::Result<()> {
+    let exe = helper_exe().ok_or_else(|| anyhow::anyhow!("the bindle program isn't installed"))?;
+    let mut cmd = std::process::Command::new(exe);
+    cmd.arg("in-terminal").arg("undo");
+    if let Some(dir) = sandbox {
+        cmd.arg("--sandbox").arg(dir);
+    }
+    cmd.spawn()?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

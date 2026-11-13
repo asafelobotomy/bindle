@@ -47,6 +47,11 @@ pub struct Profile {
     pub id: String,
     pub name: String,
     pub description: String,
+    /// Adds to a base profile instead of standing alone (the GUI offers it
+    /// as a tick on top of Minimal or Desktop). Its own modules are the ones
+    /// that list it in `profiles` and list no base profile.
+    #[serde(default)]
+    pub addon: bool,
 }
 
 /// One asset of a GitHub release, pinned by tag and sha256: a prebuilt Arch

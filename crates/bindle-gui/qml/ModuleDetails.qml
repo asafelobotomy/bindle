@@ -3,31 +3,46 @@ import QtQuick.Controls as QQC2
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 
-// The selected module: what it is, whether it applies here, and what it
-// installs and changes (present::module_details).
+// A module's details, opened under its group: what it is, whether it
+// applies here, and what it installs and changes (present::module_details).
 Panel {
     id: panel
 
     property var module: null
     property bool selected: false
     property string neededBy
+    signal closed
 
-    QQC2.Label {
-        anchors.centerIn: parent
-        width: parent.width
-        visible: panel.module === null
-        horizontalAlignment: Text.AlignHCenter
-        wrapMode: Text.Wrap
-        text: "Point at anything to see what it installs and changes."
-        color: Theme.textMuted
+    color: Theme.surfaceAlt
+    edge: Theme.accent
+    padding: Kirigami.Units.mediumSpacing
+    implicitHeight: body.implicitHeight + 2 * padding
+
+    QQC2.AbstractButton {
+        id: close
+        anchors.right: parent.right
+        anchors.top: parent.top
+        z: 1
+        implicitWidth: Kirigami.Units.gridUnit * 1.4
+        implicitHeight: implicitWidth
+        onClicked: panel.closed()
+        Accessible.role: Accessible.Button
+        Accessible.name: "Close details"
+        contentItem: QQC2.Label {
+            text: "×"
+            horizontalAlignment: Text.AlignHCenter
+            verticalAlignment: Text.AlignVCenter
+            color: Theme.textMuted
+        }
     }
 
-    QQC2.ScrollView {
-        anchors.fill: parent
-        contentWidth: availableWidth
+    Item {
+        width: parent.width
+        implicitHeight: body.implicitHeight
 
         ColumnLayout {
-            width: parent.width
+            id: body
+            width: parent.width - close.width
             spacing: Kirigami.Units.smallSpacing
             visible: panel.module !== null
 

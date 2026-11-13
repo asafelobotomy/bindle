@@ -56,6 +56,28 @@ impl Wizard {
         Some(Change { text, tone: "success" })
     }
 
+    /// Select or deselect every module of a group that can be toggled here
+    /// ("Select all" / "Select none"). Modules in a "choose one" set are
+    /// left out: picking all of them makes no sense.
+    pub fn set_all(&mut self, ids: &[String], on: bool, group: &str) -> Option<Change> {
+        let mut n = 0;
+        for id in ids {
+            let Some(m) = self.catalog.module(id) else { continue };
+            if !m.conflicts.is_empty() || self.provided.contains_key(id) || !self.available(m) {
+                continue;
+            }
+            let changed = if on { self.selected.insert(id.clone()) } else { self.selected.remove(id) };
+            n += usize::from(changed);
+        }
+        (n > 0).then(|| {
+            let what = if n == 1 { "1 module".to_string() } else { format!("{n} modules") };
+            match on {
+                true => Change { text: format!("Added {what} from {group}"), tone: "success" },
+                false => Change { text: format!("Removed {what} from {group}"), tone: "muted" },
+            }
+        })
+    }
+
     pub(super) fn available(&self, m: &Module) -> bool {
         self.facts.matches(&m.when).is_ok()
     }
@@ -234,6 +256,18 @@ mod tests {
         assert!(w.state()["needed"].get("multilib").is_none());
         let kept = w.toggle("multilib").unwrap();
         assert!(kept.text.contains("stays in the plan: Steam needs it"), "{kept:?}");
+    }
+
+    #[test]
+    fn a_whole_group_can_be_picked_or_cleared_except_rivals() {
+        let mut w = wizard(arch());
+        let ids: Vec<String> = ["gimp", "krita", "inkscape", "no-such"].map(String::from).to_vec();
+        let c = w.set_all(&ids, true, "Images & drawing").unwrap();
+        assert_eq!(c.text, "Added 3 modules from Images & drawing");
+        assert_eq!(w.set_all(&ids, true, "Images & drawing"), None, "nothing left to add");
+        assert!(w.set_all(&ids, false, "Images & drawing").unwrap().text.starts_with("Removed 3"));
+        let rivals = vec!["ufw".to_string(), "firewalld".to_string()];
+        assert_eq!(w.set_all(&rivals, true, "Firewall"), None);
     }
 
     #[test]

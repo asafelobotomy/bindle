@@ -5,7 +5,8 @@ import org.kde.kirigami as Kirigami
 
 // One module, in any of the three views: a card (`grid`), a row with its
 // description (`list`) or a one-line row (`compact`). The whole surface
-// toggles it; the tick, the border and the tint all show the result.
+// toggles it; the tick, the border and the tint all show the result. The
+// chevron opens its details under the group (`inspected`).
 QQC2.AbstractButton {
     id: card
 
@@ -16,7 +17,7 @@ QQC2.AbstractButton {
     // "Steam": the plan adds this module because Steam needs it.
     property string neededBy
     property bool current: false
-    signal toggled
+    signal picked
     signal inspected
 
     readonly property bool provided: !!module.provided
@@ -36,13 +37,7 @@ QQC2.AbstractButton {
     leftPadding: Kirigami.Units.mediumSpacing
     rightPadding: Kirigami.Units.mediumSpacing
     opacity: unavailable ? 0.6 : 1
-    onHoveredChanged: if (hovered) inspected()
-    onActiveFocusChanged: if (activeFocus) inspected()
-    onClicked: {
-        inspected();
-        if (!locked)
-            toggled();
-    }
+    onClicked: if (!locked) picked()
     Accessible.role: radio ? Accessible.RadioButton : Accessible.CheckBox
     Accessible.name: module.name || ""
     Accessible.description: (status ? status[0] + ". " : "") + (module.description || "")
@@ -68,7 +63,7 @@ QQC2.AbstractButton {
     contentItem: GridLayout {
         // Grid: tick and name, then the description, then labels.
         // Rows: tick, name, description (list only), labels, all on one line.
-        columns: card.grid ? 2 : 4
+        columns: card.grid ? 3 : 5
         columnSpacing: Kirigami.Units.mediumSpacing
         rowSpacing: Kirigami.Units.smallSpacing
 
@@ -85,10 +80,32 @@ QQC2.AbstractButton {
             color: Theme.text
             font.weight: card.selected || card.grid ? Font.DemiBold : Font.Normal
         }
+        QQC2.AbstractButton {
+            id: more
+            // Last in a row: placed after the labels below.
+            visible: card.grid
+            Layout.alignment: Qt.AlignTop
+            implicitWidth: Kirigami.Units.gridUnit * 1.4
+            implicitHeight: implicitWidth
+            hoverEnabled: true
+            onClicked: card.inspected()
+            Accessible.role: Accessible.Button
+            Accessible.name: (card.current ? "Hide details of " : "Details of ") + (card.module.name || "")
+            background: Rectangle {
+                radius: Theme.radius
+                color: more.hovered || card.current ? Theme.overlay : "transparent"
+            }
+            contentItem: QQC2.Label {
+                text: card.current ? "▴" : "▾"
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+                color: Theme.textMuted
+            }
+        }
         QQC2.Label {
             id: blurb
             visible: !card.compact
-            Layout.columnSpan: card.grid ? 2 : 1
+            Layout.columnSpan: card.grid ? 3 : 1
             Layout.fillWidth: true
             // Two lines in a card, always: every card is the same height.
             Layout.preferredHeight: card.grid ? Math.ceil(lines.lineSpacing * 2) + 2 : -1
@@ -105,7 +122,7 @@ QQC2.AbstractButton {
             }
         }
         RowLayout {
-            Layout.columnSpan: card.grid ? 2 : 1
+            Layout.columnSpan: card.grid ? 3 : 1
             Layout.fillWidth: card.grid
             Layout.preferredHeight: card.grid ? sizer.implicitHeight : -1
             spacing: Kirigami.Units.smallSpacing
@@ -131,6 +148,26 @@ QQC2.AbstractButton {
             Item {
                 visible: card.grid
                 Layout.fillWidth: true
+            }
+        }
+        QQC2.AbstractButton {
+            id: moreRow
+            visible: !card.grid
+            implicitWidth: Kirigami.Units.gridUnit * (card.compact ? 1.1 : 1.4)
+            implicitHeight: implicitWidth
+            hoverEnabled: true
+            onClicked: card.inspected()
+            Accessible.role: Accessible.Button
+            Accessible.name: (card.current ? "Hide details of " : "Details of ") + (card.module.name || "")
+            background: Rectangle {
+                radius: Theme.radius
+                color: moreRow.hovered || card.current ? Theme.overlay : "transparent"
+            }
+            contentItem: QQC2.Label {
+                text: card.current ? "▴" : "▾"
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+                color: Theme.textMuted
             }
         }
     }

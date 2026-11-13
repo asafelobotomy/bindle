@@ -1,5 +1,6 @@
 # Profiles pre-select modules in the wizard. A module joins a profile when it
 # lists the profile id in `profiles`, or when it sets `default = true`.
+# `addon = true`: the desktop wizard offers it on top of a base profile.
 
 [[profile]]
 id = "minimal"
@@ -13,10 +14,12 @@ description = "Everyday desktop: audio, fonts, codecs, Flatpak, power and a fire
 
 [[profile]]
 id = "gaming"
+addon = true
 name = "Gaming"
 description = "Desktop plus Steam, Wine, GameMode, MangoHud, gamescope, Protontricks."
 
 [[profile]]
 id = "developer"
+addon = true
 name = "Developer"
 description = "Desktop plus languages, Docker, Neovim, Git and modern CLI tools."
