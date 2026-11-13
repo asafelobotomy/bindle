@@ -37,6 +37,10 @@ pub struct Facts {
     pub gpus: Vec<String>,
     /// PCI device ids of NVIDIA GPUs (decides nvidia-open vs. nouveau).
     pub nvidia_devices: Vec<u16>,
+    /// Kernel driver of the Intel or AMD GPU (`i915`, `xe`, `amdgpu`), when one is bound.
+    pub igpu_driver: Option<String>,
+    /// mkinitcpio's HOOKS and MODULES; None on systems without mkinitcpio.
+    pub mkinitcpio: Option<crate::initramfs::Mkinitcpio>,
     pub root_fs: String,
     /// `LANG` from /etc/locale.conf ("en_GB.UTF-8"): picks spelling dictionaries.
     pub lang: String,
@@ -164,6 +168,8 @@ impl Facts {
             ram_mib: mem_total_mib(&read("/proc/meminfo")),
             gpus: gpu.vendors,
             nvidia_devices: gpu.nvidia_devices,
+            igpu_driver: hw::igpu_driver(),
+            mkinitcpio: crate::initramfs::Mkinitcpio::detect(),
             root_fs: root_fs(&mounts),
             lang: os_field(&read("/etc/locale.conf"), "LANG").unwrap_or_default(),
             snapshots_mount: snapshots_mounted(&mounts),

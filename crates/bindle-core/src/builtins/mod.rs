@@ -3,6 +3,7 @@
 mod apps;
 pub mod drives;
 mod gpu;
+mod initramfs;
 
 pub use gpu::{nvidia_legacy, nvidia_open_supported};
 
@@ -36,6 +37,9 @@ pub struct Expansion {
     /// AUR packages, beside the module's own `aur` list.
     pub aur: Vec<String>,
     pub files: Vec<FileSpec>,
+    /// Files Bindle wrote earlier that should go (removed only while they
+    /// still start with Bindle's marker, and not when a module writes them).
+    pub remove_files: Vec<String>,
     /// systemd units to enable.
     pub enable: Vec<String>,
     /// `/etc/fstab` lines for drives mounted at startup (`drives`).

@@ -234,6 +234,7 @@ pub fn resolve(
     let mut repos = Vec::new();
     let mut packages = Vec::new();
     let mut files = Vec::new();
+    let mut removed_files = Vec::new();
     let mut units = Vec::new();
     let mut groups = Vec::new();
     let mut root_cmds = Vec::new();
@@ -278,6 +279,7 @@ pub fn resolve(
             packages.extend(e.packages);
             aur.extend(e.aur);
             files.extend(e.files.into_iter().map(|f| (id.clone(), f)));
+            removed_files.extend(e.remove_files);
             units.extend(e.enable);
             mounts.extend(e.mounts);
             bootstrap |= e.aur_bootstrap;
@@ -289,6 +291,10 @@ pub fn resolve(
     let wanted_units = units.iter().chain(&late_units).map(String::as_str).collect();
     let wanted_files = files.iter().map(|(_, f)| f.path.as_str()).collect();
     let retired = retire::rivals(catalog, &ordered, facts, current_file, &wanted_units, &wanted_files);
+    // A file one module drops goes only if no other module writes it, and
+    // only while it is still Bindle's.
+    let ours = |p: &String| current_file(p).is_some_and(|t| t.starts_with(retire::MARKER));
+    let removed_files = dedup(removed_files.into_iter().filter(|p| !wanted_files.contains(p.as_str())).filter(ours));
     plan.notes.extend(retired.notes);
 
     // Keep only pacman.conf edits that would change something.
@@ -313,6 +319,9 @@ pub fn resolve(
         if current_file(&file.path).as_deref() != Some(file.content.as_str()) {
             plan.steps.push(Step::WriteFile { module, file });
         }
+    }
+    if !removed_files.is_empty() {
+        plan.steps.push(Step::RemoveFiles { paths: removed_files });
     }
     plan.steps.extend(mounts::step(mounts, current_file));
     // A replaced rival goes once its replacement's packages and files are in.

@@ -58,6 +58,7 @@ pub(super) fn nvidia_legacy_extras(ctx: &Ctx) -> Expansion {
     if ctx.multilib {
         e.aur.push("lib32-nvidia-580xx-utils".into());
     }
+    super::initramfs::nvidia(ctx.facts, true, &mut e);
     if !ctx.facts.installed.contains("nvidia-580xx-dkms") {
         e.notes.push(
             "NVIDIA's 580 driver comes from the AUR; DKMS builds it for your kernel (a few minutes) and it \
@@ -151,6 +152,9 @@ pub(super) fn gpu(ctx: &Ctx) -> Expansion {
     if f.gpus.is_empty() {
         e.notes.push("No GPU detected; skipping graphics drivers.".into());
     }
+    // NVIDIA's own driver keeps nouveau out of the initramfs; nouveau undoes that.
+    let nvidia_driver = f.gpus.iter().any(|g| g == "nvidia") && proprietary;
+    super::initramfs::nvidia(f, nvidia_driver, &mut e);
     let mut seen = BTreeSet::new();
     e.packages.retain(|p| seen.insert(p.clone()));
     e

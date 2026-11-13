@@ -6,6 +6,7 @@ pub mod catalog;
 pub mod desktops;
 pub mod detect;
 pub mod fstab;
+pub mod initramfs;
 pub mod install;
 pub mod pacman_conf;
 pub mod plan;
