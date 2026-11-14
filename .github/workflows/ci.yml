@@ -41,8 +41,17 @@ jobs:
       - run: cargo test -p bindle-gui --locked
       - run: make gui-shots
       - name: Every screenshot was written
-        # 6 shots x 5 theme runs, plus the applied run (those 6, 6-applied, 6b-applied-details).
-        run: test "$(find dist/shots -name '*.png' | wc -l)" -eq 38
+        # Every theme run wrote the same, non-empty set of screens (a run that
+        # stopped early writes fewer), and the sandboxed apply reached its end.
+        run: |
+          ref=$(ls dist/shots/none | sort)
+          test -n "$ref"
+          for d in dist/shots/*/; do
+            [ "$d" = dist/shots/applied/ ] && continue
+            [ "$(ls "$d" | sort)" = "$ref" ] || { echo "$d differs from dist/shots/none"; exit 1; }
+          done
+          test -f dist/shots/applied/6-applied.png
+          test -f dist/shots/applied/6b-applied-details.png
 
   msrv:
     # rust-version in Cargo.toml is a promise; build with exactly that toolchain.
