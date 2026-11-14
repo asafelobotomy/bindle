@@ -10,11 +10,10 @@ pub mod sample;
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use bindle_core::catalog::AssetKind;
 use bindle_upgrade::plan::{Options, plan};
 use bindle_upgrade::prefs::Prefs;
 use bindle_upgrade::probe::Probe;
-use bindle_upgrade::{Action, Stage, StagePlan, Todo, news};
+use bindle_upgrade::{Stage, StagePlan, Todo, news};
 use serde_json::{Value, json};
 
 /// What a stage's switch means.
@@ -202,7 +201,7 @@ impl Upgrade {
             "news": news,
             "work": work,
             "newFeatures": self.probe.after.setup.whats_new.len(),
-            "password": run.iter().any(needs_root),
+            "password": run.iter().any(StagePlan::needs_root),
             "reboot": reboot,
             "restartBlocked": restart_blocked,
             "snapper": self.probe.snapper_root,
@@ -233,26 +232,6 @@ fn label(stage: Stage, s: Switch) -> &'static str {
         (Stage::Snapshot, _) => "Take one",
         (Stage::Mirrors, _) => "Refresh",
         _ => "Update",
-    }
-}
-
-/// The stage runs something as root (so the password is asked).
-fn needs_root(p: &StagePlan) -> bool {
-    match &p.todo {
-        Todo::Run(actions) => actions.iter().any(root_action),
-        _ => false,
-    }
-}
-
-fn root_action(a: &Action) -> bool {
-    match a {
-        Action::Root(_) | Action::RootTerminal(_) => true,
-        Action::Releases(assets) => assets.iter().any(|r| r.kind() == Some(AssetKind::Package)),
-        Action::SelfUpdate { location, .. } => {
-            matches!(location, bindle_upgrade::selfupdate::Location::Installed { .. })
-        }
-        Action::Optional { action, .. } => root_action(action),
-        Action::User(_) | Action::UqSetup => false,
     }
 }
 

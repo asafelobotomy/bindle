@@ -1,8 +1,9 @@
 # End-to-end VM test
 
-`tests/vm/run.sh` installs Arch in a QEMU/KVM VM through the real user path
-(`install.sh` → `bindle iso` → archinstall), boots the result, runs a real
-`bindle apply`, and screenshots the first-login wizard. No clicks.
+`tests/vm/run.sh` installs Arch in a QEMU/KVM VM through the `bindle iso` path
+(`install.sh` with options → `bindle iso` → archinstall; `install.sh` with no
+arguments runs `bindle install`, which this test doesn't cover), boots the result, runs a real `bindle apply`, and screenshots the first-login
+wizard. No clicks.
 
 ## Requirements
 
@@ -34,10 +35,11 @@ Outputs in `tests/vm/.work/` (git-ignored): `install-serial.log`,
    `bindle iso --desktop … --profile … --yes --silent --config guest/archinstall-test.json --creds guest/creds-test.json`.
    The test config adds only what an unattended archinstall needs: disk layout
    (`/dev/vda`, ESP + ext4), hostname, locale, bootloader. Bindle's preset supplies the rest.
-2. **Test-only additions** to the new system: a first-boot check service, passwordless
-   sudo for `tester`, and GDM autologin.
+2. **Test-only additions** to the new system: a first-boot check service, a
+   test-only polkit rule that lets the test user approve Bindle's actions without
+   a password, and GDM autologin.
 3. **Boot**: the check service (before GDM) runs, as `tester`: `bindle archinstall`,
-   `first-login status`, `plan`, a real `apply` (in a pty so sudo is used), `undo --list`
+   `first-login status`, `plan`, a real `apply` (approved through that polkit rule), `undo --list`
    and a second `plan`. Results stream to the serial log between `BINDLE-VM:` markers.
 4. GDM auto-logs in; the XDG autostart entry should open the first-login wizard
    in GNOME Console. Screenshots every 30 s via the QEMU monitor.

@@ -2,11 +2,10 @@
 
 A desktop window for the wizard, replacing the terminal at first login on
 graphical sessions. The terminal wizard stays for TTYs, SSH and as a fallback.
-Supersedes the Tauri plan in ROADMAP Phase 3.
 
 uQ (`asafelobotomy/uq`) is Bindle's main desktop. Its design spec makes Bindle
-uQ's first-run installer: Bindle installs the `uq` profile, hands off to the
-Welcome page in `uq-settings`, and adds a "re-run setup" page there. The GUI
+uQ's first-run installer: Bindle installs the `uq` module, hands off to uQ's
+Welcome, and adds a "Re-run setup" page to uQ Settings. The GUI
 follows uQ's app conventions so it can fill that role.
 
 ## Decisions
@@ -33,14 +32,38 @@ follows uQ's app conventions so it can fill that role.
 
 ## Screens
 
-Welcome (install summary, already set up, suggestions) → Profile → Choose
-(categories, modules, details, search) → Review (a one-sentence summary,
-counts, the features by category, replacements, skips and notes; every step
-folded under "Technical details") → Apply (progress, per-step status, log) →
-Done (result banner, restart/log-out callout, the features by category, undo
-hint, steps and log folded away, and on uQ "Open uQ Welcome"). Each screen reads the same data the
-terminal wizard does: `print::install_lines`, `print::module_details`,
-`plan::resolve`.
+Welcome → Profile → Choose → Summary → Review → Apply, shown in a step bar
+that goes back to any screen already visited.
+
+- **Welcome** (`WelcomePage.qml`): "Already working" (what the installer set
+  up) beside "Bindle suggests" (what is picked for this computer, each a way
+  into its category). The installer's full summary folds under "System
+  details".
+- **Profile** (`ProfilePage.qml`): a base (Minimal, Desktop) and any add-ons
+  on top (Gaming, Developer: profiles with `addon = true` in
+  `catalog/profiles.toml`), each naming what it brings. Changing the base
+  after editing picks asks first.
+- **Choose** (`ChoosePage.qml`): one category at a time, its groups of
+  modules in a grid, list or compact view, with search, filters (All,
+  Selected, Recommended; hide what isn't available, only safe changes) and
+  Select all / Select none per group. A module's details open inline under
+  its group; a line under the list says what the last click changed.
+- **Summary** (`SummaryPage.qml`): an editable receipt: every selection by
+  category, each removable in place, with Change to go back to its category.
+- **Review** (`ReviewPage.qml`): what the run costs (password, restart, undo),
+  then Will install, Will change and Left alone; every step, with its files
+  and commands, folds under "Technical details".
+- **Apply** (`ApplyPage.qml`): the running step large, the steps and log
+  below. When done: a result banner, then Restart now, Undo these changes,
+  Open the log and a few things to try first; the steps and log fold away.
+
+After a Bindle upgrade with something new, the window opens in What's new
+mode instead: What's new → Review → Apply, over its picks
+([UPGRADE-PATH.md](UPGRADE-PATH.md)). Each screen reads the same data the
+terminal wizard does (`bindle_run::present`, `plan::resolve`). On uQ the
+hand-off to uQ's Welcome is automatic when the first-login wizard ends (see
+below); there is no button for it. The update window (`bindle-gui
+--upgrade`) is a second set of screens in the same binary, below.
 
 ## The update window
 
@@ -82,20 +105,22 @@ dry run (`u1`…`u5` per theme).
 
 ## uQ integration
 
-1. **Catalog**: a `uq` desktop in `desktops.toml` (Hyprland plus the `uq`
-   package; its essentials skip waybar, hyprpaper and the other pieces uq-shell
-   replaces), a `uq` profile, and a "uQ apps" category grouping the integrated
-   apps (noti-fi, scale_tail, XZram, scdr, appOFholding, crumBS, hauler,
-   emobie, oysterAV, romforge). The profile installs `uq-hyprland-pin` and
-   `uq` from pinned GitHub release packages and runs `uqctl setup --apps` as the user.
-   **Blocked on uQ publishing release packages**; apps that already ship
-   releases can be added first.
-2. **Hand-off**: after a `uq` profile apply, Done offers to open uq-settings on
-   its Welcome page (uQ Phase 5).
-3. **Settings page**: the wizard's QML lives in a module (`org.bindle.wizard`)
-   that `bindle-gui` loads and that is also installed as
-   `/usr/share/uq/settings/pages/bindle/` with a `page.toml`, giving
-   uq-settings a "Re-run setup" page (uQ Phase 3 extension points).
+1. **Catalog**: a `uq` desktop in `catalog/desktops.toml` (recommended, so
+   pre-selected; based on Hyprland, with its own essentials and apps) and a
+   `uq` module in `catalog/arch/desktop.toml`, which installs `uq`,
+   `uq-hyprland-pin` and `bibata-cursor-theme-bin` from the AUR, runs
+   `uqctl setup --apps` as the user and switches to uQ's login screen
+   (greetd). uQ's own apps (scdr, crumbs, noti-fi and others) are their own
+   modules.
+2. **Hand-off** (`crates/bindle-cli/src/uq_handoff.rs`): while the
+   first-login wizard is open in a uQ session, Bindle holds
+   `$XDG_RUNTIME_DIR/uq/welcome.defer` so uQ's Welcome waits; when the wizard
+   ends it removes the file and runs `uqctl welcome` (uQ Phase 5).
+3. **Settings page**: `bindle first-login install` writes
+   `/usr/share/uq/settings/pages/bindle/` (`page.toml`, `Page.qml`, from
+   `uq/pages/bindle/`) and links `/usr/lib/bindle/bindle` to Bindle, giving uQ
+   Settings a "Re-run setup" page: the profile and when it last ran, "Pick
+   apps again" (`bindle open --detach`) and "Check for missing pieces".
 
 ## Architecture
 
@@ -146,7 +171,8 @@ dry run (`u1`…`u5` per theme).
 Done: 1 (engine), 2 (Welcome to Review), 3 (Apply and Done, pkexec with a
 polkit action, terminal fallback when no polkit agent runs), 4 (first login
 and the app-menu entry open the window; releases, `install.sh`, the ISO
-plugin and `first-login install` ship it; `bindle iso` adds the Qt runtime). The window applies
+plugin and `first-login install` ship it; `bindle iso` adds the Qt runtime),
+5 (uQ catalog) and 6 (the uQ hand-off and the uQ Settings page; 0.1.8). The window applies
 unattended: the Review screen is the confirmation, so AUR helpers skip their
 own prompts, and output from AUR builds goes to the window's stdout rather
 than its log (the helper's output, pacman's included, is shown).
@@ -158,6 +184,5 @@ than its log (the helper's output, pacman's included, is shown).
 3. Apply and Done screens; pkexec, polkit policy, terminal fallback.
 4. Launch from first login; `bindle iso` adds the Qt runtime; ship
    `bindle-gui` in releases, `install.sh` and the ISO plugin.
-5. uQ catalog: `uq` desktop, "uQ apps" category (apps with releases now), `uq`
-   profile once uQ publishes packages.
-6. uq-settings page and Welcome hand-off, once uQ Phases 3 and 5 land.
+5. uQ catalog: `uq` desktop and module, uQ's apps as modules.
+6. uQ Settings page and Welcome hand-off.

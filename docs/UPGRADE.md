@@ -40,7 +40,7 @@ In order; each can be left out with `--skip <id>` or picked with `--only`.
 | `setup` | Bindle setup | What's new ([UPGRADE-PATH.md](UPGRADE-PATH.md)): what this Bindle would add, change or retire compared with earlier applies, reviewed with `bindle whats-new` or the window's What's new button; after Bindle updated itself, offered right after the run. Also files Bindle wrote that changed by hand since (for modules whose catalog content didn't change), and drives in Bindle's fstab block that aren't connected. Reported only. |
 | `reboot` | Reboot | Recommended when the running kernel's modules are gone (a kernel upgrade), or a kernel, microcode, NVIDIA driver, Mesa, systemd, glibc or D-Bus was upgraded. "Don't restart yet" when a DKMS module (`dkms status`) isn't built for an installed kernel, or a kernel's `vmlinuz-`/`initramfs-` image is missing from /boot. After an upgrade it offers to fix it (asked, default yes): `dkms autoinstall -k <version>` for each kernel, then `mkinitcpio -P`, as root; until that succeeds the window shows no Restart button. `--check` reports it with the commands. /boot is often root-only: a run that started the root helper has it list /boot's file names; otherwise the images aren't checked, and it says so. |
 
-Each stage prints `==> [n/11] Title: summary` and its details (up to 12
+Each stage prints `==> [n/N] Title: summary` and its details (up to 12
 lines). The run ends with one row per stage: done, current, note, skipped,
 held or failed. Exit status 1 when a stage failed.
 
@@ -110,7 +110,7 @@ calls it.
 The `bindle-upgrade` crate keeps the three parts apart:
 
 1. `probe` looks at the system as the user and fills a `Probe` (nothing
-   needs root); `parse` and `news` turn command output into data.
+   needs root); `parse`, `system` and `news` turn command output into data.
 2. `plan::plan(&Probe, &Options)` is pure: it decides each stage's
    `Todo` (`Run(actions)`, `Report`, `Nothing`, `Skip`, `Hold`), its
    question and what declining it stops. Every rule is a unit test.
@@ -125,8 +125,9 @@ The `bindle-upgrade` crate keeps the three parts apart:
    the user with the terminal; they ask for their own permissions as they
    always do.
 
-The closing stages (config files, orphans, reboot) are planned again from a
-fresh look after the upgrades, with the list of packages that were upgraded.
+The closing stages (`rebuild`, `uq`, `pacnew`, `orphans`, `services`,
+`setup`, `reboot`; `plan::after_plans`) are planned again from a fresh look
+after the upgrades, with the list of packages that were upgraded.
 
 ### Failures
 

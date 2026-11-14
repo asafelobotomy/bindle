@@ -4,7 +4,7 @@ import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import org.bindle.wizard
 
-QQC2.ApplicationWindow {
+ThemedWindow {
     id: root
 
     // 0 Welcome, 1 Profile, 2 Choose (one category at a time), 3 Summary,
@@ -27,59 +27,17 @@ QQC2.ApplicationWindow {
     readonly property var welcome: JSON.parse(backend.welcomeJson || "{}")
 
     title: "Bindle"
-    visible: true
     width: Kirigami.Units.gridUnit * 60
     height: Kirigami.Units.gridUnit * 36
     minimumWidth: Kirigami.Units.gridUnit * 38
     minimumHeight: Kirigami.Units.gridUnit * 26
-    color: Theme.bg
-    font.family: Theme.fontUi !== "" ? Theme.fontUi : Qt.application.font.family
-    font.pointSize: Theme.bodySize
-
-    // Fusion and the Qt Quick controls draw from the palette: feed it the theme.
-    palette {
-        window: Theme.bg
-        windowText: Theme.text
-        base: Theme.surface
-        alternateBase: Theme.surfaceAlt
-        text: Theme.text
-        button: Theme.surfaceAlt
-        buttonText: Theme.text
-        highlight: Theme.accent
-        highlightedText: Theme.accentText
-        placeholderText: Theme.textMuted
-        mid: Theme.border
-        dark: Theme.border
-        light: Theme.overlay
-        midlight: Theme.overlay
-    }
+    themeBackend: backend
 
     Backend {
         id: backend
     }
 
-    Binding {
-        target: Theme
-        property: "tokens"
-        value: JSON.parse(backend.themeJson || '{"present": false}')
-    }
-
-    // Off uQ, Theme takes the desktop's colours from Kirigami, which the
-    // desktop style also draws controls with.
-    Item {
-        id: winColors
-        Kirigami.Theme.colorSet: Kirigami.Theme.Window
-        Kirigami.Theme.inherit: false
-        Item {
-            id: viewColors
-            Kirigami.Theme.colorSet: Kirigami.Theme.View
-            Kirigami.Theme.inherit: false
-        }
-    }
     Component.onCompleted: {
-        Theme.win = winColors.Kirigami.Theme;
-        Theme.view = viewColors.Kirigami.Theme;
-        Theme.backend = backend;
         if (root.whatsNewMode)
             root.page = 6;
     }
@@ -166,42 +124,19 @@ QQC2.ApplicationWindow {
             root.go(root.page - 1);
     }
 
-    header: Rectangle {
-        implicitHeight: headerRow.implicitHeight + 2 * Kirigami.Units.mediumSpacing
-        color: Theme.surface
-
-        RowLayout {
-            id: headerRow
-            anchors.fill: parent
-            anchors.leftMargin: Kirigami.Units.largeSpacing
-            anchors.rightMargin: Kirigami.Units.largeSpacing
-            spacing: Kirigami.Units.mediumSpacing
-
-            QQC2.Label {
-                text: "Bindle"
-                font.weight: Font.DemiBold
-                color: Theme.accent
-            }
-            Item {
-                Layout.fillWidth: true
-            }
-            StepBar {
-                steps: root.steps
-                current: root.whatsNewMode ? root.modePages.indexOf(root.page) : root.page
-                // Apply is reached only through Review's button.
-                reached: root.whatsNewMode ? (root.apply.state === "idle" ? Math.min(1, root.reached >= 4 ? 1 : 0) : 2)
-                    : Math.min(root.reached, root.apply.state === "idle" ? 4 : 5)
-                detail: root.page === 2 && choose.query === "" ? (choose.categoryIndex + 1) + "/" + root.catalog.length : ""
-                locked: root.running || root.apply.state === "done"
-                onPicked: index => root.jump(index)
-            }
+    header: HeaderBar {
+        Item {
+            Layout.fillWidth: true
         }
-
-        Rectangle {
-            anchors.bottom: parent.bottom
-            width: parent.width
-            height: 1
-            color: Theme.border
+        StepBar {
+            steps: root.steps
+            current: root.whatsNewMode ? root.modePages.indexOf(root.page) : root.page
+            // Apply is reached only through Review's button.
+            reached: root.whatsNewMode ? (root.apply.state === "idle" ? Math.min(1, root.reached >= 4 ? 1 : 0) : 2)
+                : Math.min(root.reached, root.apply.state === "idle" ? 4 : 5)
+            detail: root.page === 2 && choose.query === "" ? (choose.categoryIndex + 1) + "/" + root.catalog.length : ""
+            locked: root.running || root.apply.state === "done"
+            onPicked: index => root.jump(index)
         }
     }
 
@@ -264,67 +199,54 @@ QQC2.ApplicationWindow {
         }
     }
 
-    footer: Rectangle {
-        implicitHeight: footerRow.implicitHeight + 2 * Kirigami.Units.mediumSpacing
-        color: Theme.surface
+    footer: WindowBar {
+        footer: true
 
-        Rectangle {
-            width: parent.width
-            height: 1
-            color: Theme.border
+        ActionButton {
+            text: root.page === 5 ? "Back to review" : "Back"
+            visible: root.page > 0 && root.page !== 6 && !root.running && root.apply.state !== "done"
+            onClicked: root.back()
         }
-
-        RowLayout {
-            id: footerRow
-            anchors.fill: parent
-            anchors.leftMargin: Kirigami.Units.largeSpacing
-            anchors.rightMargin: Kirigami.Units.largeSpacing
-
-            ActionButton {
-                text: root.page === 5 ? "Back to review" : "Back"
-                visible: root.page > 0 && root.page !== 6 && !root.running && root.apply.state !== "done"
-                onClicked: root.back()
-            }
-            ActionButton {
-                visible: root.page === 6
-                text: "Not now"
-                onClicked: root.leaveWhatsNew()
-            }
-            ActionButton {
-                visible: root.page === 6
-                text: "Skip this version"
-                onClicked: root.leaveWhatsNew(true)
-            }
-            QQC2.Label {
-                Layout.fillWidth: true
-                horizontalAlignment: Text.AlignRight
-                text: root.running ? "Keep the computer on until this finishes." : (backend.notice !== "" && root.page === 5 ? backend.notice
-                    : root.page === 2 || root.page === 3 ? root.picked + (root.picked === 1 ? " feature selected" : " features selected")
-                        + (Object.keys(root.selection.needed || {}).length > 0 ? " · " + Object.keys(root.selection.needed).length + " added for them" : "")
-                    : root.footerNote)
-                color: Theme.textMuted
-                elide: Text.ElideLeft
-            }
-            ActionButton {
-                visible: root.page === 2 && !choose.last
-                text: "Skip to summary"
-                onClicked: root.go(3)
-            }
-            ActionButton {
-                visible: !root.running
-                primary: true
-                text: root.nextLabel()
-                onClicked: root.next()
-            }
+        ActionButton {
+            visible: root.page === 6
+            text: "Not now"
+            onClicked: root.leaveWhatsNew()
+        }
+        ActionButton {
+            visible: root.page === 6
+            text: "Skip this version"
+            onClicked: root.leaveWhatsNew(true)
+        }
+        QQC2.Label {
+            Layout.fillWidth: true
+            horizontalAlignment: Text.AlignRight
+            text: root.running ? "Keep the computer on until this finishes." : (backend.notice !== "" && root.page === 5 ? backend.notice
+                : root.page === 2 || root.page === 3 ? root.picked + (root.picked === 1 ? " feature selected" : " features selected")
+                    + (Object.keys(root.selection.needed || {}).length > 0 ? " · " + Object.keys(root.selection.needed).length + " added for them" : "")
+                : root.footerNote)
+            color: Theme.textMuted
+            elide: Text.ElideLeft
+        }
+        ActionButton {
+            visible: root.page === 2 && !choose.last
+            text: "Skip to summary"
+            onClicked: root.go(3)
+        }
+        ActionButton {
+            visible: !root.running
+            primary: true
+            text: root.nextLabel()
+            onClicked: root.next()
         }
     }
 
     // `--screenshots <dir>`: show each screen, save it, then quit.
-    Timer {
+    ShotDriver {
         id: shots
 
-        property int step: 0
-        readonly property var plan: [
+        appBackend: backend
+        busy: root.running
+        plan: [
             { page: 0, name: "1-welcome" },
             { page: 1, name: "2-profile" },
             { page: 2, name: "3-choose-grid", category: 0, view: "grid" },
@@ -343,23 +265,9 @@ QQC2.ApplicationWindow {
             { page: 5, name: "6-applied", apply: true },
             { page: 5, name: "6b-applied-details", details: true }
         ]
-        property bool waiting: false
-
-        interval: 600
-        repeat: true
-        running: backend.screenshotDir !== ""
-        onTriggered: {
-            if (waiting && root.running)
-                return;
-            waiting = false;
-            if (step > 0)
-                backend.grabWindow(backend.screenshotDir + "/" + plan[step - 1].name + ".png");
-            if (step === plan.length) {
-                Qt.quit();
-                return;
-            }
-            const s = plan[step];
+        onShoot: s => {
             if (s.apply && backend.sandbox === "") {
+                shots.stop();
                 Qt.quit();
                 return;
             }
@@ -384,7 +292,7 @@ QQC2.ApplicationWindow {
             }
             if (s.apply) {
                 backend.startApply();
-                waiting = true;
+                shots.waiting = true;
             }
             if (s.category !== undefined) {
                 choose.open(s.category);
@@ -394,7 +302,6 @@ QQC2.ApplicationWindow {
                 choose.setFilter(s.filter || "all");
                 choose.moduleId = s.toggle || "";
             }
-            step += 1;
         }
     }
 }

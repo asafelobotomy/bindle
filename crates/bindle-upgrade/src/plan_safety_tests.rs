@@ -219,3 +219,14 @@ fn an_old_firmware_list_is_mentioned() {
     let fresh = Probe { firmware_age: Some(1), ..p };
     assert_eq!(get(&plan(&fresh, &Options::default()), Stage::Firmware).summary, "up to date");
 }
+
+#[test]
+fn a_failed_check_says_so_instead_of_nothing_to_do() {
+    let now = After { unchecked: vec![(Stage::Orphans, "pacman -Qdtq failed (2): database locked".into())], ..after() };
+    let plans = after_plans(&now, &now, &[], &Options::default(), false);
+    let orphans = plans.iter().find(|p| p.stage == Stage::Orphans).unwrap();
+    assert_eq!(orphans.todo, Todo::Report);
+    assert!(orphans.summary.starts_with("couldn't check: pacman -Qdtq failed"), "{}", orphans.summary);
+    let pacnew = plans.iter().find(|p| p.stage == Stage::Pacfiles).unwrap();
+    assert_eq!(pacnew.todo, Todo::Nothing, "other stages are untouched");
+}

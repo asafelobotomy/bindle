@@ -157,7 +157,12 @@ pub fn run(plan: &Plan, facts: &Facts, opts: &Options, progress: &mut dyn Progre
         h.quit();
     } else if failed.is_none() && !fake {
         // No root helper, no snapshot: the user's own ledger keeps the record.
-        record_user_apply(plan);
+        if let Err(e) = record_user_apply(plan) {
+            manual.push((
+                "bindle".into(),
+                format!("Couldn't save what this run set up, so What's new may offer it again: {e:#}"),
+            ));
+        }
     }
     Ok(Report {
         total,
@@ -171,14 +176,13 @@ pub fn run(plan: &Plan, facts: &Facts, opts: &Options, progress: &mut dyn Progre
 }
 
 /// An apply that needed no root: its record goes to the user's ledger.
-fn record_user_apply(plan: &Plan) {
+fn record_user_apply(plan: &Plan) -> Result<()> {
     let s = snapshot_plan(plan, &Facts::default());
-    if let Some(path) = crate::record::user_path()
-        && (!s.record.is_empty() || !s.forget.is_empty())
-    {
-        let mut l = crate::record::load(&path);
-        l.add(&sys::now_id(), &s.version, &s.record, &s.forget);
-        let _ = crate::record::save(&path, &l);
+    match crate::record::user_path() {
+        Some(path) if !s.record.is_empty() || !s.forget.is_empty() => {
+            crate::record::add_to(&path, &sys::now_id(), &s.version, &s.record, &s.forget)
+        }
+        _ => Ok(()),
     }
 }
 
@@ -241,13 +245,13 @@ fn install_files(h: &mut HelperClient, files: Vec<String>, progress: &mut dyn Pr
     root_request(h, &Request::InstallFiles { paths: files }, &mut |l| progress.output(l)).map(drop)
 }
 
-/// Whether the plan changes the kernel, microcode or drivers.
+/// Whether the plan changes the kernel, microcode, drivers or a core
+/// library (`bindle_core::restart`, the rule bindleupgrade uses too).
 pub fn needs_reboot(plan: &Plan) -> bool {
+    use bindle_core::restart::needs_restart;
     plan.steps.iter().any(|s| match s {
         Step::RebuildInitramfs => true,
-        Step::InstallPackages { packages } => packages
-            .iter()
-            .any(|p| p.starts_with("linux") || p.ends_with("-ucode") || p.starts_with("nvidia") || p == "mesa"),
+        Step::InstallPackages { packages } | Step::InstallAur { packages } => packages.iter().any(|p| needs_restart(p)),
         _ => false,
     })
 }

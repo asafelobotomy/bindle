@@ -28,6 +28,11 @@ fn main() {
         QmlFile::from("qml/UpgradeMain.qml"),
         QmlFile::from("qml/UpgradeCheckPage.qml"),
         QmlFile::from("qml/UpgradeRunPage.qml"),
+        QmlFile::from("qml/ThemedWindow.qml"),
+        QmlFile::from("qml/WindowBar.qml"),
+        QmlFile::from("qml/HeaderBar.qml"),
+        QmlFile::from("qml/ShotDriver.qml"),
+        QmlFile::from("qml/LogView.qml"),
     ]))
     .qt_module("Gui")
     .qt_module("Quick")

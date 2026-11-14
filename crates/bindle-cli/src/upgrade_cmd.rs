@@ -22,8 +22,9 @@ pub struct UpgradeArgs {
     /// unread Arch news asks for a manual step.
     #[arg(long, short)]
     yes: bool,
-    /// Leave out stages (comma-separated): news, snapshot, mirrors, pacman,
-    /// aur, releases, flatpak, firmware, pacnew, orphans, reboot.
+    /// Leave out stages (comma-separated): bindle, news, preflight, snapshot,
+    /// mirrors, pacman, aur, releases, flatpak, firmware, rebuild, uq,
+    /// pacnew, orphans, services, setup, reboot.
     #[arg(long, value_delimiter = ',', value_name = "STAGE")]
     skip: Vec<String>,
     /// Run only these stages (comma-separated, as for --skip).

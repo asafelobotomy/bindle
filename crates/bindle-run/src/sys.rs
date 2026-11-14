@@ -238,6 +238,17 @@ pub fn run_streaming(argv: &[String], on_line: &mut dyn FnMut(&str)) -> Result<(
 /// A fresh scratch directory for tests (here and in bindle-cli).
 #[doc(hidden)]
 pub fn test_dir(name: &str) -> PathBuf {
+    // Earlier runs' copies of this folder, whose test process has ended:
+    // tests stop before their own clean-up when they fail, and some copy
+    // the whole binary (over 100 MB each).
+    let prefix = format!("bindle-test-{name}-");
+    for old in fs::read_dir(std::env::temp_dir()).into_iter().flatten().flatten() {
+        let file = old.file_name();
+        let pid = file.to_str().and_then(|n| n.strip_prefix(&prefix)).filter(|p| p.bytes().all(|b| b.is_ascii_digit()));
+        if pid.is_some_and(|p| !Path::new("/proc").join(p).exists()) {
+            let _ = fs::remove_dir_all(old.path());
+        }
+    }
     let dir = std::env::temp_dir().join(format!("bindle-test-{name}-{}", std::process::id()));
     let _ = fs::remove_dir_all(&dir);
     fs::create_dir_all(&dir).unwrap();

@@ -64,6 +64,21 @@ pub enum Action {
     UqSetup,
 }
 
+impl Action {
+    /// Runs through the root helper, so the run asks for the password.
+    pub fn needs_root(&self) -> bool {
+        match self {
+            Action::Root(_) | Action::RootTerminal(_) => true,
+            Action::Releases(assets) => {
+                assets.iter().any(|r| r.kind() == Some(bindle_core::catalog::AssetKind::Package))
+            }
+            Action::SelfUpdate { location, .. } => matches!(location, Location::Installed { .. }),
+            Action::Optional { action, .. } => action.needs_root(),
+            Action::User(_) | Action::UqSetup => false,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum Todo {
     Run(Vec<Action>),
@@ -92,6 +107,11 @@ pub struct StagePlan {
 }
 
 impl StagePlan {
+    /// The stage runs something as root.
+    pub fn needs_root(&self) -> bool {
+        matches!(&self.todo, Todo::Run(actions) if actions.iter().any(Action::needs_root))
+    }
+
     fn new(stage: Stage, todo: Todo, summary: impl Into<String>) -> Self {
         StagePlan { stage, todo, summary: summary.into(), details: vec![], ask: None, stops: vec![], packages: vec![] }
     }
@@ -131,7 +151,7 @@ pub fn plan(p: &Probe, o: &Options) -> Vec<StagePlan> {
     plans.extend([StagePlan::new(Stage::Snapshot, Todo::Nothing, ""), mirrors(p, o)]);
     plans.push(pacman(p, o));
     plans.push(aur(p, o));
-    plans.push(releases(&p.releases, &o.prefs));
+    plans.push(unchecked(releases(&p.releases, &o.prefs), &p.after.unchecked));
     plans.push(flatpak(p));
     plans.push(firmware(p, o));
     let pending: Vec<String> =
@@ -153,7 +173,20 @@ pub fn after_plans(before: &After, now: &After, updated: &[String], o: &Options,
         setup(&now.setup),
         reboot(now, updated, pending),
     ];
-    plans.into_iter().map(|pl| turned_off(pl, o)).collect()
+    plans.into_iter().map(|pl| unchecked(pl, &now.unchecked)).map(|pl| turned_off(pl, o)).collect()
+}
+
+/// A failed check never reads as "nothing to do": it says what couldn't be
+/// checked, as a report.
+pub(crate) fn unchecked(mut pl: StagePlan, failed: &[(Stage, String)]) -> StagePlan {
+    for (_, why) in failed.iter().filter(|(s, _)| *s == pl.stage) {
+        pl.details.push(format!("couldn't check: {why}"));
+        if pl.todo == Todo::Nothing {
+            pl.todo = Todo::Report;
+            pl.summary = format!("couldn't check: {why}");
+        }
+    }
+    pl
 }
 
 /// Apply what one stage means for another, then `--skip` / `--only`.

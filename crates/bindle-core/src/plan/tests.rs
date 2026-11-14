@@ -370,6 +370,8 @@ fn scdr_devbox_installs_after_scdr_and_starts_alone() {
 fn noti_fi_takes_over_once() {
     let mut f = facts();
     f.home = "/home/tester".into();
+    // noti-fi's daemon is Wayland-only.
+    f.desktop_tags = vec!["display:wayland".into()];
     let sel = Selection { include: vec!["noti-fi".into()], ..Default::default() };
     let takeover = |p: &Plan| p.steps.iter().any(|s| matches!(s, Step::RunAsUser { argv, .. } if argv[0] == "notify"));
     assert!(takeover(&plan(sel.clone(), &f).unwrap()));

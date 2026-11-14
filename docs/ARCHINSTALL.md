@@ -86,6 +86,9 @@ Bluetooth hardware is present.
 |---|---|
 | `/usr/local/bin/bindle` | the binary (a copy of whatever ran the command) |
 | `/usr/local/bin/bindle-gui` | the desktop window, when it ships next to `bindle` (release downloads and `bindle iso` include it) |
+| `/usr/local/bin/bindo`, `/usr/local/bin/bindleupgrade` | links to `bindle`, which acts as the recipe runner and the updater under those names ([BINDO.md](BINDO.md), [UPGRADE.md](UPGRADE.md)) |
+| `/usr/lib/bindle/bindle` | a link to `bindle` for uQ Settings' page, whose commands may only run programs under `/usr/lib` or `/usr/bin` |
+| `/usr/share/uq/settings/pages/bindle/page.toml`, `Page.qml` | uQ Settings' "Re-run setup" page; harmless without uQ, and a uQ installed later picks it up |
 | `/usr/share/polkit-1/actions/io.github.asafelobotomy.bindle.policy` | the reason shown in the window's password dialog |
 | `/etc/xdg/autostart/bindle-first-login.desktop` | desktops: runs `bindle first-login run` at login; Bindle opens the desktop's own terminal |
 | `/etc/systemd/user/bindle-first-login.service` (enabled globally) | window managers without XDG autostart: waits for this user's graphical session (logind + Wayland/X11 socket), then opens a terminal; a short-lived lock in `$XDG_RUNTIME_DIR` prevents a second window where autostart also fires |
@@ -114,7 +117,7 @@ notification server without action buttons gets the wizard instead.
 
 Marking one user done never touches the system-wide files: the autostart
 entry, user unit and console hook stay installed, and **users created later
-still get the wizard at their first login**, until `sudo bindle first-login
+still get the wizard at their first login**, until `run0 bindle first-login
 remove` is run. When the last regular user (from `/etc/passwd`, login shells
 only) is marked done, Bindle says so and offers to run that for you; a home it
 can't read counts as not done, so on multi-user systems with private homes the
@@ -139,7 +142,7 @@ Three ways to get it onto a fresh install:
    runs it as root in `arch-chroot` after creating users and installing the desktop.
 2. **From the live ISO** after archinstall finishes, before rebooting:
    `./bindle first-login install --root /mnt`.
-3. **On the installed system**: `sudo bindle first-login install`.
+3. **On the installed system**: `run0 bindle first-login install`.
 
 XDG autostart covers the full desktops and Hyprland (via uwsm); the user
 service covers Sway, niri, Labwc, i3, bspwm, Qtile, Xmonad and friends; the
@@ -162,10 +165,10 @@ Opening *in front of* a welcome app isn't reliable: GNOME's dialog sits above
 every window, and the others start at the same moment as Bindle. So Bindle
 waits for the ones it can see, then opens on top and focused. `bindle iso
 --keep-welcome` leaves all of them enabled;
-`sudo bindle first-login quiet-welcome` applies the suppression on an existing
+`run0 bindle first-login quiet-welcome` applies the suppression on an existing
 system. As root on a running system it only writes system-wide files (GSettings
 override, `/etc/xdg`, `/etc/skel`) and never enters users' homes; each existing
-Hyprland user runs `bindle first-login quiet-welcome` (no sudo) to seed their
+Hyprland user runs `bindle first-login quiet-welcome` (not as root) to seed their
 own config. Homes are seeded by root only with `--root` (the fresh install from
 the ISO), and even then a home, `~/.config` or `~/.config/hypr` that is a
 symlink is skipped, and nothing is followed or chowned through a link.

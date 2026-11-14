@@ -25,11 +25,12 @@ The AppImage, for an existing install, is on the
 
 ## Status
 
-**Status:** Phase 1. Detection, planning, apply (with snapshots and undo) and
-first-login autostart work, verified by real installs and applies in VMs for
-every archinstall desktop ([docs/VM-TEST.md](docs/VM-TEST.md)); not yet on
-physical hardware. Arch Linux and derivatives only. See
-[docs/ROADMAP.md](docs/ROADMAP.md).
+**Status:** 0.1.8, hardening (Phase 1.5). The live-ISO installer, detection,
+planning, apply (with snapshots and undo), first-login autostart, the desktop
+window, bindo, bindleupgrade and What's new work. Installs and applies are
+verified in VMs for every archinstall desktop through `bindle iso`
+([docs/VM-TEST.md](docs/VM-TEST.md)); not yet on physical hardware. Arch Linux
+and derivatives only. See [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ```bash
 cargo run -p bindle-cli               # wizard
@@ -39,10 +40,16 @@ cargo run -p bindle-cli -- list       # profiles, categories, modules
 cargo run -p bindle-cli -- plan --profile gaming --with vscode --without ufw
 cargo run -p bindle-cli -- apply --profile desktop     # asks, then snapshots + applies
 cargo run -p bindle-cli -- undo --list
-sudo ./target/debug/bindle first-login install         # open on each user's first login
+cargo run -p bindle-cli -- status     # what Bindle last set up here, and what is missing
+cargo run -p bindle-cli -- whats-new --list   # what this Bindle adds or changes since the last apply
+cargo run -p bindle-cli -- bindo      # recipes: named system tasks (also `bindo`)
+cargo run -p bindle-cli -- upgrade --check    # update everything (also `bindleupgrade`)
+cargo run -p bindle-cli -- install --dry-run  # the live-ISO installer (on the ISO: `bindle install`)
+run0 ./target/debug/bindle first-login install         # open on each user's first login
+make gui                                               # bindle-gui, the desktop window (needs Qt 6 and Kirigami)
 ```
 
-Profiles: `minimal`, `desktop`, `gaming`, `developer`.
+Profiles: `minimal`, `desktop`, and the add-ons `gaming` and `developer`.
 Categories: System · Hardware · Performance · Desktop & apps · Internet ·
 Creative · Development · AI tools · Gaming · Security
 (every module: [docs/CATALOG.md](docs/CATALOG.md#arch-modules)).
@@ -62,6 +69,10 @@ without it, run `./Bindle-*.AppImage --appimage-extract-and-run`.
 - [Installing from the live ISO](docs/ISO.md)
 - [Building on archinstall](docs/ARCHINSTALL.md) (incl. first-login autostart)
 - [Applying changes, snapshots and undo](docs/APPLY.md)
+- [The desktop window](docs/GUI.md)
+- [bindo: recipes](docs/BINDO.md)
+- [bindleupgrade: updating everything](docs/UPGRADE.md)
+- [What's new after upgrading Bindle](docs/UPGRADE-PATH.md)
 - [End-to-end VM test](docs/VM-TEST.md)
 - [Catalog format](docs/CATALOG.md)
 - [Mounting other drives](docs/DRIVES.md)

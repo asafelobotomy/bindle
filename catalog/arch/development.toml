@@ -59,10 +59,10 @@ packages = ["cmake", "clang", "gdb"]
 [[module]]
 id = "java"
 group = "Languages"
-name = "Java (JDK 21 LTS)"
-description = "OpenJDK 21, the current long-term-support release."
-packages = ["jdk21-openjdk"]
-notes = ["Newer JDKs: jdk-openjdk. Switch with archlinux-java."]
+name = "Java (JDK 25 LTS)"
+description = "OpenJDK 25, the current long-term-support release."
+packages = ["jdk25-openjdk"]
+notes = ["The newest JDK (not long-term support): jdk-openjdk. Older LTS releases: jdk21-openjdk, jdk17-openjdk. Switch with archlinux-java."]
 
 [[module]]
 id = "dotnet"
@@ -228,4 +228,4 @@ risk = "moderate"
 packages = ["virt-manager", "qemu-desktop", "libvirt", "dnsmasq", "swtpm", "edk2-ovmf"]
 enable = ["libvirtd.socket"]
 groups = ["libvirt"]
-notes = ["If the default network isn't running, start it with `sudo virsh net-autostart default && sudo virsh net-start default`."]
+notes = ["If the default network isn't running, start it with `run0 virsh net-autostart default && run0 virsh net-start default`."]

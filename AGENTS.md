@@ -12,14 +12,16 @@ Fresh-install setup wizard for Linux (Arch first). Rust workspace; TUI-first; Ap
 | `crates/bindle-cli` | `bindle` binary: clap CLI, ratatui wizard (`src/tui`), `apply.rs` (terminal frontend over `bindle-run`), `whatsnew_cmd.rs` + `tui/whatsnew.rs`, `firstlogin.rs`, `terminal.rs` |
 | `crates/bindo` | `bindo` recipe runner library: TOML `recipe` format, `book` (shipped `recipes/*.toml`, installed modules' `[[module.recipe]]`, then `/usr/share`, `/etc`, `~/.config` overrides), `args`, `show` (listing, help, completions), `exec` (pkexec/run0, never sudo). CLI in `bindle-cli/src/bindo_cmd.rs` |
 | `crates/bindle-upgrade` | `bindleupgrade`: `probe` (looks, no root; `probe_system.rs`), `system` (pure parsers: df, dkms, power, pin, vercmp), pure `plan` (`plan_pre`, `plan_pkgs`, `plan_after`, `plan_close`), `prefs` (`upgrade.toml`), `releases` (pins by install source), `selfupdate` (signed release), `setup` (new features, drift), `run` (+`run_actions`; root helper + user commands, keeps going), `report`. CLI in `bindle-cli/src/upgrade_cmd.rs` |
-| `catalog/` | Module data + `desktops.toml`, embedded at compile time; add files to `ARCH_FILES`; `make check-packages` |
+| `catalog/` | Module data (`arch/*.toml`) + `desktops.toml`, `profiles.toml` (bases and `addon = true` add-ons) and `changes.toml` (What's new: modules added, retired, renamed per version), embedded at compile time; add files to `ARCH_FILES`; `make check-packages` |
 | `packaging/appimage` | `AppRun`, desktop file, `build-appimage.sh` |
-| `packaging/archinstall` | `bindle_plugin.py` (embedded into `bindle iso`) |
-| `install.sh` | curl bootstrap for the live ISO → `bindle iso` |
-| `crates/bindle-cli/src/iso.rs`, `tui/iso.rs` | live-ISO installer flow; preset in `bindle-core/src/install/preset.rs` |
+| `packaging/archinstall` | `bindle_plugin.py` (embedded into `bindle iso` and `bindle install`), `bindle_disk_editor.py` (`bindle install`'s manual partitioning: archinstall's disk menu) |
+| `packaging/polkit` | the polkit action (`io.github.asafelobotomy.bindle.policy`) pkexec shows for the root helper |
+| `install.sh` | curl bootstrap for the live ISO → `bindle install` (no arguments) or `bindle iso` (`iso` or any options) |
+| `crates/bindle-cli/src/install_cmd.rs`, `tui/install/` | `bindle install`: the one-wizard live-ISO install (archinstall unattended underneath) |
+| `crates/bindle-cli/src/iso.rs`, `tui/iso.rs` | `bindle iso`: archinstall's menu with Bindle's preset; preset in `bindle-core/src/install/preset.rs` |
 | `tests/vm/` | QEMU end-to-end install test (`run.sh`, guest scripts); artifacts in git-ignored `.work/` |
 | `branding/` | `bindle.svg` (the icon) and `png/` sizes from `scripts/icons.sh`; rerun it after editing the SVG (a unit test checks) |
-| `docs/` | DESIGN (why), CATALOG (schema), ROADMAP, ISO, ARCHINSTALL (detection, first login, welcome apps), APPLY, DRIVES (fstab, mounting other drives), BINDO (recipes), UPGRADE (bindleupgrade), UPGRADE-PATH (What's new after upgrading Bindle), VM-TEST |
+| `docs/` | DESIGN (why), CATALOG (schema), ROADMAP, ISO, GUI (bindle-gui, the update window, uQ integration), ARCHINSTALL (detection, first login, welcome apps), APPLY, DRIVES (fstab, mounting other drives), BINDO (recipes), UPGRADE (bindleupgrade), UPGRADE-PATH (What's new after upgrading Bindle), VM-TEST |
 
 ## Verify
 

@@ -74,7 +74,7 @@ pub mod qobject {
         #[qinvokable]
         fn continue_in_terminal(self: Pin<&mut Backend>);
         #[qinvokable]
-        fn reboot(self: &Backend);
+        fn reboot(self: Pin<&mut Backend>);
         /// Tick or untick a What's new item.
         #[qinvokable]
         fn toggle_whats_new(self: Pin<&mut Backend>, id: &QString);
@@ -256,10 +256,9 @@ impl Backend {
         if self.rust().applying {
             return;
         }
-        if self.wizard().whats_new_active() && self.real_run() {
-            // Done with this version: it opens by itself again for a newer Bindle.
-            let _ = bindle_run::whatsnew_state::skip_this_version();
-        }
+        // Done with this version once the apply succeeds (as `bindle
+        // whats-new` does): it opens by itself again for a newer Bindle.
+        let whats_new = self.wizard().whats_new_active() && self.real_run();
         let root = self.root();
         let plan = match self.wizard().plan(&root) {
             Ok(p) => p,
@@ -283,10 +282,19 @@ impl Backend {
                     let _ = qt.queue(move |b| b.set_apply_json(QString::from(&text)));
                 };
                 let last = crate::apply::run(&plan, &facts, &sel, sandbox, publish);
+                let note = match whats_new && last.state == "done" {
+                    true => bindle_run::whatsnew_state::skip_this_version()
+                        .err()
+                        .map(|e| format!("Couldn't mark What's new as done: {e:#}")),
+                    false => None,
+                };
                 let text = serde_json::to_string(&last).unwrap_or_default();
                 let _ = qt.queue(move |mut b| {
                     b.as_mut().rust_mut().get_mut().applying = false;
-                    b.set_apply_json(QString::from(&text));
+                    b.as_mut().set_apply_json(QString::from(&text));
+                    if let Some(n) = note {
+                        b.set_notice(QString::from(&n));
+                    }
                 });
             })
             .expect("spawning the apply thread");
@@ -348,9 +356,11 @@ impl Backend {
         self.refresh_whats_new();
     }
 
-    fn reboot(&self) {
-        if self.rust().sandbox.is_empty() {
-            let _ = std::process::Command::new("systemctl").arg("reboot").spawn();
+    fn reboot(mut self: Pin<&mut Self>) {
+        if self.rust().sandbox.is_empty()
+            && let Some(note) = crate::apply::reboot()
+        {
+            self.as_mut().set_notice(QString::from(&note));
         }
     }
 

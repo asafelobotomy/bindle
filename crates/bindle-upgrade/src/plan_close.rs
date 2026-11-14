@@ -56,13 +56,7 @@ pub(super) fn setup(st: &Setup) -> StagePlan {
     StagePlan::new(s, Todo::Report, parts.join("; ")).details(details)
 }
 
-/// Packages whose update takes effect only after a restart.
-pub fn needs_restart(name: &str) -> bool {
-    (name == "linux" || name.starts_with("linux-")) && name != "linux-api-headers"
-        || name.ends_with("-ucode")
-        || name.starts_with("nvidia")
-        || ["mesa", "systemd", "glibc", "dbus", "dbus-broker"].contains(&name)
-}
+pub use bindle_core::restart::needs_restart;
 
 /// Whether to restart, held ("don't restart yet") when a DKMS module isn't
 /// built for an installed kernel or a boot image is missing, with the fix.

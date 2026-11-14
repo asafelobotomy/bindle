@@ -2,18 +2,23 @@
 # First boot of the installed system (test-only service, runs before GDM).
 # Exercises Bindle as the test user, including a real apply.
 echo "BINDLE-VM: CHECK START"
-# Test-only: passwordless sudo for the test user (validated), so apply can run unattended.
-# The include line first, then the rule; a sudoers that doesn't validate stops the test.
-grep -q '^@includedir /etc/sudoers.d' /etc/sudoers || echo '@includedir /etc/sudoers.d' >>/etc/sudoers
-install -m 440 /dev/null /etc/sudoers.d/zz-bindle-vm
-echo 'tester ALL=(ALL:ALL) NOPASSWD: ALL' >/etc/sudoers.d/zz-bindle-vm
-if ! visudo -cq; then
-    echo "BINDLE-VM: sudoers invalid"
-    rm -f /etc/sudoers.d/zz-bindle-vm
-    echo "BINDLE-VM: CHECK FAILED"
-    exit 1
-fi
-echo "BINDLE-VM: sudo rules for tester:"; sudo -l -U tester | tail -n 3
+# Test-only: let the test user approve Bindle's actions without a password.
+# Outside the installer's chroot Bindle asks through polkit (pkexec), never
+# sudo, so a sudoers rule wouldn't help; this rule answers for Bindle only.
+install -d -m 750 /etc/polkit-1/rules.d
+cat >/etc/polkit-1/rules.d/49-bindle-vm-test.rules <<'RULES'
+// Bindle VM test only: never on a real system.
+polkit.addRule(function (action, subject) {
+    if (subject.user !== "tester") return;
+    var program = action.lookup("program") || "";
+    if (action.id === "io.github.asafelobotomy.bindle.apply"
+        || (action.id === "org.freedesktop.policykit.exec"
+            && (program === "/usr/local/bin/bindle" || program.indexOf("/usr/lib/bindle/") === 0))) {
+        return polkit.Result.YES;
+    }
+});
+RULES
+echo "BINDLE-VM: polkit rule for tester installed"
 for _ in $(seq 60); do curl -fsS -o /dev/null --max-time 5 https://archlinux.org && break; sleep 3; done
 as_tester() {
     echo "BINDLE-VM: \$ $*"
@@ -49,8 +54,9 @@ fi
 as_tester "bindle archinstall"
 as_tester "bindle first-login status"
 as_tester "bindle plan --profile $profile$with"
-# script(1) gives apply a terminal so sudo is used, as for a real user. With extra
-# modules, --replace-conflicts does what the first-login wizard does (it always replaces).
+# script(1) gives apply a terminal, as for a real user; pkexec is approved by
+# the test rule above. With extra modules, --replace-conflicts does what the
+# first-login wizard does (it always replaces).
 as_tester "script -qec 'bindle apply --profile $profile$with --yes${with:+ --replace-conflicts}' /dev/null"
 as_tester "bindle undo --list"
 echo "BINDLE-VM: second plan (should only contain non-idempotent leftovers):"

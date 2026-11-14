@@ -131,8 +131,9 @@ pub fn run(
             // made, also after a failed step, so a retry starts from it.
             if sandbox.is_none()
                 && let Some(path) = selection::default_path()
+                && let Err(e) = selection::save(sel, &path)
             {
-                let _ = selection::save(sel, &path);
+                r.state.push_log(format!("Couldn't save your choices for next time: {e:#}"));
             }
             match report.failed {
                 Some((i, e)) => {
@@ -173,6 +174,12 @@ pub fn continue_in_terminal(sel: &Selection) -> anyhow::Result<()> {
     selection::save(sel, &file)?;
     std::process::Command::new(exe).arg("in-terminal").arg("apply").arg("--from").arg(&file).spawn()?;
     Ok(())
+}
+
+/// Restart the computer; the error, as a line for the window, when
+/// `systemctl reboot` couldn't start.
+pub fn reboot() -> Option<String> {
+    std::process::Command::new("systemctl").arg("reboot").spawn().err().map(|e| format!("Couldn't restart: {e}"))
 }
 
 /// `bindle undo` in a terminal, where it can ask for the password and

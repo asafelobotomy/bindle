@@ -40,8 +40,11 @@ greeter = "sddm"
 # No file manager, viewers or calculator of its own: the `everyday-apps` module adds Qt's.
 everyday = "qt"
 # grim, satty, slurp and wl-clipboard are uQ's screenshot tool (Print); gnome-keyring keeps
-# saved passwords, unlocked at login. The text editor is its own module (`apps` above).
-essentials = ["kitty", "papirus-icon-theme", "ttf-jetbrains-mono", "inter-font", "wireplumber", "playerctl", "networkmanager", "grim", "satty", "slurp", "wl-clipboard", "gnome-keyring"]
+# saved passwords, unlocked at login. hyprlock is the fallback lock for uQ's SUPER+CTRL+L
+# recovery bind, and sound-theme-freedesktop the Sound page's test sound (both optdepends of
+# uq; Hyprland's essentials, which have hyprlock, are replaced by these). The text editor is
+# its own module (`apps` above).
+essentials = ["kitty", "papirus-icon-theme", "ttf-jetbrains-mono", "inter-font", "wireplumber", "playerctl", "networkmanager", "grim", "satty", "slurp", "wl-clipboard", "gnome-keyring", "hyprlock", "sound-theme-freedesktop"]
 bt = ["bluez"]
 notes = ["uQ comes from the AUR; Bindle then runs `uqctl setup --apps` as you and turns on uQ's login screen. Restart to log in to uQ."]
 
@@ -180,10 +183,10 @@ archinstall = ["hyprland", "dunst", "kitty", "uwsm", "dolphin", "wofi", "xdg-des
 greeter = "sddm"
 # Only Dolphin of its own: the `everyday-apps` module adds the rest of Qt's set.
 everyday = "qt"
-essentials = ["waybar", "hyprpaper", "hyprlock", "hypridle", "hyprpolkitagent", "xdg-desktop-portal-gtk", "pavucontrol", "brightnessctl", "wl-clipboard", "cliphist", "nwg-look", "satty"]
+essentials = ["waybar", "hyprpaper", "hyprlock", "hypridle", "hyprpolkitagent", "xdg-desktop-portal-gtk", "pavucontrol", "brightnessctl", "wl-clipboard", "nwg-look", "satty"]
 nm = ["network-manager-applet"]
 bt = ["blueman"]
-notes = ["archinstall's Hyprland is bare: no bar, wallpaper, lock or idle daemon. Bindle adds the Hypr* ecosystem.", "Print takes no screenshot until you bind it: `grim -g \"$(slurp)\" - | satty -f -` (Bindle adds grim, slurp and satty)."]
+notes = ["archinstall's Hyprland is bare: no bar, wallpaper, lock or idle daemon. Bindle adds the Hypr* ecosystem.", "Print takes no screenshot until you bind it: `grim -g \"$(slurp)\" - | satty -f -` (archinstall installs grim and slurp; Bindle adds satty)."]
 
 [[desktop]]
 id = "sway"
@@ -199,7 +202,7 @@ everyday = "gtk"
 essentials = ["mako", "wl-clipboard", "xdg-desktop-portal-wlr", "xdg-desktop-portal-gtk", "polkit-gnome", "satty"]
 nm = ["network-manager-applet"]
 bt = ["blueman"]
-notes = ["Print takes no screenshot until you bind it: `grim -g \"$(slurp)\" - | satty -f -` (Bindle adds grim, slurp and satty)."]
+notes = ["Print takes no screenshot until you bind it: `grim -g \"$(slurp)\" - | satty -f -` (archinstall installs grim and slurp; Bindle adds satty)."]
 
 [[desktop]]
 id = "niri"

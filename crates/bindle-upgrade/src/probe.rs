@@ -88,6 +88,9 @@ pub struct After {
     /// greetd (uQ's login screen) is the display manager.
     pub greeter: bool,
     pub setup: Setup,
+    /// Checks that failed, by the stage they feed: shown as "couldn't
+    /// check", so a failure never reads as "nothing to do".
+    pub unchecked: Vec<(Stage, String)>,
 }
 
 impl Default for Probe {
@@ -196,22 +199,37 @@ pub fn gather(
     if installed.contains_key("uq-hyprland-pin") {
         p.pin = Some(look::pin());
     }
+    let mut unchecked = vec![];
     if enabled(Stage::Releases) {
-        p.releases = release_updates(catalog, &installed);
+        let (newer, problem) = release_updates(catalog, &installed);
+        p.releases = newer;
+        unchecked.extend(problem.map(|why| (Stage::Releases, why)));
     }
     note("Looking at kernels, services and Bindle's setup");
     p.after = after();
+    p.after.unchecked.extend(unchecked);
     p
 }
 
 /// Leftovers and the kernel, looked at before and again after upgrading.
 pub fn after() -> After {
     let running = fs::read_to_string("/proc/sys/kernel/osrelease").unwrap_or_default().trim().to_string();
+    let mut unchecked = vec![];
+    let pacfiles = pacfiles().unwrap_or_else(|e| {
+        unchecked.push((Stage::Pacfiles, e));
+        vec![]
+    });
+    let orphans = pacman_list(&["pacman", "-Qdtq"]).unwrap_or_else(|e| {
+        unchecked.push((Stage::Orphans, e));
+        vec![]
+    });
+    if running.is_empty() {
+        unchecked.push((Stage::Reboot, "couldn't read the running kernel (/proc/sys/kernel/osrelease)".into()));
+    }
     After {
-        pacfiles: pacfiles(),
-        orphans: capture(&["pacman", "-Qdtq"])
-            .map(|(_, out, _)| out.lines().map(String::from).collect())
-            .unwrap_or_default(),
+        unchecked,
+        pacfiles,
+        orphans,
         kernel_modules_present: running.is_empty() || Path::new("/usr/lib/modules").join(&running).is_dir(),
         running_kernel: running,
         kernels: look::kernels(),
@@ -285,7 +303,19 @@ fn installed_versions() -> BTreeMap<String, String> {
         .unwrap_or_default()
 }
 
-fn release_updates(catalog: &Catalog, installed: &BTreeMap<String, String>) -> Vec<Newer> {
+/// `pacman -Q…q`: exit 1 with no output means none, anything else failing
+/// is an error.
+fn pacman_list(argv: &[&str]) -> Result<Vec<String>, String> {
+    match capture(argv)? {
+        (0, out, _) => Ok(out.lines().map(String::from).collect()),
+        (1, out, _) if out.trim().is_empty() => Ok(vec![]),
+        (code, _, err) => Err(format!("{} failed ({code}): {}", argv.join(" "), first_line(&err))),
+    }
+}
+
+/// Newer pins, and why the check was incomplete (pacman's list of foreign
+/// packages tells Bindle's own installs from the AUR's).
+fn release_updates(catalog: &Catalog, installed: &BTreeMap<String, String>) -> (Vec<Newer>, Option<String>) {
     let home = env::var_os("HOME").map(std::path::PathBuf::from);
     let at_least = |a: &str, b: &str| {
         capture(&["vercmp", a, b]).is_ok_and(|(_, out, _)| out.trim().parse::<i32>().is_ok_and(|c| c >= 0))
@@ -294,28 +324,32 @@ fn release_updates(catalog: &Catalog, installed: &BTreeMap<String, String>) -> V
         let home = home.as_ref()?;
         fs::read_to_string(home.join(a.desktop_entry().trim_start_matches("~/"))).ok()
     };
-    let foreign: BTreeSet<String> =
-        capture(&["pacman", "-Qmq"]).map(|(_, out, _)| out.lines().map(String::from).collect()).unwrap_or_default();
+    let (foreign, problem): (BTreeSet<String>, _) = match pacman_list(&["pacman", "-Qmq"]) {
+        Ok(l) => (l.into_iter().collect(), None),
+        // Unknown: nothing counts as foreign, so a foreign copy could look
+        // like Bindle's. Skip these updates rather than guess.
+        Err(e) => return (vec![], Some(format!("{e}; Bindle apps not checked"))),
+    };
     let recorded: BTreeSet<String> = bindle_run::snapshot::list(Path::new("/"))
         .into_iter()
         .flat_map(|m| m.releases.into_iter().chain(m.packages))
         .collect();
     let source = |n: &str| releases::classify(n, &foreign, &recorded);
-    releases::newer(&releases::pinned(catalog), &|n| installed.get(n).cloned(), &at_least, &source, &entry)
+    (releases::newer(&releases::pinned(catalog), &|n| installed.get(n).cloned(), &at_least, &source, &entry), problem)
 }
 
 /// `.pacnew` and `.pacsave` files: pacdiff knows where to look (from
 /// pacman's database); without it, a search of /etc.
-fn pacfiles() -> Vec<String> {
+fn pacfiles() -> Result<Vec<String>, String> {
     let found = if on_path("pacdiff") {
         capture(&["pacdiff", "--output"])
     } else {
         capture(&["find", "/etc", "(", "-name", "*.pacnew", "-o", "-name", "*.pacsave", ")", "-print"])
     };
-    let mut files: Vec<String> = found
-        .map(|(_, out, _)| out.lines().map(str::trim).filter(|l| l.starts_with('/')).map(String::from).collect())
-        .unwrap_or_default();
+    // find reports unreadable root-only folders and exits 1: keep what it found.
+    let mut files: Vec<String> =
+        found?.1.lines().map(str::trim).filter(|l| l.starts_with('/')).map(String::from).collect();
     files.sort();
     files.dedup();
-    files
+    Ok(files)
 }

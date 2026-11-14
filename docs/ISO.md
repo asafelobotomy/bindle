@@ -64,9 +64,10 @@ install.sh ──► bindle iso ──► pre-install screen ──► archinsta
                                 (desktop + profile)        │ you set disks, users, hostname, locale
                                                            │ on_install hook: Bindle copied into /mnt,
                                                            │   first-login autostart, chosen profile
+                                                           │ last hook: the profile applied in arch-chroot
                                                            ▼
-                                                 reboot ──► first login ──► Bindle wizard
-                                                                           (profile pre-selected)
+                                                 reboot ──► first login ──► the desktop
+                                                                           (Bindle opens only if a step failed)
 ```
 
 1. **install.sh** checks it's on the live ISO (it refuses elsewhere because
@@ -78,9 +79,10 @@ install.sh ──► bindle iso ──► pre-install screen ──► archinsta
 2. **Pre-install screen**: pick a desktop (any of archinstall's 21, uQ, or "choose in
    archinstall") and a Bindle profile. The right pane shows what archinstall
    will be pre-filled with, based on the detected hardware. The recommended desktop
-   is pre-selected; while uQ is a preview, nothing is. uQ has no archinstall profile:
-   archinstall installs Hyprland with SDDM, and the first-login selection adds the
-   `uq` module, which builds uQ from the AUR and runs `uqctl setup --apps` as you.
+   is pre-selected. uQ has no archinstall profile: archinstall installs Hyprland with
+   SDDM, and the selection adds the `uq` module, which Bindle applies before the reboot
+   (step 5): it builds uQ from the AUR, runs `uqctl setup --apps` as you and switches
+   to uQ's own login screen.
 3. **archinstall** opens its normal menu with Bindle's preset loaded. You still set
    the disk layout, users, hostname, locale and timezone, and can change anything else.
 4. **Bindle's archinstall plugin** runs at archinstall's `on_install` hook (base system
@@ -121,7 +123,7 @@ install.sh ──► bindle iso ──► pre-install screen ──► archinsta
 | Setting | Value | Why |
 |---|---|---|
 | Desktop + greeter | your pick, with archinstall's default greeter | |
-| Graphics driver | from detected GPUs (NVIDIA → open kernel module; AMD+Intel → all open-source) | archinstall makes you choose blind |
+| Graphics driver | from detected GPUs (NVIDIA Turing and newer → open kernel module; older NVIDIA → nouveau, "All open-source" on hybrids; AMD+Intel → all open-source) | archinstall makes you choose blind; nvidia-open can't drive pre-Turing cards |
 | Audio | PipeWire | |
 | Network | NetworkManager | archinstall's iwd-only option leaves desktop network panels empty |
 | Swap | zram, zstd | |

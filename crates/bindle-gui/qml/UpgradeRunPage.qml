@@ -206,27 +206,12 @@ ColumnLayout {
             }
         }
 
-        Panel {
+        LogView {
             Layout.fillWidth: true
             Layout.fillHeight: true
             Layout.preferredWidth: 2
             visible: (page.run.log || []).length > 0 && (!page.ended || logToggle.open)
-            color: Theme.surfaceAlt
-            ListView {
-                anchors.fill: parent
-                clip: true
-                model: page.run.log || []
-                onCountChanged: positionViewAtEnd()
-                delegate: QQC2.Label {
-                    required property string modelData
-                    width: ListView.view.width
-                    text: modelData
-                    wrapMode: Text.WrapAnywhere
-                    color: Theme.textMuted
-                    font.family: Theme.fontMono
-                    font.pointSize: Theme.smallSize
-                }
-            }
+            lines: page.run.log || []
         }
     }
 

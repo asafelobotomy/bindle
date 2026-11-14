@@ -21,8 +21,8 @@ starts and there is something in it, until you are done with this version:
 (s), or applying, stops it opening by itself until a newer Bindle. "Hide"
 (h) removes one item for good, remembered by its content, so a later Bindle
 that changes it again shows it again (`~/.local/state/bindle/whats-new.json`;
-`--all` shows hidden items). after bindleupgrade updates Bindle
-itself (asked on a terminal, otherwise a notification with Review); and from
+`--all` shows hidden items). It also opens after bindleupgrade updates Bindle
+itself (asked on a terminal, otherwise a notification with Review), and from
 bindleupgrade's "Bindle setup" stage and the update window's What's new button.
 
 ## How it works

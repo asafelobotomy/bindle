@@ -65,8 +65,46 @@ pub fn user_path() -> Option<PathBuf> {
     Some(state.join("bindle/record.json"))
 }
 
+/// The ledger for reading: missing or unreadable reads as empty (What's new
+/// then falls back to the snapshots).
 pub fn load(path: &Path) -> Ledger {
-    fs::read_to_string(path).ok().and_then(|t| serde_json::from_str(&t).ok()).unwrap_or_default()
+    read(path).unwrap_or_default()
+}
+
+/// Missing is empty; anything else that stops it reading is an error.
+fn read(path: &Path) -> Result<Ledger> {
+    match fs::read_to_string(path) {
+        Ok(text) => Ok(serde_json::from_str(&text)?),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Ledger::default()),
+        Err(e) => Err(e.into()),
+    }
+}
+
+/// The ledger to add to. A damaged one is kept beside it as
+/// `record.json.damaged` instead of being written over, and a fresh
+/// ledger starts: the next save would otherwise erase every entry.
+fn load_for_update(path: &Path) -> Result<Ledger> {
+    match read(path) {
+        Ok(l) => Ok(l),
+        Err(e) if e.is::<serde_json::Error>() => {
+            fs::rename(path, path.with_extension("json.damaged"))?;
+            Ok(Ledger::default())
+        }
+        Err(e) => Err(e),
+    }
+}
+
+/// Add one apply's entries to the ledger at `path`.
+pub fn add_to(
+    path: &Path,
+    apply: &str,
+    version: &str,
+    record: &BTreeMap<String, Content>,
+    forget: &[String],
+) -> Result<()> {
+    let mut l = load_for_update(path)?;
+    l.add(apply, version, record, forget);
+    save(path, &l)
 }
 
 pub fn save(path: &Path, ledger: &Ledger) -> Result<()> {
@@ -81,16 +119,13 @@ pub fn on_complete(root: &Path, m: &Manifest) -> Result<()> {
     if m.record.is_empty() && m.forget.is_empty() {
         return Ok(());
     }
-    let path = host(root, SYSTEM);
-    let mut l = load(&path);
-    l.add(&m.id, &m.version, &m.record, &m.forget);
-    save(&path, &l)
+    add_to(&host(root, SYSTEM), &m.id, &m.version, &m.record, &m.forget)
 }
 
 /// The helper, once `bindle undo` restored an apply.
 pub fn on_undone(root: &Path, id: &str) -> Result<()> {
     let path = host(root, SYSTEM);
-    let mut l = load(&path);
+    let mut l = load_for_update(&path)?;
     let before = l.entries.len();
     l.drop_apply(id);
     if l.entries.len() == before { Ok(()) } else { save(&path, &l) }
@@ -151,6 +186,23 @@ mod tests {
         .unwrap();
         m.record = record;
         m
+    }
+
+    #[test]
+    fn a_damaged_ledger_is_kept_aside_not_written_over() {
+        let dir = crate::sys::test_dir("record-damaged");
+        let path = dir.join("record.json");
+        add_to(&path, "20261101-100000", "0.1.8", &rec(&[("printing", c(&["cups"]))]), &[]).unwrap();
+        assert_eq!(load(&path).entries.len(), 1);
+        fs::write(&path, "{ not json").unwrap();
+        assert!(load(&path).entries.is_empty(), "readers carry on with nothing");
+        add_to(&path, "20261102-100000", "0.1.9", &rec(&[("rustup", c(&["rustup"]))]), &[]).unwrap();
+        assert_eq!(fs::read_to_string(dir.join("record.json.damaged")).unwrap(), "{ not json");
+        assert_eq!(load(&path).entries.len(), 1, "a fresh ledger with the new apply");
+        // Missing is simply empty, and on_undone of nothing writes nothing.
+        let fresh = dir.join("none.json");
+        assert!(read(&fresh).unwrap().entries.is_empty());
+        fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]

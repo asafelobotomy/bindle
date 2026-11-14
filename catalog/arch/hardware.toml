@@ -18,7 +18,7 @@ builtin = "gpu"
 id = "nvidia-legacy"
 group = "Graphics & sound"
 name = "NVIDIA driver for older cards (580xx)"
-description = "NVIDIA's own driver for GTX 700 (Maxwell), 900 and 10 series and Titan V cards, which the current driver no longer supports. Recommended over the open-source nouveau driver: full speed, video decoding and power management."
+description = "NVIDIA's own driver for GTX 750/750 Ti, 900 and 10 series and Titan V cards, which the current driver no longer supports. Recommended over the open-source nouveau driver: full speed, video decoding and power management."
 default = true
 when = ["nvidia-legacy", "distro:arch"]
 requires = ["aur-helper"]
@@ -152,7 +152,7 @@ id = "scanning-qt"
 group = "Printing & scanning"
 name = "Scanning (Skanpage)"
 description = "SANE with driverless network scanning (eSCL/WSD) and KDE's Skanpage."
-when = ["toolkit:qt"]
+when = ["desktop", "toolkit:qt"]
 profiles = ["desktop", "gaming", "developer"]
 packages = ["sane", "sane-airscan", "skanpage"]
 
@@ -161,7 +161,7 @@ id = "scanning-gtk"
 group = "Printing & scanning"
 name = "Scanning (Document Scanner)"
 description = "SANE with driverless network scanning (eSCL/WSD) and GNOME's Document Scanner."
-when = ["!toolkit:qt"]
+when = ["desktop", "!toolkit:qt"]
 profiles = ["desktop", "gaming", "developer"]
 packages = ["sane", "sane-airscan", "simple-scan"]
 
@@ -188,7 +188,7 @@ name = "OpenRGB"
 description = "Control RGB lighting on motherboards, RAM, GPUs and peripherals from one app."
 when = ["!virt"]
 packages = ["openrgb"]
-notes = ["Some motherboard and RAM lighting needs the i2c-dev module: `echo i2c-dev | sudo tee /etc/modules-load.d/i2c.conf`."]
+notes = ["Some motherboard and RAM lighting needs the i2c-dev module: `echo i2c-dev | run0 tee /etc/modules-load.d/i2c.conf`."]
 
 [[module]]
 id = "android-tools"

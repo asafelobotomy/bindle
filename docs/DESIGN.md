@@ -34,7 +34,7 @@ These shaped every decision below:
 
 ```
 ┌──────────────── bindle (single static binary, packaged as AppImage) ───────────────┐
-│  frontends:  TUI wizard (ratatui) │ CLI (detect/list/plan/apply) │ GUI (Kirigami)    │
+│  frontends:  TUI wizard (ratatui) │ CLI (detect/list/plan/apply) │ bindle-gui*      │
 │                         └────────────── all produce a Selection ──────────────┘       │
 │  bindle-core:  detect ─► Facts ─┐                                                  │
 │                catalog (TOML) ──┼─► plan::resolve ─► Plan { steps[] }  (pure, JSON) │
@@ -42,6 +42,9 @@ These shaped every decision below:
 │  bindle-run:   apply (Progress) ─► user-side steps ◄──► root helper (pkexec)       │
 └────────────────────────────────────────────────────────────────────────────────────┘
 ```
+
+\* `bindle-gui` (Kirigami) is a separate binary linked against the system's Qt 6,
+installed next to `bindle`; it is not in the AppImage.
 
 ### Catalog: data, not code
 
@@ -52,7 +55,9 @@ options, repos, commands, `requires`/`conflicts`, `when` conditions, `profiles`
 and a `risk` level. See [CATALOG.md](CATALOG.md).
 
 Where the right answer depends on hardware, a module names a **builtin**
-(`gpu`, `microcode`, `zram`, `aur-helper`) that expands from detected facts.
+(`gpu`, `nvidia-legacy`, `microcode`, `zram`, `aur-helper`, `desktop`,
+`everyday`, `spellcheck`, and `mount:<uuid>` for each drive module) that
+expands from detected facts.
 
 ### Plan / apply split
 
@@ -102,7 +107,8 @@ powerful as sudo; see [APPLY.md](APPLY.md#trust-model).
 Bindle's `zram` module covers the common case: zram-generator sized by RAM
 tier (XZram's matrix), zstd, swap-tuned sysctls, zswap off. XZram stays the
 tool for ongoing swap management (overflow swapfiles, priorities, snapshots,
-doctor). A later module can offer "install XZram" for users who want it.
+doctor). The `xzram` module installs XZram (its CLI and Qt GUI, from its
+release packages) for users who want it; it conflicts with `zram`.
 
 ## Starting point: an archinstall desktop install
 
@@ -114,8 +120,9 @@ offers. Details: [ARCHINSTALL.md](ARCHINSTALL.md).
 ## Detection (no root)
 
 `/etc/os-release`, `/proc/{cpuinfo,meminfo,mounts,swaps,cmdline}`,
-`/sys/class/drm/*/device/{vendor,device}` (GPU vendor; NVIDIA device id decides
-nvidia-open vs. nouveau, since nvidia-open needs Turing, id ≥ 0x1e00),
+`/sys/class/drm/*/device/{vendor,device}` (GPU vendor; the NVIDIA device id picks
+the driver: `nvidia-open` for Turing and newer, id ≥ 0x1e00; `nvidia-580xx` from
+the AUR for Maxwell, Pascal and Volta, id ≥ 0x1340; nouveau for older cards),
 `/sys/block/*/queue/rotational`, `lsblk --json` and `/etc/fstab` (other drives), `/sys/class/power_supply` (ignoring `scope=Device`
 peripheral batteries) and `/sys/class/dmi/id/chassis_type`, `/sys/class/bluetooth`,
 `systemd-detect-virt`, the `LoaderInfo` EFI variable (bootloader; `/boot` is often

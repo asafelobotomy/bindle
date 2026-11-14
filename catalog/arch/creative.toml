@@ -95,9 +95,9 @@ risk = "moderate"
 package_conflicts = ["photocraft", "photocraft-bin", "photocraft-git"]
 [[module.release]]
 repo = "storytold/photocraft"
-tag = "v0.21.0"
-asset = "photocraft-0.21.0-linux-x86_64.pkg.tar.zst"
-sha256 = "5f2e6bc56496eba4548f3945fc8dbd54cfbb121557dca574143f64e0b2c2b00b"
+tag = "v0.23.1"
+asset = "photocraft-0.23.1-linux-x86_64.pkg.tar.zst"
+sha256 = "6f55b05a7880a6db38374ac7985730304bcc9b499dae0f18f9d2dbd6bbb8d201"
 name = "ai.storyteller.photocraft"
 
 [[module]]
@@ -109,9 +109,9 @@ risk = "moderate"
 package_conflicts = ["lightcraft", "lightcraft-bin", "lightcraft-git"]
 [[module.release]]
 repo = "storytold/lightcraft"
-tag = "v0.19.0"
-asset = "lightcraft-0.19.0-linux-x86_64.pkg.tar.zst"
-sha256 = "9649ac41a7aa8a1d04296dce6398844905ae8975cbb57bed10cf5cb18e213274"
+tag = "v0.21.1"
+asset = "lightcraft-0.21.1-linux-x86_64.pkg.tar.zst"
+sha256 = "84c8ac2a29611665f7e4b1078b7b1503b0564225f4ab1285448963aa92f4fec0"
 name = "ai.storyteller.lightcraft"
 
 [[module]]
@@ -123,9 +123,9 @@ risk = "moderate"
 package_conflicts = ["filmcraft", "filmcraft-bin", "filmcraft-git"]
 [[module.release]]
 repo = "storytold/filmcraft"
-tag = "v0.18.0"
-asset = "filmcraft-0.18.0-linux-x86_64.pkg.tar.zst"
-sha256 = "33c83286710f24b2f4f40987cc0febb6b96d409417b8d59b2cf35aa70ff0debd"
+tag = "v0.20.1"
+asset = "filmcraft-0.20.1-linux-x86_64.pkg.tar.zst"
+sha256 = "bbdee1fe9e8671094e4e548d3920a808b7c7411a802d743b19158753d951d722"
 name = "ai.storyteller.filmcraft"
 
 [[module]]
@@ -137,9 +137,9 @@ risk = "moderate"
 package_conflicts = ["vectorcraft", "vectorcraft-bin", "vectorcraft-git"]
 [[module.release]]
 repo = "storytold/vectorcraft"
-tag = "v0.22.0"
-asset = "vectorcraft-0.22.0-linux-x86_64.pkg.tar.zst"
-sha256 = "b3eb5e36fe0d724bc2db755041bdfbee8a9cbf44c7ccce63d5e83f5a5e91adb3"
+tag = "v0.24.1"
+asset = "vectorcraft-0.24.1-linux-x86_64.pkg.tar.zst"
+sha256 = "8fe8af94743dce6d6129947e860341bcb76356178149b6de8b1ef30792d5c6fe"
 name = "ai.storyteller.vectorcraft"
 
 [[module]]
@@ -151,9 +151,9 @@ risk = "moderate"
 package_conflicts = ["effectcraft", "effectcraft-bin", "effectcraft-git"]
 [[module.release]]
 repo = "storytold/effectcraft"
-tag = "v0.22.0"
-asset = "effectcraft-0.22.0-linux-x86_64.pkg.tar.zst"
-sha256 = "e260841f704b623c5d7d887eebb83f9dcb0ff952064da2b6b1749f21851e5330"
+tag = "v0.24.1"
+asset = "effectcraft-0.24.1-linux-x86_64.pkg.tar.zst"
+sha256 = "438cec894542593369b90ddc6842501e12fb39ee34a5f210f09e93255417eed4"
 name = "ai.storyteller.effectcraft"
 
 [[module]]
@@ -165,9 +165,9 @@ risk = "moderate"
 package_conflicts = ["designcraft", "designcraft-bin", "designcraft-git"]
 [[module.release]]
 repo = "storytold/designcraft"
-tag = "v0.18.0"
-asset = "designcraft-0.18.0-linux-x86_64.pkg.tar.zst"
-sha256 = "2a26898c08baa7c779dd13e8a1184c47ab3cb509bee79b0595f4c7df3e2ee15e"
+tag = "v0.20.1"
+asset = "designcraft-0.20.1-linux-x86_64.pkg.tar.zst"
+sha256 = "50744692323feb1805ffe2bab1dc30af3d5d958e88b94cc9f36959bbb46fac67"
 name = "ai.storyteller.designcraft"
 
 [[module]]
@@ -179,9 +179,9 @@ risk = "moderate"
 package_conflicts = ["pdfcraft", "pdfcraft-bin", "pdfcraft-git"]
 [[module.release]]
 repo = "storytold/pdfcraft"
-tag = "v0.19.0"
-asset = "pdfcraft-0.19.0-linux-x86_64.pkg.tar.zst"
-sha256 = "67d3450d28ec6bdfa18db0517b8f98be12a3eb2e88e1ecdb60ed9978362dd3fa"
+tag = "v0.21.1"
+asset = "pdfcraft-0.21.1-linux-x86_64.pkg.tar.zst"
+sha256 = "1fb565339968cb12947544ec3b74472ef4ea196c308ea3c0efdaf1ca566046e5"
 name = "ai.storyteller.pdfcraft"
 
 [[module]]
@@ -193,9 +193,9 @@ risk = "moderate"
 package_conflicts = ["wordcraft", "wordcraft-bin", "wordcraft-git"]
 [[module.release]]
 repo = "storytold/wordcraft"
-tag = "v0.16.0"
-asset = "wordcraft-0.16.0-linux-x86_64.pkg.tar.zst"
-sha256 = "c2db5045ba4111f3215a0d97f58ad79960b7cf1041e4561b4d960c054fe807ae"
+tag = "v0.18.1"
+asset = "wordcraft-0.18.1-linux-x86_64.pkg.tar.zst"
+sha256 = "5b1b2851bdebf75a23f2ce2efdbda2b2b542749b9fe653f9b7b16dc209dcbb64"
 name = "ai.storyteller.wordcraft"
 
 [[module]]
@@ -207,9 +207,9 @@ risk = "moderate"
 package_conflicts = ["deckcraft", "deckcraft-bin", "deckcraft-git"]
 [[module.release]]
 repo = "storytold/deckcraft"
-tag = "v0.16.0"
-asset = "deckcraft-0.16.0-linux-x86_64.pkg.tar.zst"
-sha256 = "c713c16029d49d7964d057cde9316b604f10644ecbb456a1aca3625f50d61fc0"
+tag = "v0.18.1"
+asset = "deckcraft-0.18.1-linux-x86_64.pkg.tar.zst"
+sha256 = "ecd7d10ac3792ea9e0949baab81c264b2fe615d5c1e2b5a85b9611ac9c7d4d1b"
 name = "ai.storyteller.deckcraft"
 
 [[module]]
@@ -221,7 +221,7 @@ risk = "moderate"
 package_conflicts = ["gridcraft", "gridcraft-bin", "gridcraft-git"]
 [[module.release]]
 repo = "storytold/gridcraft"
-tag = "v0.17.0"
-asset = "gridcraft-0.17.0-linux-x86_64.pkg.tar.zst"
-sha256 = "e76967eea8f5fd8de0d0d4808cbade6fa236126f338cb870c448bcc14f9600a3"
+tag = "v0.19.1"
+asset = "gridcraft-0.19.1-linux-x86_64.pkg.tar.zst"
+sha256 = "ab8f44806b81e79ead6d408bf8f9f63bb896330380ec30a71b70359edcf66d44"
 name = "ai.storyteller.gridcraft"

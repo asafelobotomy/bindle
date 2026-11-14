@@ -1,6 +1,6 @@
 .PHONY: check test lint fmt run appimage appdir check-packages gui gui-test gui-shots
 
-# The default workspace members: core, run, cli. No Qt needed.
+# The default workspace members: core, run, cli, bindo, upgrade. No Qt needed.
 check:
 	cargo check
 

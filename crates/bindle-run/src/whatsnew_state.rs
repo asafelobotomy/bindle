@@ -56,8 +56,26 @@ fn path() -> Option<PathBuf> {
     Some(state.join("bindle/whats-new.json"))
 }
 
+/// For reading: missing or unreadable reads as nothing hidden or skipped.
 pub fn load() -> State {
     path().and_then(|p| fs::read_to_string(p).ok()).and_then(|t| serde_json::from_str(&t).ok()).unwrap_or_default()
+}
+
+/// For changing: a damaged file is kept beside it (`.damaged`) rather than
+/// written over with only the one new change.
+fn load_for_update() -> Result<State> {
+    let Some(p) = path() else { return Ok(State::default()) };
+    match fs::read_to_string(&p) {
+        Ok(text) => match serde_json::from_str(&text) {
+            Ok(s) => Ok(s),
+            Err(_) => {
+                fs::rename(&p, p.with_extension("json.damaged"))?;
+                Ok(State::default())
+            }
+        },
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(State::default()),
+        Err(e) => Err(e.into()),
+    }
 }
 
 fn save(s: &State) -> Result<()> {
@@ -69,13 +87,13 @@ fn save(s: &State) -> Result<()> {
 
 /// Done with this version (applied, or skipped).
 pub fn skip_this_version() -> Result<()> {
-    let mut s = load();
+    let mut s = load_for_update()?;
     s.skipped = Some(VERSION.into());
     save(&s)
 }
 
 pub fn hide(i: &Item) -> Result<()> {
-    let mut s = load();
+    let mut s = load_for_update()?;
     s.hidden.insert(item_key(i));
     save(&s)
 }

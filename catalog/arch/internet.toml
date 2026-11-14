@@ -9,6 +9,7 @@ id = "firefox"
 group = "Browsers"
 name = "Firefox"
 description = "Mozilla's web browser."
+when = ["desktop"]
 profiles = ["desktop", "gaming", "developer"]
 packages = ["firefox"]
 
@@ -166,7 +167,7 @@ name = "Tailscale"
 description = "WireGuard mesh VPN between your devices."
 packages = ["tailscale"]
 enable = ["tailscaled.service"]
-notes = ["Run `sudo tailscale up` afterwards to sign in."]
+notes = ["Run `run0 tailscale up` afterwards to sign in."]
 
 [[module]]
 id = "scale_tail"
@@ -177,9 +178,9 @@ requires = ["tailscale"]
 packages = ["fuse2"]
 [[module.release]]
 repo = "asafelobotomy/scale_tail"
-tag = "v0.5.1"
-asset = "scale_tail-0.5.1-x86_64.AppImage"
-sha256 = "b1f2b583d2e25ed7df1b23a237a39d608a11958807981b63e9b1ed5f01df3ef5"
+tag = "v0.6.0"
+asset = "scale_tail-0.6.0-x86_64.AppImage"
+sha256 = "edb335b9283154568d3e71ff4760b2ad8eac5d0f25839817bdcc0c9b551bc057"
 name = "scale_tail"
 
 [[module]]
@@ -206,8 +207,11 @@ id = "qbit-plugin-dl"
 group = "Downloads"
 name = "qbit Plugin Manager"
 description = "Finds and installs qBittorrent search plugins from allowlisted catalogs. By asafelobotomy."
+notes = ["Works with qBittorrent or qBittorrent Enhanced Edition: install one of them too."]
+# No `requires`: it would pull in plain qbittorrent, which conflicts with the
+# Enhanced fork. `when = ["installed:qbittorrent"]` would hide it on a fresh plan
+# that selects either client in the same run, so it stands alone with a note.
 packages = ["fuse2"]
-requires = ["qbittorrent"]
 [[module.release]]
 repo = "asafelobotomy/qbit-plugin-dl"
 tag = "v0.2.1"

@@ -4,7 +4,7 @@
 //! the commands it would run.
 
 use std::fs::{self, OpenOptions};
-use std::io::{self, BufRead, Write};
+use std::io::{self, BufRead, Read, Write};
 use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 
@@ -33,7 +33,8 @@ pub struct HelperOpts {
 struct Helper {
     opts: HelperOpts,
     log: Option<fs::File>,
-    out: io::Stdout,
+    /// Events go here: stdout, or a buffer in tests.
+    out: Box<dyn Write>,
     /// Snapshot of this session, for files that appear after it was taken.
     snapshot: Option<String>,
 }
@@ -54,7 +55,7 @@ pub fn serve(opts: HelperOpts) -> Result<()> {
     // Never follow a symlink planted at the log path.
     let log = OpenOptions::new().create(true).append(true).mode(0o600).custom_flags(libc::O_NOFOLLOW).open(&log_path);
     let log_error = log.as_ref().err().map(|e| format!("warning: no log at {}: {e}", log_path.display()));
-    let mut h = Helper { opts, log: log.ok(), out: io::stdout(), snapshot: None };
+    let mut h = Helper { opts, log: log.ok(), out: Box::new(io::stdout()), snapshot: None };
     h.emit(&Event::Hello { version: VERSION.into() });
     if let Some(warning) = log_error {
         h.emit(&Event::Output { line: warning });
@@ -164,7 +165,10 @@ impl Helper {
                 let mut argv =
                     vec!["pacman".to_string(), "-U".into(), "--needed".into(), "--noconfirm".into(), "--".into()];
                 argv.extend(copies);
-                self.cmd_owned(&argv).map(|()| None)
+                let result = self.cmd_owned(&argv);
+                // pacman has read them (or failed): the copies have no further use.
+                let _ = fs::remove_dir_all(host(self.root(), STAGING));
+                result.map(|()| None)
             }
             Request::Restore { id } => {
                 let m = snapshot::load(self.root(), &id)?;
@@ -237,11 +241,21 @@ impl Helper {
         for p in paths {
             check_system_path(p)?;
             let name = Path::new(p).file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-            let regular = fs::symlink_metadata(p).is_ok_and(|m| m.is_file());
-            if !name.contains(".pkg.tar") || name.starts_with('.') || !regular {
+            if !name.contains(".pkg.tar") || name.starts_with('.') {
                 bail!("not a package file: {p}");
             }
-            let data = fs::read(p).with_context(|| format!("read {p}"))?;
+            // Check and read the same open file: never through a symlink, and
+            // O_NONBLOCK so a FIFO planted at the path can't hang the helper.
+            let mut file = OpenOptions::new()
+                .read(true)
+                .custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK)
+                .open(p)
+                .map_err(|_| anyhow::anyhow!("not a package file: {p}"))?;
+            if !file.metadata().is_ok_and(|m| m.is_file()) {
+                bail!("not a package file: {p}");
+            }
+            let mut data = Vec::new();
+            file.read_to_end(&mut data).with_context(|| format!("read {p}"))?;
             write_atomic(&dir.join(&name), &data, 0o644)?;
             out.push(format!("{STAGING}/{name}"));
         }
@@ -377,3 +391,6 @@ impl Helper {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests;

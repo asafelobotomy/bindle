@@ -53,6 +53,10 @@ group = "uQ desktop"
 name = "noti-fi (notifications)"
 description = "Notification daemon (notifd) with grouped popups, rules, history and Do Not Disturb; uQ's bar and OSD use it. By asafelobotomy."
 notes = ["Replaces mako, dunst and swaync. `notify restore` hands notifications back."]
+# Its daemon (Quickshell) is Wayland-only: built for Plasma and Hyprland, a plain user
+# service elsewhere. Not where the shell itself owns notifications and can't hand
+# them over (GNOME Shell, COSMIC, Budgie, DankMaterialShell).
+when = ["display:wayland", "!desktop:gnome", "!desktop:cosmic", "!desktop:budgie", "!desktop:niri-dms"]
 requires = ["aur-helper"]
 aur = ["noti-fi"]
 package_conflicts = ["mako", "dunst", "swaync"]
@@ -197,14 +201,14 @@ argv = ["systemctl", "--user", "enable", "bindle-cliphist.service"]
 unless = [{ path = "~/.config/systemd/user/graphical-session.target.wants/bindle-cliphist.service" }]
 
 # X11 desktops with no clipboard history of their own (Xfce has Clipman,
-# Deepin its own).
+# LXQt lxqt-clip, Enlightenment its clipboard module, Deepin its own).
 [[module]]
 id = "copyq"
 group = "Desktop basics"
 name = "Clipboard history (CopyQ)"
 description = "Keeps what you copy, text and images, with search and a tray icon."
 notes = ["CopyQ starts itself at login once opened. On i3, bspwm, qtile, xmonad and awesome, add `exec copyq` to your config instead."]
-when = ["display:xorg", "!desktop:xfce4", "!desktop:deepin"]
+when = ["display:xorg", "!desktop:xfce4", "!desktop:lxqt", "!desktop:enlightenment", "!desktop:deepin"]
 profiles = ["desktop", "gaming", "developer"]
 packages = ["copyq"]
 
@@ -288,6 +292,7 @@ id = "media-players"
 group = "Media"
 name = "Media players"
 description = "VLC and mpv for video and audio."
+when = ["desktop"]
 profiles = ["desktop", "gaming", "developer"]
 packages = ["vlc", "mpv"]
 

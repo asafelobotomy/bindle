@@ -10,6 +10,7 @@ pub mod initramfs;
 pub mod install;
 pub mod pacman_conf;
 pub mod plan;
+pub mod restart;
 pub mod whatsnew;
 
 pub use catalog::Catalog;

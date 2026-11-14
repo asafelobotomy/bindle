@@ -5,10 +5,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
 
-use crate::builtins::{self, Ctx};
-use crate::catalog::{Catalog, Command, FileSpec, ReleaseAsset};
+use crate::builtins::Ctx;
+use crate::catalog::{Catalog, FileSpec, ReleaseAsset};
 use crate::detect::Facts;
-use checks::{already_done, dedup, release_installed};
 
 #[derive(Debug, Clone, Default)]
 pub struct Selection {
@@ -164,69 +163,11 @@ pub fn resolve(
     let mut plan = Plan::default();
     let mut chosen = selection.initial(catalog)?;
     plan.skipped.extend(mounts::skipped(catalog, selection));
-
-    // Pull in requirements transitively.
-    let mut queue: Vec<String> = chosen.iter().cloned().collect();
-    while let Some(id) = queue.pop() {
-        for dep in &catalog.module(&id).expect("validated").requires {
-            if selection.exclude.contains(dep) {
-                bail!("`{id}` requires `{dep}`, which is excluded");
-            }
-            if chosen.insert(dep.clone()) {
-                plan.pulled_in.push((dep.clone(), id.clone()));
-                queue.push(dep.clone());
-            }
-        }
-    }
-
+    select::pull_in_requires(catalog, selection, &mut chosen, &mut plan)?;
     // Modules the installer already set up are done; their rivals are moot.
-    let provided = facts.install.provided();
-    for (id, why) in &provided {
-        if chosen.remove(id) {
-            plan.provided.push((id.clone(), why.clone()));
-        }
-    }
-    plan.pulled_in.retain(|(dep, _)| !provided.contains_key(dep));
-
-    // Drop modules whose conditions fail, then anything depending on them.
-    let mut dropped = BTreeSet::new();
-    for id in &chosen {
-        let m = catalog.module(id).expect("validated");
-        if let Some(c) = m.conflicts.iter().find(|c| provided.contains_key(*c)) {
-            plan.skipped.push((id.clone(), format!("`{c}` is already set up")));
-            dropped.insert(id.clone());
-        } else if let Some(p) = m.package_conflicts.iter().find(|p| facts.installed.contains(*p))
-            && !selection.replace_conflicts
-        {
-            plan.skipped.push((id.clone(), format!("conflicts with installed `{p}`; remove it first to use this")));
-            dropped.insert(id.clone());
-        } else if let Err(reason) = facts.matches(&m.when) {
-            plan.skipped.push((id.clone(), reason));
-            dropped.insert(id.clone());
-        }
-    }
-    loop {
-        let before = dropped.len();
-        for id in &chosen {
-            let m = catalog.module(id).expect("validated");
-            if !dropped.contains(id)
-                && let Some(dep) = m.requires.iter().find(|d| dropped.contains(*d))
-            {
-                plan.skipped.push((id.clone(), format!("requires skipped `{dep}`")));
-                dropped.insert(id.clone());
-            }
-        }
-        if dropped.len() == before {
-            break;
-        }
-    }
-    chosen.retain(|id| !dropped.contains(id));
-
-    for id in &chosen {
-        if let Some(c) = catalog.module(id).expect("validated").conflicts.iter().find(|c| chosen.contains(*c)) {
-            bail!("`{id}` conflicts with `{c}`; choose one");
-        }
-    }
+    let provided = select::drop_provided(facts, &mut chosen, &mut plan);
+    select::drop_unmet(catalog, facts, selection, &provided, &mut chosen, &mut plan);
+    select::check_conflicts(catalog, &chosen)?;
 
     let mut ordered: Vec<String> = chosen.into_iter().collect();
     ordered.sort_by_key(|id| catalog.sort_key(id));
@@ -240,151 +181,9 @@ pub fn resolve(
     let with_planned = planned.map(|desktops| Facts { desktops, ..facts.clone() });
     let ctx = Ctx { facts: with_planned.as_ref().unwrap_or(facts), multilib };
 
-    let mut options = BTreeMap::new();
-    let mut repos = Vec::new();
-    let mut packages = Vec::new();
-    let mut files = Vec::new();
-    let mut removed_files = Vec::new();
-    let mut units = Vec::new();
-    let mut groups = Vec::new();
-    let mut root_cmds = Vec::new();
-    let mut user_cmds = Vec::new();
-    // Root steps of modules that install from the AUR or a release: they
-    // run after that install, so they can use what it installed.
-    let mut late_root_cmds = Vec::new();
-    let mut late_units = Vec::new();
-    let mut late_removed = Vec::new();
-    let mut aur = Vec::new();
-    let mut releases: Vec<ReleaseAsset> = Vec::new();
-    let mut mounts = Vec::new();
-    let mut bootstrap = false;
-    let mut initramfs = false;
-
-    for id in &ordered {
-        let m = catalog.module(id).expect("validated");
-        let late = m.installs_late();
-        if selection.replace_conflicts {
-            let installed: Vec<String> =
-                m.package_conflicts.iter().filter(|p| facts.installed.contains(*p)).cloned().collect();
-            if late && m.replace_after_install {
-                late_removed.extend(installed.iter().cloned());
-            }
-            plan.replaced.extend(installed.into_iter().map(|p| (id.clone(), p)));
-        }
-        options.extend(m.pacman.clone());
-        repos.extend(m.repos.iter().filter(|r| !(r.as_str() == "multilib" && facts.multilib_enabled)).cloned());
-        packages.extend(m.packages.iter().cloned());
-        files.extend(m.files.iter().map(|f| (id.clone(), f.clone())));
-        if late { &mut late_units } else { &mut units }.extend(m.enable.iter().cloned());
-        groups.extend(m.groups.iter().cloned());
-        let pending = |c: &&Command| facts.matches(&c.when).is_ok() && !already_done(c, facts, current_file);
-        let cmds = m.root_commands.iter().filter(pending).map(|c| (id.clone(), c.argv.clone()));
-        if late { &mut late_root_cmds } else { &mut root_cmds }.extend(cmds);
-        user_cmds.extend(m.user_commands.iter().filter(pending).map(|c| (id.clone(), c.clone())));
-        aur.extend(m.aur.iter().cloned());
-        releases.extend(m.releases.iter().map(|r| ReleaseAsset { title: m.name.clone(), ..r.clone() }));
-        plan.notes.extend(m.notes.iter().map(|n| (id.clone(), n.clone())));
-        let expansion = m.builtin.as_ref().map(|b| builtins::expand(b, &ctx));
-        plan.contents.insert(id.clone(), content::of(m, expansion.as_ref(), ctx.facts));
-        if let Some(e) = expansion {
-            packages.extend(e.packages);
-            aur.extend(e.aur);
-            files.extend(e.files.into_iter().map(|f| (id.clone(), f)));
-            removed_files.extend(e.remove_files);
-            units.extend(e.enable);
-            mounts.extend(e.mounts);
-            bootstrap |= e.aur_bootstrap;
-            initramfs |= e.rebuild_initramfs;
-            plan.notes.extend(e.notes.into_iter().map(|n| (id.clone(), n)));
-        }
-    }
-
-    let wanted_units = units.iter().chain(&late_units).map(String::as_str).collect();
-    let wanted_files = files.iter().map(|(_, f)| f.path.as_str()).collect();
-    let retired = retire::rivals(catalog, &ordered, facts, current_file, &wanted_units, &wanted_files);
-    // A file one module drops goes only if no other module writes it, and
-    // only while it is still Bindle's.
-    let ours = |p: &String| current_file(p).is_some_and(|t| t.starts_with(retire::MARKER));
-    let removed_files = dedup(removed_files.into_iter().filter(|p| !wanted_files.contains(p.as_str())).filter(ours));
-    plan.notes.extend(retired.notes);
-
-    // Keep only pacman.conf edits that would change something.
-    if let Some(current) = current_file("/etc/pacman.conf") {
-        options.retain(|k, v| crate::pacman_conf::set_option(&current, k, v) != current);
-        repos.retain(|r| !crate::pacman_conf::repo_enabled(&current, r));
-    }
-    let repos = dedup(repos);
-    if !options.is_empty() || !repos.is_empty() {
-        plan.steps.push(Step::EditPacmanConf { options, enable_repos: repos });
-    }
-    let late_removed = dedup(late_removed);
-    let removed = dedup(plan.replaced.iter().map(|(_, p)| p.clone()).filter(|p| !late_removed.contains(p)));
-    if !removed.is_empty() {
-        plan.steps.push(Step::RemovePackages { packages: removed });
-    }
-    let packages = dedup(packages.into_iter().filter(|p| !facts.has_package(p)));
-    if !packages.is_empty() {
-        plan.steps.push(Step::InstallPackages { packages });
-    }
-    for (module, file) in files {
-        if current_file(&file.path).as_deref() != Some(file.content.as_str()) {
-            plan.steps.push(Step::WriteFile { module, file });
-        }
-    }
-    if !removed_files.is_empty() {
-        plan.steps.push(Step::RemoveFiles { paths: removed_files });
-    }
-    plan.steps.extend(mounts::step(mounts, current_file));
-    // A replaced rival goes once its replacement's packages and files are in.
-    plan.steps.extend(retired.steps);
-    let enabled = |u: &String| !facts.enabled_units.contains(u);
-    let late_units = dedup(late_units.into_iter().filter(enabled));
-    let units = dedup(units.into_iter().filter(enabled).filter(|u| !late_units.contains(u)));
-    if !units.is_empty() {
-        plan.steps.push(Step::EnableUnits { units });
-    }
-    let groups = dedup(groups.into_iter().filter(|g| !facts.user_groups.contains(g)));
-    if !groups.is_empty() {
-        plan.steps.push(Step::AddToGroups { user: facts.user.clone(), groups });
-    }
-    plan.steps.extend(root_cmds.into_iter().map(|(module, argv)| Step::RunAsRoot { module, argv }));
-    if initramfs {
-        plan.steps.push(Step::RebuildInitramfs);
-    }
-    // User commands the AUR builds need (rustup's default toolchain: without
-    // it every Rust PKGBUILD fails with "no default is configured").
-    let (early_cmds, user_cmds): (Vec<_>, Vec<_>) = user_cmds.into_iter().partition(|(_, c)| c.before_aur);
-    plan.steps.extend(early_cmds.into_iter().map(|(module, c)| Step::RunAsUser {
-        module,
-        argv: c.argv,
-        manual: c.manual,
-    }));
-    if bootstrap {
-        plan.steps.push(Step::BootstrapAurHelper { package: builtins::AUR_HELPER.into() });
-    }
-    let aur = dedup(aur.into_iter().filter(|p| !facts.has_package(p)));
-    if !aur.is_empty() {
-        plan.steps.push(Step::InstallAur { packages: aur });
-    }
-    releases.retain(|r| !release_installed(r, facts, current_file));
-    if !releases.is_empty() {
-        plan.steps.push(Step::InstallReleases { assets: releases });
-    }
-    // After the AUR and releases: the late modules' root commands (an import
-    // that reads what a conflicting package left), then the removal of those
-    // packages, then their units.
-    plan.steps.extend(late_root_cmds.into_iter().map(|(module, argv)| Step::RunAsRoot { module, argv }));
-    if !late_removed.is_empty() {
-        plan.steps.push(Step::RemovePackages { packages: late_removed });
-    }
-    if !late_units.is_empty() {
-        plan.steps.push(Step::EnableUnits { units: late_units });
-    }
-    plan.steps.extend(user_cmds.into_iter().map(|(module, c)| Step::RunAsUser {
-        module,
-        argv: c.argv,
-        manual: c.manual,
-    }));
+    let mut parts = gather::collect(catalog, facts, selection, &ordered, &ctx, current_file, &mut plan);
+    gather::drop_package_conflicts(catalog, facts, &ordered, &mut parts, &mut plan);
+    emit::steps(catalog, facts, &ordered, parts, current_file, &mut plan);
 
     let advisories = crate::install::advisories(facts);
     plan.notes.extend(advisories.into_iter().map(|a| ("install".to_string(), a)));
@@ -393,8 +192,13 @@ pub fn resolve(
 }
 
 mod checks;
+#[cfg(test)]
+mod conflict_tests;
 pub mod content;
+mod emit;
+mod gather;
 mod mounts;
 pub mod retire;
+mod select;
 #[cfg(test)]
 mod tests;

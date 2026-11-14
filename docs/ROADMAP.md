@@ -32,7 +32,7 @@
 - ~~Create the GitHub repo~~ ✅ (private for now); make it public and cut the first release (the curl URL depends on both)
 - ~~Full VM install from the current ISO~~ ✅ all 21 archinstall desktops ([VM-TEST.md](VM-TEST.md)); next: gaming/developer profiles, NVIDIA/AMD hardware passthrough
 - ~~Decide how first login coexists with desktop welcome apps~~ ✅ suppressed by `bindle iso`, waited for elsewhere ([ARCHINSTALL.md](ARCHINSTALL.md#welcome-apps))
-- Sign releases (minisign) and verify in install.sh
+- ~~Sign releases and verify in install.sh~~ ✅ `SHA256SUMS` carries a GPG signature; `install.sh` checks it with `gpgv` against the embedded release key, and bindleupgrade's self-update does the same
 - ~~Real apply runs in an Arch VM per desktop~~ ✅ all installable desktops ([VM-TEST.md](VM-TEST.md))
 - Turn advisories into optional steps (prune GPU drivers, iwd → NetworkManager)
 - ~~Progress view inside the TUI instead of dropping to the terminal~~ ✅ for `bindle install`; next: the same for `bindle apply` from the desktop wizard's terminal
@@ -43,16 +43,24 @@
 - AppImage update info (zsync) and a short `curl … | sh`-free install doc for TTY users
 
 ## Phase 3: GUI
-- ~~Desktop wizard: Rust + cxx-qt + Kirigami over `bindle-run`, themed by uQ~~ ✅ `bindle-gui`; next: the uQ hand-off and uq-settings page, blocked on uQ release packages ([GUI.md](GUI.md))
+- ~~Desktop wizard: Rust + cxx-qt + Kirigami over `bindle-run`, themed by uQ~~ ✅ `bindle-gui` ([GUI.md](GUI.md))
+- ~~The uQ hand-off and uQ Settings' "Re-run setup" page~~ ✅ 0.1.8
 - ~~Shared apply engine (`bindle-run`, `Progress` trait)~~ ✅
 
 ## Phase 4: catalog depth
 - Desktop environment installs (KDE Plasma, GNOME, Hyprland) for minimal installs
 - Bootloader integration: entries for extra kernels (systemd-boot, Limine, GRUB), snapper boot menus
-- ~~NVIDIA generation detection by PCI device id~~ ✅ pre-Turing cards get nouveau; next: legacy AUR driver as an opt-in module
-- Optional XZram install hand-off; zswap-vs-zram choice
+- ~~NVIDIA generation detection by PCI device id~~ ✅ Turing and newer get nvidia-open; ~~legacy AUR driver~~ ✅ `nvidia-legacy` (nvidia-580xx-dkms, pre-selected on Maxwell, Pascal and Volta); older cards get nouveau
+- ~~Optional XZram install~~ ✅ the `xzram` module; next: a zswap-vs-zram choice
 
 - ~~Mount other drives at startup~~ ✅ one module per detected drive, written to a managed block in `/etc/fstab` ([DRIVES.md](DRIVES.md)); next: encrypted volumes (`/etc/crypttab`), Btrfs subvolume choice
+
+## Phase 4.5: install, maintain, upgrade ✅
+- `bindle install` (also `bindleinstall`, and what `install.sh` runs with no arguments): the whole live-ISO install in one wizard, with Hardware and Apps pages, manual partitioning through archinstall's disk editor, and one progress screen ([ISO.md](ISO.md))
+- `bindo`: named system tasks as TOML recipes, shipped and from installed modules ([BINDO.md](BINDO.md))
+- `bindleupgrade` (`bindle upgrade`): the whole system updated in one guided run, staged, with checks before and after, Bindle's own self-update, a daily check with a notification, and the update window (`bindleupgrade --gui`) ([UPGRADE.md](UPGRADE.md))
+- What's new (`bindle whats-new`): what a newer Bindle adds, changes or retires for this computer, from a record every apply keeps ([UPGRADE-PATH.md](UPGRADE-PATH.md))
+- `bindle status`: what Bindle last set up here, and what of it is missing now
 
 ## Phase 5: more distros
 - Fedora, Debian/Ubuntu, openSUSE catalogs + package-manager backends

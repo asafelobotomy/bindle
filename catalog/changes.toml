@@ -11,5 +11,5 @@
 
 [[added]]
 version = "0.1.9"
-modules = ["everyday-apps", "spellcheck", "disk-formats", "appimage", "bash-completion", "vpn-plugins", "text-editor", "xournalpp", "marknote", "nvidia-legacy"]
-why = "New in Bindle 0.1.9: everyday apps, spell checking, USB drive formats, AppImage support, tab completion, VPN plugins, notes and handwriting apps, and NVIDIA's driver for older cards."
+modules = ["everyday-apps", "spellcheck", "disk-formats", "appimage", "bash-completion", "vpn-plugins", "text-editor", "xournalpp", "marknote", "nvidia-legacy", "clipboard-history", "copyq"]
+why = "New in Bindle 0.1.9: everyday apps, spell checking, USB drive formats, AppImage support, tab completion, VPN plugins, notes and handwriting apps, clipboard history, and NVIDIA's driver for older cards."

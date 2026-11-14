@@ -58,7 +58,7 @@ pub mod qobject {
         #[qinvokable]
         fn open_terminal(self: Pin<&mut UpgradeBackend>, only_aur: bool);
         #[qinvokable]
-        fn reboot(self: &UpgradeBackend);
+        fn reboot(self: Pin<&mut UpgradeBackend>);
         /// Open Bindle's What's new page (new and changed features to review).
         #[qinvokable]
         fn open_bindle(self: Pin<&mut UpgradeBackend>);
@@ -236,9 +236,13 @@ impl UpgradeBackend {
         self.as_mut().set_notice(QString::from(&note));
     }
 
-    fn reboot(&self) {
-        if self.sandbox_dir().is_none() && !self.rust().dry_run && !self.screenshots() {
-            let _ = std::process::Command::new("systemctl").arg("reboot").spawn();
+    fn reboot(mut self: Pin<&mut Self>) {
+        if self.sandbox_dir().is_none()
+            && !self.rust().dry_run
+            && !self.screenshots()
+            && let Some(note) = crate::apply::reboot()
+        {
+            self.as_mut().set_notice(QString::from(&note));
         }
     }
 

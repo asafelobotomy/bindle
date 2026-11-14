@@ -23,15 +23,15 @@ risk = "moderate"
 conflicts = ["zram"]
 [[module.release]]
 repo = "asafelobotomy/XZram"
-tag = "v0.4.3"
-asset = "xzram-0.4.3-1-x86_64.pkg.tar.zst"
-sha256 = "fba5e3bcabcdf07bd5ba3997d051edd6251c10357b675e3d2aacaec5527aefb4"
+tag = "v0.6.0"
+asset = "xzram-0.6.0-1-x86_64.pkg.tar.zst"
+sha256 = "a9ec926be4557e77675bdc7645ad977dc0f5cd4753437bc036749ba0cfc4c2f0"
 name = "xzram"
 [[module.release]]
 repo = "asafelobotomy/XZram"
-tag = "v0.4.3"
-asset = "xzram-gui-0.4.3-1-x86_64.pkg.tar.zst"
-sha256 = "2b956a905e1057c6cca6d7f05048e42b2b979f7471e0e52106bb3ced4342908f"
+tag = "v0.6.0"
+asset = "xzram-gui-0.6.0-1-x86_64.pkg.tar.zst"
+sha256 = "ef714ab26242d8c115aaa997366b946f0bc8988faf5a1ee9b2bb7f59a88f8264"
 name = "xzram-gui"
 
 [[module]]

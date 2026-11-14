@@ -122,7 +122,7 @@ file and check paths.
 
 ## `when` tags
 
-`distro:<id>`, `cpu:<intel|amd|other>`, `gpu:<nvidia|amd|intel|virtual>`,
+`distro:<id>`, `cpu:<intel|amd|other>`, `gpu:<nvidia|amd|intel|virtual|other>`,
 `fs:<root fs>`, `boot:<systemd-boot|grub|limine|refind|unknown>`,
 `session:<wayland|x11|tty>`, plus flags `ssd`, `laptop`, `bluetooth`, `virt`,
 `multilib`, `zram-active`, `zswap`, `hibernate`, `aur-helper`, `desktop`, `nm`,
@@ -130,9 +130,13 @@ file and check paths.
 `snapshots-mount` (`/.snapshots` is its own mount, e.g. archinstall's
 `@.snapshots`), `hybrid-gpu` (NVIDIA plus Intel/AMD), `nvidia-legacy` (a Maxwell,
 Pascal or Volta NVIDIA card: NVIDIA's own driver for it is the 580 branch),
+`bare-desktop` (a detected desktop sets `everyday` in `desktops.toml`: it ships no
+file manager, viewers or calculator of its own, e.g. uQ or a tiling window manager),
 plus `desktop:<id>`, `toolkit:<qt|gtk|other>`, `display:<wayland|xorg>` and
 `installer:<archinstall|pacstrap>`, and `installed:<package>` (the package is
-installed now). Prefix with `!` to negate.
+installed now). `mountable:<uuid>` (a detected drive that can be mounted at
+startup) is set only by the generated drive modules below, not in catalog files.
+Prefix with `!` to negate.
 
 Modules the installer already set up (see [ARCHINSTALL.md](ARCHINSTALL.md)) are
 reported as provided and never planned.
@@ -148,7 +152,11 @@ module per detected drive (`mount-<uuid>`, Hardware → "Drives to mount at star
 
 `catalog/desktops.toml` describes each archinstall desktop: how to recognise it
 (`detect`, `archinstall` package set), its greeter, and the `essentials`/`nm`/`bt`
-packages the `desktop` builtin adds. Check package names with `make check-packages`
+packages the `desktop` builtin adds. `everyday = "qt"` or `"gtk"` marks a desktop
+that ships no file manager, archive manager, viewers or calculator of its own (uQ,
+Hyprland, the other compositors and window managers): it sets the `bare-desktop` tag,
+and the `everyday-apps` module (builtin `everyday`) offers that toolkit's set.
+Check package names with `make check-packages`
 (it also covers greeters, archinstall's lists, and the `PACKAGES` consts in
 `crates/bindle-core/src/builtins/`, which unit tests keep in sync with builtin output).
 Run `bindle detect` to see the facts for the current machine.
@@ -202,8 +210,8 @@ their own, recommended or not.
 | System | pacman-qol, mirrors, multilib, build-tools, aur-helper, microcode, firmware-updates, fstrim, man-pages |
 | Hardware | gpu-driver, nvidia-legacy, audio-firmware, audio-pipewire, bluetooth, power-profiles, tlp, tlp-rdw, thermald, fingerprint, printing, scanning-qt, scanning-gtk, solaar, piper, openrgb, android-tools |
 | Performance | zram, xzram, oomd, earlyoom, io-schedulers, scdr, scdr-sched-ext, scdr-devbox, scx-schedulers, kernel-zen, makepkg-parallel, makepkg-native |
-| Desktop & apps | desktop-essentials, uq, noti-fi, crumbs, uq-dev, fonts, nerd-fonts, codecs, archives, user-dirs, everyday-apps, clipboard-history, copyq, spellcheck, disk-formats, appimage, bash-completion, vpn-plugins, flatpak, flatpak-discover, flatpak-gnome-software, media-players, spotify, libreoffice, obsidian, marknote, xournalpp, text-editor, yakuake, kyko, emobie |
-| Internet | firefox, chromium, brave, brave-origin, vivaldi, zen-browser, google-chrome, thunderbird, signal, telegram, element, proton-mail, proton-mail-bridge, proton-pass, proton-pass-cli, proton-vpn, proton-authenticator, proton-drive-cli, syncthing, nextcloud-client, tailscale, qbittorrent, qbittorrent-enhanced, qbit-plugin-dl, hauler, av-morning-star |
+| Desktop & apps | desktop-essentials, uq, noti-fi, crumbs, uq-dev, fonts, nerd-fonts, codecs, archives, user-dirs, everyday-apps, clipboard-history, copyq, spellcheck, disk-formats, appimage, bash-completion, vpn-plugins, flatpak, flatpak-discover, flatpak-gnome-software, media-players, spotify, libreoffice, obsidian, marknote, xournalpp, text-editor, kyko, yakuake, emobie, appofholding |
+| Internet | firefox, chromium, brave, brave-origin, vivaldi, zen-browser, google-chrome, thunderbird, signal, telegram, element, proton-mail, proton-mail-bridge, proton-pass, proton-pass-cli, proton-vpn, proton-authenticator, proton-drive-cli, syncthing, nextcloud-client, tailscale, scale_tail, qbittorrent, qbittorrent-enhanced, qbit-plugin-dl, hauler, av-morning-star |
 | Creative | gimp, krita, inkscape, darktable, rawtherapee, digikam, kdenlive, handbrake, obs-studio, audacity, blender, photocraft, lightcraft, filmcraft, vectorcraft, effectcraft, designcraft, pdfcraft, wordcraft, deckcraft, gridcraft |
 | Development | rustup, python, nodejs, js-runtimes, go, c-cpp, java, dotnet, zig, mise, git-tools, jujutsu, cli-tools, neovim, helix, code-oss, vscodium, vscode, zed, ghostty, kitty, alacritty, fish, zsh, docker, podman, distrobox, virt-manager |
 | AI tools | claude-code, codex, gemini-cli, grok-build, copilot-cli, opencode, claude-desktop, cursor, ollama, ollama-cuda, ollama-rocm, lmstudio |

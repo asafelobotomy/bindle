@@ -88,9 +88,12 @@ Like `pacman.conf`, it is a line-level edit by a pure, unit-tested function
 
 - **Re-runnable**: a drive's line in the block is replaced, never added twice;
   a line that is already there exactly as planned is dropped from the plan.
-- **Additive**: unticking a drive later does not remove its line (Bindle does
-  not undo by deselection anywhere). Delete the line from the block, or run
-  `bindle undo`.
+- **Additive**: unticking a drive later does not remove its line. What's new
+  ([UPGRADE-PATH.md](UPGRADE-PATH.md)) offers a clean-up for modules that were
+  retired or taken out of the selection, but mount points are left out of the
+  per-module record, so that clean-up never touches `/etc/fstab`. Delete the
+  line from the block, or run `bindle undo`. bindleupgrade's "Bindle setup"
+  stage reports drives in the block that aren't connected.
 - **Undo**: `/etc/fstab` is snapshotted before the edit and restored byte for
   byte; the mount points Bindle created are removed once empty; systemd is
   reloaded. A drive that is mounted stays mounted until restart or `umount`,
