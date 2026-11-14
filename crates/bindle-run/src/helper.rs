@@ -4,7 +4,7 @@
 //! the commands it would run.
 
 use std::fs::{self, OpenOptions};
-use std::io::{self, BufRead, Read, Write};
+use std::io::{self, BufRead, Write};
 use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 
@@ -23,6 +23,10 @@ use crate::sys::{
 const LOCK: &str = "/var/lib/bindle/lock";
 /// Root-owned copies of AUR packages built as the user.
 const STAGING: &str = "/var/cache/bindle/pkg";
+/// The only directory `--log` may name a file in (opened as root).
+const LOG_DIR: &str = "/var/log/bindle/";
+
+mod stage;
 
 pub struct HelperOpts {
     pub root: PathBuf,
@@ -43,7 +47,7 @@ pub fn serve(opts: HelperOpts) -> Result<()> {
     if !opts.fake_commands && !is_root() {
         bail!("the helper must run as root");
     }
-    check_system_path(&opts.log)?;
+    check_log_path(&opts.log)?;
     let log_path = host(&opts.root, &opts.log);
     if let Some(dir) = log_path.parent() {
         create_dirs(dir)?;
@@ -85,6 +89,15 @@ pub fn serve(opts: HelperOpts) -> Result<()> {
     Ok(())
 }
 
+/// A file directly in `LOG_DIR`: root opens it, so nowhere else.
+fn check_log_path(log: &str) -> Result<()> {
+    check_system_path(log)?;
+    match log.strip_prefix(LOG_DIR) {
+        Some(name) if !name.is_empty() && !name.contains('/') && !name.starts_with('.') => Ok(()),
+        _ => bail!("the helper's log goes in {LOG_DIR}, not `{log}`"),
+    }
+}
+
 fn check_names(names: &[String]) -> Result<()> {
     match names.iter().find(|n| !valid_name(n)) {
         Some(bad) => bail!("refusing invalid name `{bad}`"),
@@ -119,9 +132,10 @@ impl Helper {
         self.emit(&Event::Output { line: line.to_string() });
     }
 
-    fn capture_late(&self, path: &str) -> Result<()> {
+    /// `snapshot::capture_late` (before a write) or `record_written` (after).
+    fn snap(&self, f: fn(&Path, &str, &str) -> Result<()>, path: &str) -> Result<()> {
         match &self.snapshot {
-            Some(id) => snapshot::capture_late(self.root(), id, path),
+            Some(id) => f(self.root(), id, path),
             None => Ok(()),
         }
     }
@@ -170,11 +184,14 @@ impl Helper {
                 let _ = fs::remove_dir_all(host(self.root(), STAGING));
                 result.map(|()| None)
             }
-            Request::Restore { id } => {
+            Request::Restore { id, force } => {
                 let m = snapshot::load(self.root(), &id)?;
-                let report = snapshot::restore_files(self.root(), &m);
-                for line in &report.done {
+                let report = snapshot::restore_files(self.root(), &m, force);
+                for line in report.done.iter().chain(&report.kept) {
                     self.output(line);
+                }
+                if !report.kept.is_empty() {
+                    self.output(&format!("to put the originals back anyway: bindle undo --force {id}"));
                 }
                 let mut errors = report.errors;
                 // systemd made mount units from the fstab that was just put back.
@@ -231,37 +248,6 @@ impl Helper {
         }
     }
 
-    /// Copy user-built package files into a root-owned directory, so they
-    /// can't change between the checks here and pacman reading them.
-    fn stage_packages(&self, paths: &[String]) -> Result<Vec<String>> {
-        let dir = host(self.root(), STAGING);
-        let _ = fs::remove_dir_all(&dir);
-        create_dirs(&dir)?;
-        let mut out = Vec::new();
-        for p in paths {
-            check_system_path(p)?;
-            let name = Path::new(p).file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-            if !name.contains(".pkg.tar") || name.starts_with('.') {
-                bail!("not a package file: {p}");
-            }
-            // Check and read the same open file: never through a symlink, and
-            // O_NONBLOCK so a FIFO planted at the path can't hang the helper.
-            let mut file = OpenOptions::new()
-                .read(true)
-                .custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK)
-                .open(p)
-                .map_err(|_| anyhow::anyhow!("not a package file: {p}"))?;
-            if !file.metadata().is_ok_and(|m| m.is_file()) {
-                bail!("not a package file: {p}");
-            }
-            let mut data = Vec::new();
-            file.read_to_end(&mut data).with_context(|| format!("read {p}"))?;
-            write_atomic(&dir.join(&name), &data, 0o644)?;
-            out.push(format!("{STAGING}/{name}"));
-        }
-        Ok(out)
-    }
-
     fn run_step(&mut self, step: Step) -> Result<()> {
         if !step.privileged() {
             bail!("refusing non-privileged step in the root helper");
@@ -269,7 +255,7 @@ impl Helper {
         match step {
             Step::EditPacmanConf { options, enable_repos } => {
                 crate::pacman_check::edit(&options, &enable_repos)?;
-                self.capture_late("/etc/pacman.conf")?;
+                self.snap(snapshot::capture_late, "/etc/pacman.conf")?;
                 let path = host(self.root(), "/etc/pacman.conf");
                 let mut text = fs::read_to_string(&path).context("read /etc/pacman.conf")?;
                 for (k, v) in &options {
@@ -283,6 +269,7 @@ impl Helper {
                 }
                 let mode = fs::metadata(&path).map_or(0o644, |m| m.permissions().mode() & 0o7777);
                 write_atomic(&path, text.as_bytes(), mode)?;
+                self.snap(snapshot::record_written, "/etc/pacman.conf")?;
                 self.output("updated /etc/pacman.conf");
                 Ok(())
             }
@@ -303,8 +290,9 @@ impl Helper {
             }
             Step::WriteFile { file, .. } => {
                 check_system_path(&file.path)?;
-                self.capture_late(&file.path)?;
+                self.snap(snapshot::capture_late, &file.path)?;
                 write_atomic(&host(self.root(), &file.path), file.content.as_bytes(), file.mode)?;
+                self.snap(snapshot::record_written, &file.path)?;
                 self.output(&format!("wrote {}", file.path));
                 Ok(())
             }
@@ -337,6 +325,7 @@ impl Helper {
                         continue;
                     }
                     fs::remove_file(&target).with_context(|| format!("remove {p}"))?;
+                    self.snap(snapshot::record_written, p)?;
                     self.output(&format!("removed {p}"));
                 }
                 Ok(())
@@ -365,7 +354,7 @@ impl Helper {
             e.check().map_err(anyhow::Error::msg)?;
             check_system_path(&e.dir)?;
         }
-        self.capture_late(fstab::PATH)?;
+        self.snap(snapshot::capture_late, fstab::PATH)?;
         let path = host(self.root(), fstab::PATH);
         let text = match fs::read_to_string(&path) {
             Ok(t) => t,
@@ -374,6 +363,7 @@ impl Helper {
         };
         let mode = fs::metadata(&path).map_or(0o644, |m| m.permissions().mode() & 0o7777);
         write_atomic(&path, fstab::merge(&text, entries).as_bytes(), mode)?;
+        self.snap(snapshot::record_written, fstab::PATH)?;
         for e in entries {
             create_dirs(&host(self.root(), &e.dir))?;
             self.output(&format!("added to /etc/fstab: {}", e.line().replace('\t', " ")));

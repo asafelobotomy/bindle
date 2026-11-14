@@ -85,7 +85,11 @@ fn drives_are_added_to_fstab_once_and_undo_puts_it_back() {
     }
     assert_eq!(fstab(), again);
 
+    // Later helper sessions (other applies) changed it since this one wrote it.
     let events = helper(&root, &[json!({ "op": "restore", "id": id })]);
+    assert!(outputs(&events).iter().any(|l| l.starts_with("/etc/fstab: changed since Bindle wrote it")), "{events:?}");
+    assert_eq!(fstab(), again, "kept");
+    let events = helper(&root, &[json!({ "op": "restore", "id": id, "force": true })]);
     assert!(outputs(&events).contains(&"restored /etc/fstab"), "{events:?}");
     assert_eq!(fstab(), FSTAB);
     assert!(!root.join("mnt/Data").exists() && !root.join("mnt/Games").exists(), "empty mount points go again");

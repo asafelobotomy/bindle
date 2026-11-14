@@ -131,14 +131,48 @@ pub fn valid_hostname(h: &str) -> bool {
 }
 
 /// A login name useradd accepts by default (lower case, starts with a letter
-/// or `_`), not one the base system already has.
+/// or `_`), not one the base system or a desktop's packages already have
+/// (`systemd-*`, greeters, sound and printing daemons).
 pub fn valid_username(u: &str) -> bool {
-    const TAKEN: &[&str] = &["root", "bin", "daemon", "mail", "ftp", "http", "nobody", "dbus", "polkitd"];
+    const TAKEN: &str = "root bin daemon mail ftp http nobody dbus polkitd alpm sddm gdm lightdm greeter \
+                         colord avahi rtkit uuidd git geoclue flatpak usbmux nm-openvpn";
     let mut chars = u.chars();
     (1..=32).contains(&u.len())
         && chars.next().is_some_and(|c| c.is_ascii_lowercase() || c == '_')
         && chars.all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_' || c == '-')
-        && !TAKEN.contains(&u)
+        && !TAKEN.split_whitespace().any(|t| t == u)
+        && !u.starts_with("systemd-")
+}
+
+/// A name already in `passwd` (the live ISO's `/etc/passwd`, which has
+/// the system accounts the new system gets too).
+pub fn username_in_passwd(u: &str, passwd: &str) -> bool {
+    passwd.lines().any(|l| l.split(':').next() == Some(u))
+}
+
+/// A console keymap from `available` (the ISO's, see `bindle install`).
+pub fn valid_keymap(k: &str, available: &[String]) -> bool {
+    !k.is_empty() && available.iter().any(|a| a == k)
+}
+
+/// A language archinstall can enable with UTF-8: `en_GB`, `en_GB.UTF-8` or
+/// `sr_RS@latin`, matched against glibc's SUPPORTED list (`<locale> <charset>`
+/// per line) the way archinstall matches its locale.gen.
+pub fn valid_locale(lang: &str, supported: &str) -> bool {
+    let (base, modifier) = match lang.split_once('@') {
+        Some((b, m)) => (b, format!("@{m}")),
+        None => (lang, String::new()),
+    };
+    let (name, charset) = base.split_once('.').unwrap_or((base, "UTF-8"));
+    if name.is_empty() || charset != "UTF-8" {
+        return false;
+    }
+    let plain = format!("{name}{modifier}");
+    let dotted = format!("{name}.UTF-8{modifier}");
+    supported.lines().any(|l| {
+        let mut cols = l.split_whitespace();
+        matches!((cols.next(), cols.next()), (Some(c), Some("UTF-8")) if c == plain || c == dotted)
+    })
 }
 
 #[cfg(test)]
@@ -228,5 +262,24 @@ mod tests {
         assert!(!valid_hostname("-x") && !valid_hostname("My") && !valid_hostname(""));
         assert!(valid_username("solon") && valid_username("_svc") && valid_username("a-b_1"));
         assert!(!valid_username("root") && !valid_username("1x") && !valid_username("Solon"));
+        for system in ["alpm", "sddm", "gdm", "lightdm", "greeter", "colord", "avahi", "rtkit", "polkitd"] {
+            assert!(!valid_username(system), "{system}");
+        }
+        assert!(!valid_username("systemd-network") && valid_username("systemdfan"));
+        let passwd = "root:x:0:0::/root:/usr/bin/bash\nnm-openconnect:x:956:956::/:/usr/bin/nologin\n";
+        assert!(username_in_passwd("nm-openconnect", passwd) && username_in_passwd("root", passwd));
+        assert!(!username_in_passwd("solon", passwd) && !username_in_passwd("x", ""));
+    }
+
+    #[test]
+    fn keymaps_and_languages() {
+        let maps = ["de-latin1".to_string(), "uk".into(), "us".into()];
+        assert!(valid_keymap("uk", &maps) && !valid_keymap("gb", &maps) && !valid_keymap("", &maps));
+        let supported = "en_GB.UTF-8 UTF-8\nen_GB ISO-8859-1\nen_US.UTF-8 UTF-8\nsr_RS@latin UTF-8\nde_DE ISO-8859-1\n";
+        assert!(valid_locale("en_GB", supported) && valid_locale("en_US.UTF-8", supported));
+        assert!(valid_locale("sr_RS@latin", supported));
+        assert!(!valid_locale("de_DE", supported), "only ISO-8859-1 there: not with UTF-8");
+        assert!(!valid_locale("en_GB.ISO-8859-1", supported) && !valid_locale("english", supported));
+        assert!(!valid_locale("", supported) && !valid_locale("en", supported));
     }
 }

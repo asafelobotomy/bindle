@@ -72,7 +72,14 @@ if BINDLE_INSECURE=1 BINDLE_BASE_URL=$base bash <(curl -fsSL "$base/install.sh")
     setup_autologin "$desktop"
     echo "BINDLE-VM: target files:"
     ls -la /mnt/usr/local/bin/bindle /mnt/etc/xdg/autostart/bindle-first-login.desktop /mnt/etc/bindle/
-    echo "BINDLE-VM: INSTALL OK"
+    # The setup's temporary sudo rule must never reach the installed disk.
+    ls -la /mnt/etc/sudoers.d/
+    if [[ -e /mnt/etc/sudoers.d/zz-bindle-install ]] || grep -q "bindle-install" /proc/self/mountinfo; then
+        echo "BINDLE-VM: sudo grant left behind"
+        echo "BINDLE-VM: INSTALL FAILED"
+    else
+        echo "BINDLE-VM: INSTALL OK"
+    fi
 else
     echo "BINDLE-VM: INSTALL FAILED"
     tail -n 80 /var/log/archinstall/install.log

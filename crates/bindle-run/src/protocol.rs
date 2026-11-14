@@ -33,8 +33,11 @@ pub enum Request {
         files: Vec<BindleFile>,
     },
     /// Put back the files recorded in a snapshot and disable its units.
+    /// Files changed since the apply wrote them are kept, unless `force`.
     Restore {
         id: String,
+        #[serde(default)]
+        force: bool,
     },
     /// A line for the log from the user side: steps that run as the user
     /// (AUR builds, release downloads, user commands) and how they ended.

@@ -69,12 +69,18 @@ impl Exec<'_> {
             ));
             return Ok(());
         }
+        // The tag came from GitHub's redirect: checked before it names a
+        // cache directory (which download clears).
+        if !selfupdate::valid_tag(tag) {
+            bail!("{tag:?} isn't a release tag; not updating");
+        }
         let cache = std::env::var_os("XDG_CACHE_HOME")
             .map(std::path::PathBuf::from)
             .or_else(|| std::env::var_os("HOME").map(|h| std::path::PathBuf::from(h).join(".cache")))
             .context("no cache directory")?;
         self.ui.line(&format!("Downloading Bindle {tag} and checking its signature"));
-        let files = selfupdate::download(tag, location, &cache.join("bindle/self").join(tag))?;
+        let running = env!("CARGO_PKG_VERSION");
+        let files = selfupdate::download(tag, running, location, &cache.join("bindle/self").join(tag))?;
         match location {
             Location::AppImage(path) => {
                 let (file, _, _) = files.first().context("no AppImage in the release")?;

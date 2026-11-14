@@ -16,7 +16,7 @@ fn screen(w: &mut Wizard, width: u16, height: u16) -> String {
 }
 
 fn disk() -> Disk {
-    Disk { path: "/dev/vda".into(), bytes: 64 << 30, model: "QEMU".into(), transport: String::new() }
+    Disk { path: "/dev/vda".into(), bytes: 64 << 30, model: "QEMU".into(), ..Disk::default() }
 }
 
 #[test]
@@ -52,7 +52,10 @@ fn walks_every_step_to_install() {
     w.on_key(KeyCode::Enter);
     assert_eq!(w.step, Step::You);
 
-    // Fill the form: hostname is pre-filled, so clear and type.
+    // Fill the form: the keyboard first (kept), then the hostname, which is
+    // pre-filled, so clear and type.
+    assert_eq!(w.fields[w.field].key, Key::Keyboard);
+    assert_eq!(w.on_key(KeyCode::Enter), Action::None, "us is what the console has already");
     for _ in 0..20 {
         w.on_key(KeyCode::Backspace);
     }
@@ -66,8 +69,11 @@ fn walks_every_step_to_install() {
     w.on_key(KeyCode::Enter);
     type_in(&mut w, "short");
     let err = w.answers().unwrap_err();
-    assert!(err.contains("passphrase") || err.contains("Timezone"), "{err}");
+    assert!(err.contains("at least 8"), "{err}");
     type_in(&mut w, "-enough");
+    assert!(w.answers().unwrap_err().contains("disk passphrases must match"));
+    w.on_key(KeyCode::Enter);
+    type_in(&mut w, "short-enough");
     assert_eq!(w.answers().map(|a| a.encryption), Ok(Some("short-enough".to_string())).map_err(|e: String| e));
 
     // Apps: every app of the profile is ticked; Space unticks the highlighted one.
@@ -162,6 +168,7 @@ fn manual_layout_replaces_the_disk_choice() {
     assert!(w.message.is_some() && w.encrypt, "f and e don't apply to a manual layout");
     w.on_key(KeyCode::Enter);
     assert_eq!(w.step, Step::You);
+    w.live = true;
     for (key, text) in [(Key::Username, "solon"), (Key::Password, "pw"), (Key::Confirm, "pw")] {
         w.fields.iter_mut().find(|f| f.key == key).unwrap().value = text.into();
     }
@@ -175,4 +182,137 @@ fn manual_layout_replaces_the_disk_choice() {
     w.step = Step::Disk;
     w.on_key(KeyCode::Char('x'));
     assert!(w.manual.is_none());
+}
+
+fn wizard<'a>(facts: &'a Facts, catalog: &'a Catalog, desktops: &'a [bindle_core::desktops::Desktop]) -> Wizard<'a> {
+    let mut w = Wizard::new(facts, catalog, desktops);
+    w.disks = vec![disk()];
+    w
+}
+
+fn set(w: &mut Wizard, key: Key, text: &str) {
+    w.fields.iter_mut().find(|f| f.key == key).unwrap().value = text.into();
+}
+
+#[test]
+fn ctrl_c_and_modifiers() {
+    use ratatui::crossterm::event::{KeyEvent, KeyModifiers};
+    let (facts, catalog) = (Facts::default(), Catalog::arch().unwrap());
+    let desktops = bindle_core::desktops::all().unwrap();
+    let mut w = wizard(&facts, &catalog, &desktops);
+    let ctrl = |c| KeyEvent::new(KeyCode::Char(c), KeyModifiers::CONTROL);
+    // Nothing typed yet: Ctrl-C quits at once.
+    assert_eq!(w.on_event(ctrl('c')), Action::Quit);
+    w.step = Step::You;
+    w.on_event(KeyEvent::new(KeyCode::Char('x'), KeyModifiers::NONE));
+    assert!(w.typed);
+    // Ctrl or Alt held: nothing is typed.
+    let before = w.fields[w.field].value.clone();
+    w.on_event(ctrl('u'));
+    w.on_event(KeyEvent::new(KeyCode::Char('y'), KeyModifiers::ALT));
+    assert_eq!(w.fields[w.field].value, before);
+    // Something typed: Ctrl-C asks; another key stays, y quits.
+    assert_eq!(w.on_event(ctrl('c')), Action::None);
+    assert!(w.quit_ask && w.message.as_deref().is_some_and(|m| m.contains("Quit")));
+    assert_eq!(w.on_event(KeyEvent::new(KeyCode::Char('n'), KeyModifiers::NONE)), Action::None);
+    assert!(!w.quit_ask);
+    w.on_event(ctrl('c'));
+    assert_eq!(w.on_event(KeyEvent::new(KeyCode::Char('y'), KeyModifiers::NONE)), Action::Quit);
+    // The wipe question isn't answered by Ctrl-Y or Alt-Y.
+    w.step = Step::Review;
+    w.confirm = true;
+    assert_eq!(w.on_event(KeyEvent::new(KeyCode::Char('y'), KeyModifiers::CONTROL)), Action::None);
+    assert!(w.confirm, "still asking");
+    assert_eq!(w.on_event(KeyEvent::new(KeyCode::Char('y'), KeyModifiers::NONE)), Action::Install);
+}
+
+#[test]
+fn keyboard_switches_the_console_and_is_checked() {
+    let (facts, catalog) = (Facts::default(), Catalog::arch().unwrap());
+    let desktops = bindle_core::desktops::all().unwrap();
+    let mut w = wizard(&facts, &catalog, &desktops);
+    w.keymaps = Some(vec!["de-latin1".into(), "uk".into(), "us".into()]);
+    w.step = Step::You;
+    w.field = 0;
+    w.on_key(KeyCode::Backspace);
+    w.on_key(KeyCode::Backspace);
+    type_in(&mut w, "gb");
+    // Not a keymap: not loaded, and the page won't move on.
+    assert_eq!(w.on_key(KeyCode::Down), Action::None);
+    assert!(w.message.as_deref().is_some_and(|m| m.contains("isn't known")));
+    w.field = 0;
+    w.on_key(KeyCode::Backspace);
+    w.on_key(KeyCode::Backspace);
+    type_in(&mut w, "uk");
+    assert_eq!(w.on_key(KeyCode::Enter), Action::Keymap("uk".into()));
+    assert_eq!(w.keymap, "uk");
+    // Changed again once a password is in: switched, with a warning.
+    set(&mut w, Key::Password, "pw");
+    w.field = 0;
+    w.on_key(KeyCode::Backspace);
+    w.on_key(KeyCode::Backspace);
+    type_in(&mut w, "de-latin1");
+    assert_eq!(w.on_key(KeyCode::Tab), Action::Keymap("de-latin1".into()));
+    assert!(w.message.as_deref().is_some_and(|m| m.contains("type them again")));
+}
+
+#[test]
+fn you_page_checks_before_anything_is_erased() {
+    let (facts, catalog) = (Facts::default(), Catalog::arch().unwrap());
+    let desktops = bindle_core::desktops::all().unwrap();
+    let mut w = wizard(&facts, &catalog, &desktops);
+    w.passwd = "root:x:0:0::/root:/bin/bash\nnm-openconnect:x:956:956::/:/usr/bin/nologin\n".into();
+    w.keymaps = Some(vec!["us".into()]);
+    w.locales = Some("en_US.UTF-8 UTF-8\nen_GB.UTF-8 UTF-8\n".into());
+    for (key, text) in [(Key::Username, "sddm"), (Key::Password, "pw"), (Key::Confirm, "pw"), (Key::Timezone, "UTC")] {
+        set(&mut w, key, text);
+    }
+    assert!(w.answers().unwrap_err().contains("system name"));
+    set(&mut w, Key::Username, "nm-openconnect");
+    assert!(w.answers().unwrap_err().contains("belongs to the system"));
+    set(&mut w, Key::Username, "solon");
+    set(&mut w, Key::Keyboard, "qwerty");
+    assert!(w.answers().unwrap_err().contains("Keyboard layout"));
+    set(&mut w, Key::Keyboard, "us");
+    set(&mut w, Key::Language, "en_XX");
+    let err = w.answers().unwrap_err();
+    // (No zoneinfo on a build machine without tzdata: then the timezone stops it first.)
+    assert!(err.contains("Language") || err.contains("Timezone"), "{err}");
+    set(&mut w, Key::Language, "en_GB");
+    if let Ok(a) = w.answers() {
+        assert_eq!((a.keyboard.as_str(), a.locale.as_str()), ("us", "en_GB"));
+    }
+}
+
+#[test]
+fn wipe_question_names_the_disk_in_full() {
+    let (facts, catalog) = (Facts::default(), Catalog::arch().unwrap());
+    let desktops = bindle_core::desktops::all().unwrap();
+    let mut w = wizard(&facts, &catalog, &desktops);
+    w.disks[0].transport = "virtio".into();
+    w.step = Step::Review;
+    w.confirm = true;
+    let q = w.wipe_question();
+    assert_eq!(q, "Erase everything on /dev/vda · 64 GiB · QEMU · virtio and install?");
+    assert!(screen(&mut w, 140, 45).contains("/dev/vda · 64 GiB · QEMU · virtio"));
+    // The largest fixed disk is preselected, not the first row.
+    let usb = Disk { path: "/dev/sda".into(), bytes: 128 << 30, removable: true, ..Disk::default() };
+    w.set_disks(vec![usb, disk()], crate::livesys::Medium::NotLive);
+    assert_eq!(w.chosen_disk().map(|d| d.path.as_str()), Some("/dev/vda"));
+}
+
+#[test]
+fn review_lists_aur_packages_and_hides_graphics_without_a_desktop() {
+    let (facts, catalog) = (Facts::default(), Catalog::arch().unwrap());
+    let desktops = bindle_core::desktops::all().unwrap();
+    let mut w = wizard(&facts, &catalog, &desktops);
+    // uQ (the default desktop) is built from the AUR.
+    let aur = w.aur_packages().unwrap();
+    assert!(aur.iter().any(|p| p.starts_with("uq")), "{aur:?}");
+    w.go(Step::Review);
+    let s = screen(&mut w, 140, 45);
+    assert!(s.contains("built from the AUR"), "{s}");
+    assert!(w.hardware().rows.iter().any(|r| r.label == "Graphics driver"));
+    w.desktop.select(Some(0));
+    assert!(!w.hardware().rows.iter().any(|r| r.label == "Graphics driver"));
 }

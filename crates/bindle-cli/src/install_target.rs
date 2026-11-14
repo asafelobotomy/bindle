@@ -5,27 +5,29 @@
 //! `bindle apply` in `arch-chroot` as the new user, the way it would run on
 //! the installed desktop, so AUR builds happen as that user. The ISO already
 //! has the network, so nothing waits for Wi-Fi at first login. sudo needs no
-//! password for that user while it runs (a drop-in removed afterwards, also
-//! on failure). User commands that need a running session are saved and run
-//! at first login (`bindle first-login run`).
+//! password for that user while it runs ([`grant`]: never written to the new
+//! system's disk). User commands that need a running session are saved and
+//! run at first login ([`pending`]).
 
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::Command;
 
 use anyhow::{Context, Result, bail};
 
-use crate::apply::sys::{host, is_root, valid_name, write_atomic};
+use crate::apply::sys::{host, is_root, valid_name};
 use crate::firstlogin;
+
+mod grant;
+pub mod pending;
+
+pub use grant::clear_grant;
+pub use pending::{PENDING, finish_pending};
 
 /// Selection written by the plugin from the choices made before install.
 pub const SELECTION: &str = "/etc/bindle/selection.toml";
-/// Grants the install user passwordless sudo while the apply runs.
-/// sudo reads the drop-ins in name order and the last match wins, so this
-/// must sort after archinstall's `00_<user>` (which asks for a password).
-const SUDOERS: &str = "/etc/sudoers.d/zz-bindle-install";
-/// User steps left for first login, under the user's state directory.
-pub const PENDING: &str = "finish-at-login.jsonl";
+/// The PATH for everything run in the new system.
+const PATH: &str = "/usr/local/sbin:/usr/local/bin:/usr/bin";
 
 #[derive(Debug, PartialEq)]
 pub struct Account {
@@ -49,31 +51,37 @@ pub fn pick_user(passwd: &str, want: Option<&str>) -> Option<Account> {
     })
 }
 
-/// Removes the sudoers drop-in however the apply ends.
-struct Grant(PathBuf);
-
-impl Drop for Grant {
-    fn drop(&mut self) {
-        if let Err(e) = fs::remove_file(&self.0)
-            && e.kind() != std::io::ErrorKind::NotFound
-        {
-            eprintln!("[bindle] couldn't remove {}: {e}; delete it by hand", self.0.display());
-        }
-    }
-}
-
-/// `arch-chroot <root> runuser -u <user> -- env … bindle <args>`.
-fn as_user(root: &Path, acct: &Account, args: &[&str]) -> Command {
+/// `arch-chroot <root> runuser -u <user> -- env -i … <cmd>`: nothing of the
+/// ISO's root environment (archinstall's, the plugin's) reaches the user.
+fn in_target(root: &Path, acct: &Account, cmd: &[&str], extra: &[&str]) -> Command {
+    let term = std::env::var("TERM").ok().filter(|t| !t.is_empty() && t.bytes().all(|b| b.is_ascii_graphic()));
     let mut c = Command::new("arch-chroot");
-    c.arg(root).args(["runuser", "-u", &acct.name, "--", "env"]);
+    c.env_clear().env("PATH", PATH).arg(root).args(["runuser", "-u", &acct.name, "--", "env", "-i"]);
     c.arg(format!("HOME={}", acct.home))
         .arg(format!("USER={}", acct.name))
         .arg(format!("LOGNAME={}", acct.name))
-        .arg("PATH=/usr/local/sbin:/usr/local/bin:/usr/bin")
-        .arg(format!("TERM={}", std::env::var("TERM").unwrap_or_else(|_| "linux".into())))
-        .arg(firstlogin::BIN)
-        .args(args);
+        .arg(format!("PATH={PATH}"))
+        .arg("LANG=C.UTF-8")
+        .arg(format!("TERM={}", term.unwrap_or_else(|| "linux".into())))
+        .args(extra)
+        .args(cmd);
     c
+}
+
+/// `bindle <args>` as the user, told that sudo was granted for this run.
+fn as_user(root: &Path, acct: &Account, args: &[&str]) -> Command {
+    let marker = format!("{}=1", bindle_run::client::GRANTED_SUDO);
+    let cmd: Vec<&str> = std::iter::once(firstlogin::BIN).chain(args.iter().copied()).collect();
+    in_target(root, acct, &cmd, &[&marker])
+}
+
+/// What setup is at first login: finished (no wizard), or finished once the
+/// saved session steps have run.
+fn finished_marker(pending: Option<&str>) -> &'static str {
+    match pending {
+        Some(text) if text.lines().any(|l| !l.trim().is_empty()) => pending::SET_UP,
+        _ => "first-login-done",
+    }
 }
 
 pub fn run(root: &Path, user: Option<&str>) -> Result<()> {
@@ -95,65 +103,34 @@ pub fn run(root: &Path, user: Option<&str>) -> Result<()> {
     };
     println!("[bindle] Setting up the new system for {} (this can take a while: AUR builds)…", acct.name);
 
-    let sudoers = host(root, SUDOERS);
-    write_atomic(&sudoers, format!("{} ALL=(ALL:ALL) NOPASSWD: ALL\n", acct.name).as_bytes(), 0o440)?;
-    let grant = Grant(sudoers);
-
-    let pending = format!("{}/.local/state/bindle/{PENDING}", acct.home.trim_end_matches('/'));
-    let status = as_user(root, &acct, &["apply", "--yes", "--from", SELECTION, "--defer-user", &pending])
-        .status()
-        .context("start arch-chroot")?;
-    drop(grant);
+    // Caught first: from the grant on, a signal can't end this process
+    // before the grant is gone.
+    let signals = grant::Signals::catch();
+    let state = format!("{}/.local/state/bindle", acct.home.trim_end_matches('/'));
+    let pending = format!("{state}/{PENDING}");
+    let status = grant::Grant::open(root, &acct.name).and_then(|grant| {
+        let mut child = as_user(root, &acct, &["apply", "--yes", "--from", SELECTION, "--defer-user", &pending])
+            .spawn()
+            .context("start arch-chroot")?;
+        let status = signals.wait(&mut child);
+        drop(grant);
+        status
+    });
+    signals.finish();
+    let status = status?;
     if !status.success() {
         bail!("Bindle's setup in the new system stopped ({status}). It opens at first login to finish.");
     }
-    // Done: no wizard at first login, only the saved session steps.
-    let state = format!("{}/.local/state/bindle", acct.home.trim_end_matches('/'));
-    let dismissed = Command::new("arch-chroot")
-        .arg(root)
-        .args(["runuser", "-u", &acct.name, "--", "sh", "-c", r#"mkdir -p "$1" && : > "$1/first-login-done""#, "sh"])
-        .arg(&state)
-        .status();
+    // Done: no wizard at first login, only the saved session steps (which
+    // mark setup finished once they have run).
+    let marker = finished_marker(fs::read_to_string(host(root, &pending)).ok().as_deref());
+    let script = format!(r#"mkdir -p "$1" && : > "$1/{marker}""#);
+    let dismissed = in_target(root, &acct, &["sh", "-c", &script, "sh", &state], &[]).status();
     if !dismissed.is_ok_and(|s| s.success()) {
         eprintln!("[bindle] couldn't mark setup as finished; Bindle may open at first login anyway");
     }
     println!("[bindle] The new system is set up.");
     Ok(())
-}
-
-/// At first login, in the user's session: run the user steps the install
-/// from the ISO saved for later. If any fails, setup isn't marked finished,
-/// so the usual first-login wizard opens and shows what's left.
-pub fn finish_pending() {
-    for dir in firstlogin::state_dirs() {
-        // Claimed by renaming: autostart and the user unit can both fire.
-        let claimed = dir.join(format!("{PENDING}.running"));
-        if fs::rename(dir.join(PENDING), &claimed).is_err() {
-            continue;
-        }
-        let text = fs::read_to_string(&claimed).unwrap_or_default();
-        let _ = fs::remove_file(&claimed);
-        let mut failed = Vec::new();
-        for line in text.lines().filter(|l| !l.trim().is_empty()) {
-            let Ok(bindle_core::Step::RunAsUser { argv, manual, .. }) = serde_json::from_str(line) else { continue };
-            let Some((prog, args)) = argv.split_first() else { continue };
-            let ok = Command::new(prog)
-                .args(args)
-                .status()
-                .ok()
-                .and_then(|s| s.code())
-                .is_some_and(|c| c == 0 || manual.contains_key(&c.to_string()));
-            if !ok {
-                failed.push(argv.join(" "));
-            }
-        }
-        if !failed.is_empty() {
-            eprintln!("[bindle] setup steps that didn't finish: {}", failed.join("; "));
-            for d in firstlogin::state_dirs() {
-                let _ = fs::remove_file(d.join("first-login-done"));
-            }
-        }
-    }
 }
 
 #[cfg(test)]
@@ -178,22 +155,31 @@ mod tests {
     }
 
     #[test]
-    fn grant_sorts_after_archinstalls_sudoers() {
-        // archinstall writes `00_<user>`; sudo's last matching rule wins.
-        let ours = SUDOERS.rsplit('/').next().unwrap();
-        let mut names = [ours, "00_solon", "00_zz", "_tester", "wheel"];
-        names.sort_unstable();
-        assert_eq!(names.last(), Some(&ours));
-    }
-
-    #[test]
-    fn runs_bindle_as_the_user_in_the_chroot() {
+    fn runs_bindle_as_the_user_in_the_chroot_with_a_clean_environment() {
         let a = Account { name: "solon".into(), home: "/home/solon".into() };
         let c = as_user(Path::new("/mnt"), &a, &["apply", "--yes"]);
         let args: Vec<String> = c.get_args().map(|s| s.to_string_lossy().into_owned()).collect();
         assert_eq!(c.get_program(), "arch-chroot");
-        assert_eq!(args[..6], ["/mnt", "runuser", "-u", "solon", "--", "env"]);
+        assert_eq!(args[..7], ["/mnt", "runuser", "-u", "solon", "--", "env", "-i"]);
         assert!(args.contains(&"HOME=/home/solon".to_string()));
+        assert!(args.contains(&format!("{}=1", bindle_run::client::GRANTED_SUDO)));
         assert_eq!(args[args.len() - 3..], [firstlogin::BIN, "apply", "--yes"]);
+        // Every variable is named: env -i, then NAME=value up to the program.
+        let vars = &args[7..args.len() - 3];
+        assert!(
+            vars.iter().all(|v| v
+                .split_once('=')
+                .is_some_and(|(k, _)| k.bytes().all(|b| b.is_ascii_uppercase() || b == b'_')))
+        );
+        // arch-chroot itself gets only PATH.
+        let envs: Vec<_> = c.get_envs().filter(|(_, v)| v.is_some()).map(|(k, _)| k.to_owned()).collect();
+        assert_eq!(envs, ["PATH"]);
+    }
+
+    #[test]
+    fn setup_is_finished_only_once_no_steps_wait() {
+        assert_eq!(finished_marker(None), "first-login-done");
+        assert_eq!(finished_marker(Some("\n\n")), "first-login-done");
+        assert_eq!(finished_marker(Some("{\"kind\":\"run-as-user\"}\n")), pending::SET_UP);
     }
 }

@@ -200,3 +200,23 @@ fn modules_the_user_took_out_are_not_called_retired() {
     assert_eq!(kind("printing"), Kind::Retired);
     assert!(w.items.iter().all(|i| !i.ticked));
 }
+
+#[test]
+fn set_up_lists_modules_whose_content_is_all_here() {
+    let catalog = Catalog::arch().unwrap();
+    let none = |_: &str| None;
+    // bash-completion is one package; nothing installed: not set up.
+    assert!(!set_up(&catalog, &facts(&[]), &none).contains("bash-completion"));
+    let here = set_up(&catalog, &facts(&["bash-completion", "exfatprogs", "dosfstools"]), &none);
+    assert!(here.contains("bash-completion"));
+    assert!(!here.contains("disk-formats"), "ntfs-3g is still missing");
+    // A file module counts only when the file is exactly Bindle's.
+    let m = catalog.module("makepkg-parallel").unwrap();
+    let (path, text) = (m.files[0].path.clone(), m.files[0].content.clone());
+    let exact = move |p: &str| (p == path).then(|| text.clone());
+    assert!(set_up(&catalog, &facts(&[]), &exact).contains("makepkg-parallel"));
+    // The AUR helper: any installed helper.
+    assert!(!set_up(&catalog, &facts(&[]), &none).contains("aur-helper"));
+    let paru = Facts { aur_helper: Some("paru".into()), ..facts(&[]) };
+    assert!(set_up(&catalog, &paru, &none).contains("aur-helper"));
+}

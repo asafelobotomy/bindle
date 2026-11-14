@@ -13,8 +13,12 @@ change, then applies it.
 From the Arch Linux live ISO (online):
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/asafelobotomy/bindle/main/install.sh)
+curl -fsSLO https://github.com/asafelobotomy/bindle/releases/latest/download/install.sh
+bash install.sh
 ```
+
+That `install.sh` is the release's own copy, listed in its signed `SHA256SUMS`
+([how to check it](docs/ISO.md#trust)).
 
 One wizard asks for the network, desktop, disk and your user; Bindle then installs
 Arch, the desktop and your apps before the first reboot. See [docs/ISO.md](docs/ISO.md).

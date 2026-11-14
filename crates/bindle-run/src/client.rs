@@ -61,12 +61,18 @@ enum Elevation {
     Pkexec,
     /// Installing from the live ISO into the new system (arch-chroot): no
     /// polkit runs there and nobody is asked; the install granted
-    /// passwordless sudo for that run only.
+    /// passwordless sudo for that run only and says so in [`GRANTED_SUDO`].
     GrantedSudo,
 }
 
-fn elevation(in_chroot: bool, has_pkexec: bool, granted_sudo: &dyn Fn() -> bool) -> Result<Elevation> {
-    if in_chroot && granted_sudo() {
+/// Set (to `1`) only by `bindle install-target` for the apply it runs in the
+/// new system. Never enough on its own: sudo must also already let this
+/// user in without a password (`sudo -n true`), so it can't grant anything.
+pub const GRANTED_SUDO: &str = "BINDLE_GRANTED_SUDO";
+
+/// `marked`: [`GRANTED_SUDO`] is set; `granted_sudo` checks sudo (only asked then).
+fn elevation(marked: bool, has_pkexec: bool, granted_sudo: &dyn Fn() -> bool) -> Result<Elevation> {
+    if marked && granted_sudo() {
         Ok(Elevation::GrantedSudo)
     } else if has_pkexec {
         Ok(Elevation::Pkexec)
@@ -96,7 +102,8 @@ impl HelperClient {
                 c
             }
             None => {
-                let mut c = match elevation(crate::sys::in_chroot(), on_path("pkexec"), &|| {
+                let marked = env::var_os(GRANTED_SUDO).is_some_and(|v| v == "1");
+                let mut c = match elevation(marked, on_path("pkexec"), &|| {
                     on_path("sudo")
                         && Command::new("sudo")
                             .args(["-n", "true"])
@@ -211,10 +218,18 @@ mod tests {
         assert_eq!(
             elevation(false, true, &|| true).unwrap(),
             Elevation::Pkexec,
-            "sudo is never used outside the ISO install"
+            "sudo is never used without install-target's marker, even when it would work"
         );
         assert!(elevation(false, false, &|| true).unwrap_err().to_string().contains("pkexec"));
         assert_eq!(elevation(true, true, &|| true).unwrap(), Elevation::GrantedSudo);
+        assert_eq!(elevation(true, false, &|| true).unwrap(), Elevation::GrantedSudo, "no polkit in the chroot");
+        // The marker alone grants nothing: sudo must already let this user in.
         assert_eq!(elevation(true, true, &|| false).unwrap(), Elevation::Pkexec);
+        let asked = std::cell::Cell::new(false);
+        let _ = elevation(false, true, &|| {
+            asked.set(true);
+            true
+        });
+        assert!(!asked.get(), "sudo isn't even tried without the marker");
     }
 }

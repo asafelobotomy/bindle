@@ -100,7 +100,7 @@ pub fn apply(plan: &Plan, facts: &Facts, opts: &Options) -> Result<Outcome> {
     Ok(Outcome::Applied)
 }
 
-pub fn undo(id: Option<String>, list: bool, opts: &Options) -> Result<()> {
+pub fn undo(id: Option<String>, list: bool, force: bool, opts: &Options) -> Result<()> {
     let root = opts.root();
     let snaps = snapshot::list(&root);
     if list || (snaps.is_empty() && id.is_none()) {
@@ -166,7 +166,7 @@ pub fn undo(id: Option<String>, list: bool, opts: &Options) -> Result<()> {
     let mut failed = Vec::new();
     for m in &session {
         if let Err(e) =
-            root_request(&mut helper, &Request::Restore { id: m.id.clone() }, &mut |l| println!("    │ {l}"))
+            root_request(&mut helper, &Request::Restore { id: m.id.clone(), force }, &mut |l| println!("    │ {l}"))
         {
             println!("  ✗ {e:#}");
             failed.push(m.id.clone());

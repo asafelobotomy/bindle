@@ -62,6 +62,27 @@ def _run(args: list, what: str) -> bool:
     return True
 
 
+# install-target's temporary passwordless sudo rule (bind-mounted over an
+# empty placeholder while it runs). It never belongs in the installed system.
+_GRANT = 'etc/sudoers.d/zz-bindle-install'
+
+
+def _clear_grant(target: Path) -> None:
+    """Remove any sudo grant install-target left behind (it removes its own)."""
+    path = target / _GRANT
+    if os.path.ismount(path):
+        subprocess.run(['umount', str(path)], check=False)
+        if os.path.ismount(path):
+            subprocess.run(['umount', '-l', str(path)], check=False)
+    try:
+        path.unlink()
+        _log(f'removed a leftover {path}', warning=True)
+    except FileNotFoundError:
+        pass
+    except OSError as e:
+        _log(f'could not remove {path}: {e}; delete it before restarting', warning=True)
+
+
 class Plugin:
     def __repr__(self) -> str:
         return 'Bindle'
@@ -96,7 +117,10 @@ class Plugin:
         user = os.environ.get('BINDLE_USER')
         if user:
             args += ['--user', user]
-        _run(args, 'setting up the new system')
+        try:
+            _run(args, 'setting up the new system')
+        finally:
+            _clear_grant(target)
 
     def on_install(self, installation) -> None:
         target = Path(installation.target)

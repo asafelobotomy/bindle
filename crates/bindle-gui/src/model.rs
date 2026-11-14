@@ -99,6 +99,9 @@ impl Wizard {
             .collect();
         let mut v = json!(summary);
         v["working"] = json!(working);
+        // Already fully in place (by Bindle or anyone): not suggested again.
+        let read = |p: &str| std::fs::read_to_string(p).ok();
+        v["setUp"] = json!(bindle_core::whatsnew::set_up(&self.catalog, &self.facts, &read));
         v
     }
 

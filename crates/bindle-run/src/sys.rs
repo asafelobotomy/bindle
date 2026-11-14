@@ -66,6 +66,12 @@ pub fn write_atomic(path: &Path, data: &[u8], mode: u32) -> Result<()> {
     write_atomic_owned(path, data, mode, None)
 }
 
+/// `write_atomic` for a system file: owned by root:root whoever owned the
+/// file it replaces (unprivileged, as in tests, it stays the caller's).
+pub fn write_atomic_system(path: &Path, data: &[u8], mode: u32) -> Result<()> {
+    write_atomic_owned(path, data, mode, is_root().then_some((0, 0)))
+}
+
 /// `write_atomic`, giving the file to `owner` (uid, gid) when set.
 pub fn write_atomic_owned(path: &Path, data: &[u8], mode: u32, owner: Option<(u32, u32)>) -> Result<()> {
     let dir = path.parent().context("path has no parent")?;
@@ -256,7 +262,8 @@ pub fn test_dir(name: &str) -> PathBuf {
 }
 
 /// Running inside a chroot (`arch-chroot` from the live ISO): `/` isn't
-/// PID 1's root. Needs root to read `/proc/1/root`; false when unknown.
+/// PID 1's root. Needs root to read `/proc/1/root` (false when unknown), so
+/// only the root helper asks; the user side is told by `client::GRANTED_SUDO`.
 pub fn in_chroot() -> bool {
     use std::os::unix::fs::MetadataExt;
     match (std::fs::metadata("/"), std::fs::metadata("/proc/1/root")) {

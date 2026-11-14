@@ -6,6 +6,7 @@
 
 use std::fs;
 use std::io::{BufRead, IsTerminal, Write};
+use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::process::ExitStatus;
@@ -17,6 +18,8 @@ use bindle_core::{Catalog, Facts, desktops};
 use crate::apply::sys::{is_root, write_atomic};
 use crate::archinstall_version::{archinstall_version, version_note};
 use crate::iso::{PLUGIN, WINDOW_RUNTIME, add_packages, is_live_iso, private_workdir};
+use crate::livesys;
+use crate::tui::install::guard;
 use crate::tui::install::progress::{self, End};
 use crate::{firstlogin, selection, tui};
 use bindle_core::install::preset::TESTED_ARCHINSTALL;
@@ -42,10 +45,25 @@ pub fn run(catalog: &Catalog, facts: &Facts, opts: InstallOpts) -> Result<()> {
         bail!("`bindle install` needs a terminal");
     }
     let data = desktops::all()?;
-    let Some(out) = tui::install::run(facts, catalog, &data)? else {
+    // Off the live ISO (a dry run) the wizard joins no Wi-Fi, opens no disk
+    // editor and leaves the keyboard alone.
+    let live = is_live_iso().is_ok();
+    let Some(out) = tui::install::run(facts, catalog, &data, live)? else {
         println!("Cancelled. Nothing was changed.");
         return Ok(());
     };
+    // The disk erased must be the one shown: same size and model now.
+    if let Some(chosen) = &out.disk {
+        match livesys::disk_now(&chosen.path) {
+            Some(now) if now.same_as(chosen) => {}
+            now => bail!(
+                "{} changed since it was chosen (was {}, now {}). Nothing was changed; run the installer again.",
+                chosen.path,
+                chosen.label(),
+                now.map_or("gone".into(), |d| d.label())
+            ),
+        }
+    }
 
     let mut config = target::config(facts, &data, &out.choice, &out.answers);
     let window = std::env::current_exe().map(|e| e.with_file_name("bindle-gui").is_file()).unwrap_or(false);
@@ -67,7 +85,12 @@ pub fn run(catalog: &Catalog, facts: &Facts, opts: InstallOpts) -> Result<()> {
         plugin: work.join("bindle_plugin.py"),
         selection: work.join("selection.toml"),
     };
+    // Ctrl-C or SIGTERM from here on removes the passwords file first; a
+    // hang-up (SSH dropped) no longer stops the install.
+    let guard = guard::arm(vec![files.creds.clone(), files.config.clone(), files.selection.clone()]);
     write_atomic(&files.config, serde_json::to_string_pretty(&config)?.as_bytes(), 0o600)?;
+    // A dry run leaves the files to look at, so no real password goes in them.
+    let creds = if opts.dry_run { redacted(creds) } else { creds };
     write_atomic(&files.creds, serde_json::to_string(&creds)?.as_bytes(), 0o600)?;
     write_atomic(&files.plugin, PLUGIN.as_bytes(), 0o600)?;
     write_atomic(&files.selection, selection::render(&out.selection)?.as_bytes(), 0o600)?;
@@ -87,7 +110,7 @@ pub fn run(catalog: &Catalog, facts: &Facts, opts: InstallOpts) -> Result<()> {
         .env("BINDLE_USER", &out.answers.username);
     if opts.dry_run {
         println!(
-            "Wrote {}, {}, {} and {}.",
+            "Wrote {}, {} (passwords left out), {} and {}.",
             files.config.display(),
             files.creds.display(),
             files.plugin.display(),
@@ -108,9 +131,22 @@ pub fn run(catalog: &Catalog, facts: &Facts, opts: InstallOpts) -> Result<()> {
         Ok(Some(done)) => done,
         Ok(None) => {
             println!("\nInstalling to {}. This takes a while: Arch, then your desktop and apps.\n", out.answers.disk);
+            // The hang-up of this terminal doesn't stop archinstall either.
+            // SAFETY: signal is async-signal-safe and touches no memory of this process.
+            unsafe {
+                cmd.pre_exec(|| {
+                    libc::signal(libc::SIGHUP, libc::SIG_IGN);
+                    Ok(())
+                });
+            }
             let status = cmd.status();
             files.remove(opts.workdir.is_none().then_some(&work));
-            return finish_plain(outcome(status.context("start archinstall")?, &user));
+            guard.clear();
+            let end = outcome(status.context("start archinstall")?, &user);
+            if matches!(end, End::Failed(_)) {
+                release_target(live, &out.answers);
+            }
+            return finish_plain(end);
         }
         Err(e) => {
             files.remove(opts.workdir.is_none().then_some(&work));
@@ -118,13 +154,16 @@ pub fn run(catalog: &Catalog, facts: &Facts, opts: InstallOpts) -> Result<()> {
         }
     };
     files.remove(opts.workdir.is_none().then_some(&work));
+    guard.clear();
     keep_log();
     match done.end {
         End::Failed(why) => {
+            // Cleaned up first: with the terminal gone, printing can fail.
+            release_target(live, &out.answers);
             done.tail.iter().for_each(|l| println!("{l}"));
             bail!("{why}\nEverything it printed: {LOG}");
         }
-        End::Ready | End::Unfinished(_) if done.restart => restart()?,
+        End::Ready if done.restart => restart()?,
         End::Ready => println!("Your system is ready. Restart when you like: systemctl reboot"),
         End::Unfinished(why) => println!("{why}\nRestart when you like: systemctl reboot"),
     }
@@ -139,6 +178,40 @@ fn keep_log() {
     let dir = Path::new("/mnt/var/log");
     if dir.is_dir() {
         let _ = fs::copy(LOG, dir.join("bindle-install.log"));
+    }
+}
+
+/// The credentials with every password replaced (`--dry-run`).
+fn redacted(mut creds: serde_json::Value) -> serde_json::Value {
+    fn walk(v: &mut serde_json::Value) {
+        match v {
+            serde_json::Value::Object(map) => {
+                for (k, x) in map.iter_mut() {
+                    if k.starts_with('!') || k.contains("password") {
+                        *x = "<left out: dry run>".into();
+                    } else {
+                        walk(x);
+                    }
+                }
+            }
+            serde_json::Value::Array(items) => items.iter_mut().for_each(walk),
+            _ => {}
+        }
+    }
+    walk(&mut creds);
+    creds
+}
+
+/// After a failed install on the live ISO: unmount /mnt and close what
+/// archinstall opened on the target disks, so another try starts clean.
+fn release_target(live: bool, a: &target::Answers) {
+    if !live {
+        return;
+    }
+    let disks: Vec<String> = a.disk.split(", ").map(String::from).collect();
+    let done = livesys::release_target(&disks);
+    if !done.is_empty() {
+        println!("Cleaned up for another try: {}.", done.join(", "));
     }
 }
 
@@ -169,6 +242,7 @@ fn argv(cmd: &Command) -> Vec<String> {
 /// plugin marks setup finished in the user's home).
 fn outcome(status: ExitStatus, user: &str) -> End {
     let mnt = Path::new("/mnt");
+    crate::install_target::clear_grant(mnt); // archinstall has returned: no sudo rule may outlive it
     if !status.success() {
         return End::Failed(format!("archinstall stopped ({status}). Nothing after it ran."));
     }
@@ -177,8 +251,11 @@ fn outcome(status: ExitStatus, user: &str) -> End {
         // take) with a message and a clean exit.
         return End::Failed("archinstall ended without installing anything; its last lines say why.".into());
     };
-    let done = crate::install_target::pick_user(&passwd, Some(user))
-        .map(|a| mnt.join(a.home.trim_start_matches('/')).join(".local/state/bindle/first-login-done").exists());
+    // Done, or set up with only session steps saved for first login.
+    let done = crate::install_target::pick_user(&passwd, Some(user)).map(|a| {
+        let state = mnt.join(a.home.trim_start_matches('/')).join(".local/state/bindle");
+        state.join("first-login-done").exists() || state.join(crate::install_target::pending::SET_UP).exists()
+    });
     let installed = mnt.join(firstlogin::BIN.trim_start_matches('/')).exists();
     match (installed, done) {
         (true, Some(true)) => End::Ready,
@@ -209,9 +286,26 @@ fn finish_plain(end: End) -> Result<()> {
     print!("Restart now? [Y/n] ");
     let _ = std::io::stdout().flush();
     let mut answer = String::new();
-    let _ = std::io::stdin().lock().read_line(&mut answer);
-    if matches!(answer.trim(), "" | "y" | "Y" | "yes") {
+    // No terminal any more (hung up): no answer, so no restart.
+    let read = std::io::stdin().lock().read_line(&mut answer).unwrap_or(0);
+    if read > 0 && matches!(answer.trim(), "" | "y" | "Y" | "yes") {
         restart()?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn dry_run_creds_hold_no_password() {
+        let a = serde_json::json!({
+            "users": [{ "username": "solon", "!password": "hunter22", "sudo": true }],
+            "encryption_password": "disk-secret",
+        });
+        let text = redacted(a).to_string();
+        assert!(!text.contains("hunter22") && !text.contains("disk-secret"), "{text}");
+        assert!(text.contains("solon") && text.contains("left out"));
+    }
 }

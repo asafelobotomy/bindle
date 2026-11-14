@@ -18,7 +18,7 @@ pub mod changes;
 pub mod linediff;
 pub mod pick;
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde::Serialize;
 
@@ -113,10 +113,7 @@ impl Now<'_> {
 
     /// `c` isn't fully in place: a package, file, unit or group missing.
     fn pending(&self, c: &Content) -> bool {
-        c.packages.iter().chain(&c.aur).any(|p| !self.installed(p))
-            || c.files.iter().any(|(p, text)| (self.current_file)(p).as_deref() != Some(text))
-            || c.units.iter().any(|u| !self.facts.enabled_units.contains(u))
-            || c.groups.iter().any(|g| !self.facts.user_groups.contains(g))
+        missing(c, self.facts, self.current_file)
     }
 
     /// Something of `c` is here already (an install made before records).
@@ -137,6 +134,37 @@ impl Now<'_> {
             ..c.clone()
         }
     }
+}
+
+/// Something of `c` isn't on this system: a package, file, unit or group.
+fn missing(c: &Content, facts: &Facts, current_file: &dyn Fn(&str) -> Option<String>) -> bool {
+    c.packages.iter().chain(&c.aur).any(|p| !facts.has_package(p))
+        || c.files.iter().any(|(p, text)| current_file(p).as_deref() != Some(text))
+        || c.units.iter().any(|u| !facts.enabled_units.contains(u))
+        || c.groups.iter().any(|g| !facts.user_groups.contains(g))
+}
+
+/// Modules already fully in place here, whoever set them up: every package,
+/// file, unit and group they would add is present. A module with nothing
+/// checkable (only commands) never counts, nor one that doesn't apply here.
+pub fn set_up(catalog: &Catalog, facts: &Facts, current_file: &dyn Fn(&str) -> Option<String>) -> BTreeSet<String> {
+    let ctx = crate::builtins::Ctx { facts, multilib: facts.multilib_enabled };
+    catalog
+        .modules
+        .iter()
+        .filter(|m| facts.matches(&m.when).is_ok())
+        .filter(|m| {
+            // The AUR helper is bootstrapped, not listed: any helper counts.
+            if m.builtin.as_deref() == Some("aur-helper") {
+                return facts.aur_helper.is_some();
+            }
+            let e = m.builtin.as_ref().map(|b| crate::builtins::expand(b, &ctx));
+            let c = crate::plan::content::of(m, e.as_ref(), facts);
+            let checkable = !(c.packages.is_empty() && c.aur.is_empty() && c.files.is_empty() && c.units.is_empty());
+            checkable && !missing(&c, facts, current_file)
+        })
+        .map(|m| m.id.clone())
+        .collect()
 }
 
 /// `kind`: what an addition's key starts with, when it can be left out alone.

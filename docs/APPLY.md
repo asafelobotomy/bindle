@@ -5,6 +5,7 @@ bindle apply --profile desktop            # shows the plan, asks, applies
 bindle apply --from ~/.config/bindle/selection.toml --yes
 bindle undo --list
 bindle undo                               # latest snapshot
+bindle undo --force                       # also over files changed since
 ```
 
 In the wizard, press **a** on the Review screen. Bindle leaves the TUI, asks
@@ -15,13 +16,16 @@ for confirmation and your password in the terminal, then streams progress.
 1. **Plan**: same pure resolver as `bindle plan`; anything already done is dropped.
 2. **Root helper**: Bindle runs as you and refuses to run as root. It starts one helper
    (`bindle helper`, hidden) through `pkexec`, for every approval: the desktop's
-   polkit password dialog, or pkexec's text prompt on a console. sudo is used
-   only by the live-ISO install inside `arch-chroot`, where no polkit runs and
-   the install granted passwordless sudo for that run (nobody is asked). The
+   polkit password dialog, or pkexec's text prompt on a console. Every run asks
+   once (`auth_admin`, not `auth_admin_keep`: no approval is reused by anything
+   else running as you). sudo is used only by the live-ISO install inside
+   `arch-chroot`, where no polkit runs and the install granted passwordless sudo
+   for that run (nobody is asked): only when `install-target` set
+   `BINDLE_GRANTED_SUDO=1` **and** `sudo -n true` succeeds; otherwise pkexec. The
    desktop window (`bindle-gui`) always uses `pkexec`, running the `bindle` binary
    installed next to it; `first-login install` adds a polkit action
-   (`/usr/share/polkit-1/actions/io.github.asafelobotomy.bindle.policy`) so the
-   password dialog says why. With no polkit agent running, the window offers to
+   (`/usr/share/polkit-1/actions/io.github.asafelobotomy.bindle.policy`, for
+   `/usr/local/bin/bindle helper` only) so the password dialog says why. With no polkit agent running, the window offers to
    finish in a terminal (`bindle in-terminal apply --from <selection>`). The
    two speak JSON lines; the helper greets with its version, which must match.
    From an AppImage, the binary is first copied to a private `0700` directory in
@@ -33,7 +37,8 @@ for confirmation and your password in the terminal, then streams progress.
    If the snapshot fails, nothing has changed. A file that didn't exist yet but
    appears during the apply (shipped by a package installed in an earlier step)
    is captured just before Bindle overwrites it, so undo restores the package's
-   version rather than deleting it. Owners and modes are recorded too.
+   version rather than deleting it. Owners and modes are recorded too, and after
+   each write (or removal) the sha256 of what Bindle left there.
 4. **Steps**, in plan order. Root steps go to the helper; AUR builds (`makepkg` as you,
    then `pacman -U` via the helper), `paru`/`yay` installs and user commands run as you.
 5. **Stop on first failure** with the log path and the undo command. Every step is
@@ -66,7 +71,8 @@ to do unasked.
 | release assets | you, then root | `curl --proto =https` + sha256 pin; packages via `pacman -U` (root-owned copies), AppImages to `~/.local/bin` |
 | user command | you | as declared |
 
-Logs: `/var/log/bindle/apply-<id>.log` (and `undo-<id>.log`), root-only (`0600`).
+Logs: `/var/log/bindle/apply-<id>.log` (and `undo-<id>.log`), root-only (`0600`);
+the helper refuses a log anywhere but directly in `/var/log/bindle/`.
 They record commands and their output; written files appear as path, mode and
 size, not their contents. Steps that run as you (AUR builds, release downloads,
 user commands) are logged as a line each, with the error if one fails; their
@@ -79,7 +85,11 @@ umask, so `bindle undo` can list snapshots as you.
 that didn't exist before, then the directories apply created for them), with
 their original owner and mode (`/etc/fstab` included: drives added to it stay mounted
 until restart or `umount`, which undo says), and stops and
-disables (`systemctl disable --now`) the units that apply enabled. Units that
+disables (`systemctl disable --now`) the units that apply enabled. A file that
+is no longer what Bindle left there (edited, replaced or removed since) is kept
+as it is: undo says "changed since Bindle wrote it; kept (the original is in
+the snapshot)" and `bindle undo --force [ID]` puts the original back anyway.
+Snapshots from before Bindle recorded this restore every file, as they did. Units that
 were already enabled are never in the plan, so they're never disabled. Packages
 are left installed: removing them automatically is too risky. Undo prints the
 `pacman -Rns` command for the ones still present. Group membership and catalog

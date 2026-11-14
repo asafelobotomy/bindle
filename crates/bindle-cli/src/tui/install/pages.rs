@@ -4,7 +4,7 @@
 
 use bindle_core::Selection;
 use bindle_core::catalog::Module;
-use bindle_core::install::hardware::Hardware;
+use bindle_core::install::hardware::{Hardware, Setting};
 use bindle_core::install::target::Filesystem;
 use ratatui::Frame;
 use ratatui::crossterm::event::KeyCode;
@@ -23,12 +23,18 @@ fn step(state: &mut ListState, down: bool, len: usize) {
 
 impl<'a> Wizard<'a> {
     /// The Hardware page's rows: the user's changes, else the recommendation
-    /// for the desktop and profile chosen so far.
+    /// for the desktop and profile chosen so far. Without a desktop there is
+    /// no graphics driver to choose (archinstall installs one only with a
+    /// desktop), so that row isn't shown.
     pub fn hardware(&self) -> Hardware {
         self.hw.clone().unwrap_or_else(|| {
             let choice = self.choice();
             let graphical = choice.desktop.is_some() || choice.profile != "minimal";
-            Hardware::recommended(self.facts, self.uefi, graphical)
+            let mut hw = Hardware::recommended(self.facts, self.uefi, graphical);
+            if choice.desktop.is_none() {
+                hw.rows.retain(|r| r.setting != Setting::Graphics);
+            }
+            hw
         })
     }
 
@@ -72,6 +78,7 @@ impl<'a> Wizard<'a> {
             (Step::Apps, KeyCode::Char(' ')) => self.toggle_app(),
             (Step::Apps, KeyCode::Char('m')) => return Some(Action::Apps),
             (Step::Disk, KeyCode::Char('p')) => return Some(Action::Partition),
+            (Step::Disk, KeyCode::Char('r')) => return Some(Action::Rescan),
             (Step::Disk, KeyCode::Char('x')) => self.manual = None,
             (Step::Disk, KeyCode::Up | KeyCode::Down | KeyCode::Char('f' | 'e')) if self.manual.is_some() => {
                 self.message = Some("A manual layout is set: p edits it again, x goes back to Bindle's layout.".into());

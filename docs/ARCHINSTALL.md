@@ -89,13 +89,24 @@ Bluetooth hardware is present.
 | `/usr/local/bin/bindo`, `/usr/local/bin/bindleupgrade` | links to `bindle`, which acts as the recipe runner and the updater under those names ([BINDO.md](BINDO.md), [UPGRADE.md](UPGRADE.md)) |
 | `/usr/lib/bindle/bindle` | a link to `bindle` for uQ Settings' page, whose commands may only run programs under `/usr/lib` or `/usr/bin` |
 | `/usr/share/uq/settings/pages/bindle/page.toml`, `Page.qml` | uQ Settings' "Re-run setup" page; harmless without uQ, and a uQ installed later picks it up |
-| `/usr/share/polkit-1/actions/io.github.asafelobotomy.bindle.policy` | the reason shown in the window's password dialog |
+| `/usr/share/polkit-1/actions/io.github.asafelobotomy.bindle.policy` | the reason shown in the root helper's password dialog (`bindle helper` only; asks every run) |
+| `/etc/tmpfiles.d/bindle.conf` | removes `/etc/sudoers.d/zz-bindle-install` at every start, should the live-ISO install's temporary sudo rule ever survive |
 | `/etc/xdg/autostart/bindle-first-login.desktop` | desktops: runs `bindle first-login run` at login; Bindle opens the desktop's own terminal |
 | `/etc/systemd/user/bindle-first-login.service` (enabled globally) | window managers without XDG autostart: waits for this user's graphical session (logind + Wayland/X11 socket), then opens a terminal; a short-lived lock in `$XDG_RUNTIME_DIR` prevents a second window where autostart also fires |
 | `/etc/profile.d/bindle-first-login.sh` | console logins (TTY, `startx` users); skipped over SSH or inside a graphical session (`--no-tty-hook` to omit) |
 | `/usr/local/share/applications/bindle.desktop` + icon | a normal launcher for later (`bindle open`: the window, else the wizard in a terminal) |
 
-**First login** opens the wizard: in a graphical session, the desktop window
+**Installed from the ISO** (`bindle install`, `bindle iso`): the setup already
+ran in the new system, so the first login only runs the user steps it saved for
+a running session (`~/.local/state/bindle/finish-at-login.jsonl`). Until they
+have run, setup isn't marked finished, so every hook fires (autostart, the user
+unit on Sway, niri or i3, the console hook) and runs them through `bindle
+first-login run`; once all succeed, setup is marked finished and no wizard
+opens. A step that fails stays in the file for the next login, is reported on
+the console and as a notification (`notify-send`, when installed), and the
+wizard opens as below to finish.
+
+**First login** otherwise opens the wizard: in a graphical session, the desktop window
 when `bindle-gui` is installed and Kirigami is present (`bindle iso` adds
 `kirigami`, `qt6-declarative` and `breeze-icons` for graphical profiles), else the wizard in
 the desktop's terminal. Applying from the window marks setup finished; closing
@@ -118,10 +129,11 @@ notification server without action buttons gets the wizard instead.
 Marking one user done never touches the system-wide files: the autostart
 entry, user unit and console hook stay installed, and **users created later
 still get the wizard at their first login**, until `run0 bindle first-login
-remove` is run. When the last regular user (from `/etc/passwd`, login shells
-only) is marked done, Bindle says so and offers to run that for you; a home it
-can't read counts as not done, so on multi-user systems with private homes the
-offer may not appear and removal stays manual.
+remove` is run. When you're marked done and you're the only regular user
+(from `/etc/passwd`, login shells only), Bindle says so and offers to run that
+for you. Other users' homes are private, so with other users Bindle doesn't
+look: it prints `pkexec bindle first-login remove --if-all-done`, which checks
+every home as root and removes the hooks only once every user is done.
 
 Only regular accounts get any of this: the user unit has
 `ConditionUser=!@system`, and `run`, `watch` and the console hook also skip

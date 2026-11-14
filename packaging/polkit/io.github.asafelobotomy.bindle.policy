@@ -1,8 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
  "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
-<!-- Installed by `bindle first-login install`. Gives the desktop window's
-     password dialog (pkexec /usr/local/bin/bindle helper) a clear message. -->
+<!-- Installed by `bindle first-login install`. Gives the root helper's
+     password dialog (pkexec /usr/local/bin/bindle helper) a clear message.
+     auth_admin, never _keep: each apply, undo or update starts one helper and
+     asks once; nothing else of the user's can reuse that approval. pkexec
+     matches exec.path against the real path (it resolves symlinks such as
+     /usr/lib/bindle/bindle) and exec.argv1 against the first argument; other
+     `pkexec bindle …` commands get polkit's generic action (also auth_admin). -->
 <policyconfig>
   <vendor>Bindle</vendor>
   <vendor_url>https://github.com/asafelobotomy/bindle</vendor_url>
@@ -13,8 +18,9 @@
     <defaults>
       <allow_any>auth_admin</allow_any>
       <allow_inactive>auth_admin</allow_inactive>
-      <allow_active>auth_admin_keep</allow_active>
+      <allow_active>auth_admin</allow_active>
     </defaults>
     <annotate key="org.freedesktop.policykit.exec.path">/usr/local/bin/bindle</annotate>
+    <annotate key="org.freedesktop.policykit.exec.argv1">helper</annotate>
   </action>
 </policyconfig>

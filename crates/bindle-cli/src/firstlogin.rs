@@ -14,7 +14,10 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
 
-use crate::apply::sys::{create_dirs, host, is_root, shell_words, write_atomic};
+use crate::apply::sys::{create_dirs, host, is_root, shell_words, write_atomic_system};
+
+mod users;
+pub use users::{only_user, unfinished};
 
 pub const BIN: &str = "/usr/local/bin/bindle";
 /// The desktop window, installed when it ships next to `bindle`.
@@ -27,6 +30,10 @@ pub const USER_UNIT_WANTS: &str = "/etc/systemd/user/default.target.wants/bindle
 /// The desktop window's password dialog message (pkexec).
 pub const POLKIT: &str = "/usr/share/polkit-1/actions/io.github.asafelobotomy.bindle.policy";
 const POLICY: &str = include_str!("../../../packaging/polkit/io.github.asafelobotomy.bindle.policy");
+/// At every start, remove the live-ISO install's sudo rule should one survive.
+pub const TMPFILES: &str = "/etc/tmpfiles.d/bindle.conf";
+const TMPFILES_RULE: &str = "# Managed by Bindle: the live-ISO install's passwordless sudo never outlives it.\n\
+                             r /etc/sudoers.d/zz-bindle-install\n";
 /// uQ Settings' "Re-run setup" page (read only from /usr/share/uq), and the
 /// path its commands run Bindle by (they may only run programs under /usr/lib
 /// or /usr/bin). Harmless without uQ; uQ installed later picks the page up.
@@ -105,14 +112,14 @@ pub fn install(root: &Path, tty_hook: bool) -> Result<Vec<String>> {
     let same = fs::canonicalize(&exe).ok() == fs::canonicalize(&target).ok();
     if !same {
         let data = fs::read(&exe).context("read own executable")?;
-        write_atomic(&target, &data, 0o755)?;
+        write_atomic_system(&target, &data, 0o755)?;
         done.push(format!("installed {BIN}"));
     }
     let gui = exe.with_file_name("bindle-gui");
     let gui_target = host(root, GUI_BIN);
     if gui.is_file() && fs::canonicalize(&gui).ok() != fs::canonicalize(&gui_target).ok() {
         let data = fs::read(&gui).context("read bindle-gui")?;
-        write_atomic(&gui_target, &data, 0o755)?;
+        write_atomic_system(&gui_target, &data, 0o755)?;
         done.push(format!("installed {GUI_BIN}"));
     }
     let mut files = vec![
@@ -122,17 +129,18 @@ pub fn install(root: &Path, tty_hook: bool) -> Result<Vec<String>> {
         (POLKIT, POLICY),
         (UQ_PAGE, PAGE_TOML),
         (UQ_PAGE_QML, PAGE_QML),
+        (TMPFILES, TMPFILES_RULE),
     ];
     if tty_hook {
         files.push((PROFILE_HOOK, HOOK));
     }
     for (path, content) in files {
-        write_atomic(&host(root, path), content.as_bytes(), 0o644)?;
+        write_atomic_system(&host(root, path), content.as_bytes(), 0o644)?;
         done.push(format!("wrote {path}"));
     }
     let icons = crate::icons::files();
     for (path, data) in &icons {
-        write_atomic(&host(root, path), data, 0o644)?;
+        write_atomic_system(&host(root, path), data, 0o644)?;
     }
     done.push(format!("wrote the icon ({} sizes) under /usr/local/share/icons/hicolor", icons.len()));
     // What `systemctl --global enable` does, without needing systemd running (chroot).
@@ -155,7 +163,7 @@ pub fn remove(root: &Path, purge: bool) -> Result<Vec<String>> {
     let icons: Vec<String> = crate::icons::files().into_iter().map(|(p, _)| p).collect();
     let mut paths = vec![AUTOSTART, PROFILE_HOOK, USER_UNIT_WANTS, USER_UNIT];
     if purge {
-        paths.extend([LAUNCHER, POLKIT, UQ_PAGE, UQ_PAGE_QML, UQ_PAGE_BIN, GUI_BIN, BIN]);
+        paths.extend([LAUNCHER, POLKIT, TMPFILES, UQ_PAGE, UQ_PAGE_QML, UQ_PAGE_BIN, GUI_BIN, BIN]);
         paths.extend(crate::bindo_cmd::NAMES);
         paths.extend(icons.iter().map(String::as_str));
     }
@@ -264,39 +272,20 @@ pub fn hooks_installed(root: &Path) -> bool {
     [AUTOSTART, USER_UNIT_WANTS, PROFILE_HOOK].iter().any(|p| host(root, p).symlink_metadata().is_ok())
 }
 
-/// Home directories of the regular login accounts in a passwd file.
-fn regular_homes(passwd: &str, uid_min: u32) -> Vec<PathBuf> {
-    passwd
-        .lines()
-        .filter_map(|l| {
-            let f: Vec<&str> = l.split(':').collect();
-            let (uid, home, shell) = (f.get(2)?.parse().ok()?, *f.get(5)?, *f.get(6).unwrap_or(&""));
-            let login = !shell.ends_with("/nologin") && !shell.ends_with("/false");
-            (crate::session::is_regular_uid(uid, uid_min) && login && !home.is_empty()).then(|| PathBuf::from(home))
-        })
-        .collect()
-}
-
-/// Every regular user has finished (or dismissed) first-login setup. A home
-/// this user can't read counts as not finished.
-pub fn all_users_done(root: &Path) -> bool {
-    let read = |p: &str| fs::read_to_string(host(root, p)).unwrap_or_default();
-    let homes = regular_homes(&read("/etc/passwd"), crate::session::uid_min(&read("/etc/login.defs")));
-    !homes.is_empty()
-        && homes.iter().all(|h| host(root, &h.to_string_lossy()).join(".local/state/bindle/first-login-done").exists())
-}
-
-/// JSON to merge into an archinstall configuration file. With `sha256`, the
-/// download is verified before it is made executable and run.
+/// JSON to merge into an archinstall configuration file. The download goes
+/// to a temporary file (https only); with `sha256` it is verified there, and
+/// only then made executable and moved to `BIN`.
 pub fn archinstall_snippet(url: &str, sha256: Option<&str>) -> Result<String> {
-    let mut cmd = format!("curl -fsSL -o {BIN} {}", shell_words(&[url.to_string()]));
+    let tmp = format!("{BIN}.download");
+    let mut cmd = format!("curl -fsSL --proto '=https' --tlsv1.2 -o {tmp} {}", shell_words(&[url.to_string()]));
     if let Some(sum) = sha256 {
         if sum.len() != 64 || !sum.chars().all(|c| c.is_ascii_hexdigit()) {
             bail!("--sha256 needs a 64-character hex SHA-256 digest");
         }
-        cmd.push_str(&format!(" && echo '{}  {BIN}' | sha256sum -c --quiet -", sum.to_ascii_lowercase()));
+        cmd.push_str(&format!(" && echo '{}  {tmp}' | sha256sum -c --quiet -", sum.to_ascii_lowercase()));
     }
-    cmd.push_str(&format!(" && chmod 755 {BIN} && {BIN} first-login install"));
+    cmd.push_str(&format!(" && chmod 755 {tmp} && mv -f {tmp} {BIN} && {BIN} first-login install"));
+    let cmd = format!("{{ {cmd}; }} || {{ rm -f {tmp}; false; }}");
     Ok(serde_json::to_string_pretty(&serde_json::json!({ "custom_commands": [cmd] }))?)
 }
 
@@ -319,7 +308,12 @@ mod tests {
         let unit = fs::read_to_string(host(&root, USER_UNIT)).unwrap();
         assert!(unit.contains("ConditionUser=!@system"));
         assert!(fs::read_to_string(host(&root, PROFILE_HOOK)).unwrap().contains("UID_MIN"));
-        assert!(fs::read_to_string(host(&root, POLKIT)).unwrap().contains(&format!(">{BIN}<")));
+        let policy = fs::read_to_string(host(&root, POLKIT)).unwrap();
+        // The helper's own path and first argument (client.rs: pkexec <bindle> helper), one approval each.
+        assert!(policy.contains(&format!(">{BIN}<")) && policy.contains(">helper<"));
+        assert!(policy.contains("<allow_active>auth_admin</allow_active>"));
+        let tmpfiles = fs::read_to_string(host(&root, TMPFILES)).unwrap();
+        assert!(tmpfiles.lines().any(|l| l == "r /etc/sudoers.d/zz-bindle-install"), "{tmpfiles}");
         // uQ Settings' page runs Bindle by a path under /usr/lib.
         assert!(fs::read_to_string(host(&root, UQ_PAGE)).unwrap().contains(&format!("\"{UQ_PAGE_BIN}\"")));
         assert!(host(&root, UQ_PAGE_QML).is_file());
@@ -359,41 +353,24 @@ mod tests {
     }
 
     #[test]
-    fn last_user_done() {
-        let root = crate::apply::sys::test_dir("firstlogin-users");
-        let passwd = "root:x:0:0::/root:/usr/bin/bash\nsddm:x:964:964::/var/lib/sddm:/usr/bin/nologin\n\
-                      ann:x:1000:1000::/home/ann:/usr/bin/zsh\nbob:x:1001:1001::/home/bob:/usr/bin/bash\n\
-                      svc:x:1002:1002::/srv/svc:/usr/bin/nologin\nnobody:x:65534:65534::/:/usr/bin/nologin\n";
-        assert_eq!(regular_homes(passwd, 1000), [PathBuf::from("/home/ann"), PathBuf::from("/home/bob")]);
-        assert!(!all_users_done(&root), "no passwd: no users");
-        create_dirs(&host(&root, "/etc")).unwrap();
-        fs::write(host(&root, "/etc/passwd"), passwd).unwrap();
-        let mark = |user: &str| {
-            let dir = host(&root, &format!("/home/{user}/.local/state/bindle"));
-            create_dirs(&dir).unwrap();
-            fs::write(dir.join("first-login-done"), "").unwrap();
-        };
-        mark("ann");
-        assert!(!all_users_done(&root), "bob hasn't finished");
-        mark("bob");
-        assert!(all_users_done(&root));
-        assert!(!hooks_installed(&root));
-        install(&root, false).unwrap();
-        assert!(hooks_installed(&root));
-        remove(&root, false).unwrap();
-        assert!(!hooks_installed(&root));
-    }
-
-    #[test]
     fn snippet_quotes_the_url_and_checks_the_digest() {
         let plain = archinstall_snippet("https://example.invalid/bindle", None).unwrap();
         assert!(plain.contains("first-login install") && !plain.contains("sha256sum"));
         let evil = archinstall_snippet("https://x/'; rm -rf / #", None).unwrap();
         let cmd: serde_json::Value = serde_json::from_str(&evil).unwrap();
         assert!(cmd["custom_commands"][0].as_str().unwrap().contains(r"'https://x/'\''; rm -rf / #'"));
+        assert!(plain.contains("--proto '=https' --tlsv1.2"));
         let sum = "A".repeat(64);
         let checked = archinstall_snippet("https://x/b", Some(&sum)).unwrap();
-        assert!(checked.contains(&format!("{}  {BIN}' | sha256sum -c", "a".repeat(64))));
+        let cmd: serde_json::Value = serde_json::from_str(&checked).unwrap();
+        let cmd = cmd["custom_commands"][0].as_str().unwrap();
+        // Checked as a temporary file; only then executable and in place.
+        let tmp = format!("{BIN}.download");
+        let check = cmd.find(&format!("{}  {tmp}' | sha256sum -c", "a".repeat(64))).unwrap();
+        assert!(cmd.find(&format!("-o {tmp} ")).unwrap() < check);
+        assert!(check < cmd.find(&format!("chmod 755 {tmp}")).unwrap());
+        assert!(check < cmd.find(&format!("mv -f {tmp} {BIN}")).unwrap());
+        assert!(!cmd.contains(&format!("-o {BIN} ")) && cmd.ends_with(&format!("|| {{ rm -f {tmp}; false; }}")));
         assert!(archinstall_snippet("https://x/b", Some("abc")).is_err());
     }
 }

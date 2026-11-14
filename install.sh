@@ -3,7 +3,8 @@
 # network, desktop, disk and user, then everything is installed before the
 # first reboot.
 #
-#   bash <(curl -fsSL https://raw.githubusercontent.com/asafelobotomy/bindle/main/install.sh)
+#   curl -fsSLO https://github.com/asafelobotomy/bindle/releases/latest/download/install.sh
+#   bash install.sh                 # this copy is in the release's signed SHA256SUMS
 #   curl -fsSL https://raw.githubusercontent.com/asafelobotomy/bindle/main/install.sh | bash
 #
 # No arguments: `bindle install`. `iso …` (or any options, e.g. --desktop plasma
@@ -20,6 +21,8 @@
 #
 # The binary is checked against SHA256SUMS, and SHA256SUMS against a detached
 # signature by the release key embedded here, so a tampered release fails.
+# The release's VERSION file (in SHA256SUMS, so signed too) must name the tag
+# asked for, so an older signed release can't be passed off as the latest.
 set -euo pipefail
 
 # Release signing key: packaging/bindle-release.asc (see SECURITY.md).
@@ -60,7 +63,7 @@ main() {
     done
 
     local curl=(curl -fL --retry 3 --proto '=https' --tlsv1.2)
-    local base
+    local base resolved=0
     if [[ -n "${BINDLE_BASE_URL:-}" ]]; then
         base="$BINDLE_BASE_URL"
         if [[ "$base" != https://* ]]; then
@@ -79,6 +82,7 @@ main() {
             url="$("${curl[@]}" -sS -o /dev/null -w '%{url_effective}' "https://github.com/$repo/releases/latest")"
             version="${url##*/}"
             [[ "$version" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]] || die "could not find the latest release (got: $url)"
+            resolved=1
         fi
         base="https://github.com/$repo/releases/download/$version"
     fi
@@ -94,6 +98,7 @@ main() {
     "${curl[@]}" -sS -o "$dir/SHA256SUMS.sig" "$base/SHA256SUMS.sig" \
         || die "This release has no signature (SHA256SUMS.sig); use a signed release."
     verify "$dir" || die "Verification failed: this download is not the signed Bindle release. Nothing was run."
+    check_version "$dir" "$base" "$version" "$resolved"
     chmod 755 "$dir/bindle"
     # The desktop window, when this release has one: opened at first login
     # instead of a terminal. Without it, Bindle opens in a terminal as before.
@@ -133,6 +138,30 @@ verify() {
     GNUPGHOME="$dir/gnupg" gpgv --status-fd 1 --keyring "$dir/release.gpg" "$dir/SHA256SUMS.sig" "$dir/SHA256SUMS" 2>/dev/null \
         | grep -q "^\[GNUPG:\] VALIDSIG $SIGNING_FPR " || return 1
     matches "$dir" bindle-x86_64 "$dir/bindle"
+}
+
+# The release's signed VERSION must hold exactly the tag asked for ("v0.1.9"
+# and a newline). Required for the latest release; a release pinned with
+# BINDLE_VERSION from before VERSION existed (up to v0.1.8) gets a warning.
+check_version() {
+    local dir="$1" base="$2" version="$3" resolved="$4"
+    if ! listed "$dir" VERSION; then
+        # Releases up to v0.1.8 were published before VERSION existed; any
+        # later one must have it, or an old release could pose as a new one.
+        local last_unversioned=v0.1.8
+        if [[ "$resolved" == 1 && "$(printf '%s\n' "$last_unversioned" "$version" | sort -V | tail -n1)" != "$last_unversioned" ]]; then
+            die "Verification failed: the latest release ($version) has no signed VERSION file. Nothing was run."
+        fi
+        say "warning: $version has no signed VERSION file (releases up to $last_unversioned); its signature can't confirm which release it is."
+        return 0
+    fi
+    "${curl[@]}" -sS -o "$dir/VERSION" "$base/VERSION" || die "couldn't download VERSION from $version."
+    matches "$dir" VERSION "$dir/VERSION" || die "Verification failed: VERSION doesn't match the signed SHA256SUMS. Nothing was run."
+    if [[ "$version" == latest ]]; then
+        return 0  # BINDLE_BASE_URL without BINDLE_VERSION: no tag to compare with
+    fi
+    [[ "$(cat "$dir/VERSION"; echo x)" == "$version"$'\n'x ]] \
+        || die "Verification failed: this release's signed VERSION is $(head -c 40 "$dir/VERSION" | tr -cd 'A-Za-z0-9.-'), not $version (an older release served in its place?). Nothing was run."
 }
 
 # The checksum SHA256SUMS lists for a release file name (empty if none).

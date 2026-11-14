@@ -5,6 +5,11 @@
 //! release key's fingerprint, and each file must match its line there. The
 //! key is `packaging/bindle-release.asc`, built in.
 //!
+//! Downgrades: the release's `VERSION` file (listed in the signed
+//! `SHA256SUMS`, so covered by the signature) must hold exactly the tag being
+//! installed, and that tag must be newer than the running Bindle. A signed
+//! old release served in place of the latest one is refused.
+//!
 //! What gets replaced depends on where this Bindle runs from: the install
 //! `bindle first-login install` made (`/usr/local/bin/bindle`, and
 //! `bindle-gui` beside it), through the root helper; an AppImage the user
@@ -24,6 +29,10 @@ use crate::system::vercmp;
 pub const REPO: &str = "asafelobotomy/bindle";
 /// The release key's fingerprint (as in install.sh and SECURITY.md).
 pub const SIGNING_FPR: &str = "75C40FA127FBF8D4FBF9E710FAC40EFFE02D69FC";
+/// Every fingerprint a release may be signed by. To rotate the key, a release
+/// adds the next one here (and its public key to `bindle-release.asc`)
+/// before the current key expires (2028-11-07); see SECURITY.md.
+pub const SIGNING_FPRS: &[&str] = &[SIGNING_FPR];
 const KEY: &str = include_str!("../../../packaging/bindle-release.asc");
 /// Set in the environment of the Bindle that just replaced itself.
 pub const UPDATED_ENV: &str = "BINDLE_UPGRADED";
@@ -66,6 +75,35 @@ pub fn location(exe: &Path, appimage: Option<&Path>, writable: &dyn Fn(&Path) ->
     }
 }
 
+/// A release tag as install.sh accepts it:
+/// `^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$`. Checked before a tag
+/// from the network goes into a URL or a cache path.
+pub fn valid_tag(tag: &str) -> bool {
+    let Some(rest) = tag.strip_prefix('v') else { return false };
+    let (core, pre) = match rest.split_once('-') {
+        Some((core, pre)) => (core, Some(pre)),
+        None => (rest, None),
+    };
+    let parts: Vec<&str> = core.split('.').collect();
+    parts.len() == 3
+        && parts.iter().all(|p| !p.is_empty() && p.bytes().all(|b| b.is_ascii_digit()))
+        && pre.is_none_or(|p| !p.is_empty() && p.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'.'))
+}
+
+/// The release's signed `VERSION` file (`v0.1.9` and a newline) names
+/// `tag`, and `tag` is newer than `running`: refuses a downgrade or a
+/// release passed off as another.
+pub fn check_version(version_file: &str, tag: &str, running: &str) -> Result<()> {
+    let named = version_file.strip_suffix('\n').unwrap_or(version_file);
+    if named != tag {
+        bail!("the release's signed VERSION says {named:?}, not {tag}; not updating");
+    }
+    if !newer(running, tag) {
+        bail!("{tag} isn't newer than this Bindle ({running}); not downgrading");
+    }
+    Ok(())
+}
+
 /// `tag` (`v0.1.9`) is newer than `running` (`0.1.8`).
 pub fn newer(running: &str, tag: &str) -> bool {
     vercmp(tag.trim_start_matches('v'), running) == Ordering::Greater
@@ -95,9 +133,9 @@ pub fn sum_for(sums: &str, file: &str) -> Option<String> {
     })
 }
 
-/// gpgv's `--status-fd` output shows a valid signature by exactly `fpr`.
-pub fn valid_signature(status: &str, fpr: &str) -> bool {
-    status.lines().any(|l| l.starts_with(&format!("[GNUPG:] VALIDSIG {fpr} ")))
+/// gpgv's `--status-fd` output shows a valid signature by exactly one of `fprs`.
+pub fn valid_signature(status: &str, fprs: &[&str]) -> bool {
+    status.lines().any(|l| fprs.iter().any(|fpr| l.starts_with(&format!("[GNUPG:] VALIDSIG {fpr} "))))
 }
 
 /// The latest release's tag, from where github.com/<repo>/releases/latest
@@ -105,20 +143,34 @@ pub fn valid_signature(status: &str, fpr: &str) -> bool {
 pub fn latest_tag() -> Result<String, String> {
     let url = format!("https://github.com/{REPO}/releases/latest");
     let out = Command::new("curl")
-        .args(["-fsSL", "--max-time", "20", "--proto", "=https", "-o", "/dev/null", "-w", "%{url_effective}", &url])
+        .args([
+            "-fsSL",
+            "--max-time",
+            "20",
+            "--proto",
+            "=https",
+            "--tlsv1.2",
+            "-o",
+            "/dev/null",
+            "-w",
+            "%{url_effective}",
+            &url,
+        ])
         .stdin(Stdio::null())
         .output()
         .map_err(|e| format!("can't run curl: {e}"))?;
     let effective = String::from_utf8_lossy(&out.stdout).to_string();
     match effective.rsplit_once("/tag/") {
-        Some((_, tag)) if out.status.success() && !tag.is_empty() => Ok(tag.trim().to_string()),
+        Some((_, tag)) if out.status.success() && valid_tag(tag.trim()) => Ok(tag.trim().to_string()),
+        Some((_, tag)) if out.status.success() => Err(format!("the latest release's tag isn't a version: {tag:?}")),
         _ => Err("couldn't read the latest release".into()),
     }
 }
 
 fn curl(url: &str, to: &Path) -> Result<()> {
     let ok = Command::new("curl")
-        .args(["-fsSL", "--retry", "3", "--proto", "=https", "--tlsv1.2", "-o"])
+        // An AppImage on a slow link: generous, but not forever.
+        .args(["-fsSL", "--retry", "3", "--proto", "=https", "--tlsv1.2", "--max-time", "900", "-o"])
         .arg(to)
         .arg(url)
         .status()
@@ -134,9 +186,16 @@ fn sha256(path: &Path) -> Result<String> {
     Ok(String::from_utf8_lossy(&out.stdout).split_whitespace().next().unwrap_or_default().to_string())
 }
 
-/// Download `tag`'s files for `loc` into `dir`, verified; returns (local
-/// file, destination, sha256) for each.
-pub fn download(tag: &str, loc: &Location, dir: &Path) -> Result<Vec<(PathBuf, String, String)>> {
+/// Download `tag`'s files for `loc` into `dir`, verified, when `tag` is
+/// newer than `running` and the release's signed VERSION names it; returns
+/// (local file, destination, sha256) for each.
+pub fn download(tag: &str, running: &str, loc: &Location, dir: &Path) -> Result<Vec<(PathBuf, String, String)>> {
+    if !valid_tag(tag) {
+        bail!("{tag:?} isn't a release tag; not updating");
+    }
+    if !newer(running, tag) {
+        bail!("{tag} isn't newer than this Bindle ({running}); not downgrading");
+    }
     let _ = fs::remove_dir_all(dir);
     fs::create_dir_all(dir)?;
     let base = format!("https://github.com/{REPO}/releases/download/{tag}");
@@ -165,10 +224,17 @@ pub fn download(tag: &str, loc: &Location, dir: &Path) -> Result<Vec<(PathBuf, S
         .stderr(Stdio::null())
         .output()
         .context("gpgv is needed to check the release's signature")?;
-    if !valid_signature(&String::from_utf8_lossy(&status.stdout), SIGNING_FPR) {
+    if !valid_signature(&String::from_utf8_lossy(&status.stdout), SIGNING_FPRS) {
         bail!("SHA256SUMS isn't signed by Bindle's release key; not updating");
     }
     let sums = fs::read_to_string(dir.join("SHA256SUMS"))?;
+    let want = sum_for(&sums, "VERSION").context("this release has no signed VERSION file; not updating")?;
+    let version = dir.join("VERSION");
+    curl(&format!("{base}/VERSION"), &version)?;
+    if sha256(&version)? != want {
+        bail!("VERSION doesn't match the signed SHA256SUMS; not updating");
+    }
+    check_version(&fs::read_to_string(&version)?, tag, running)?;
     let mut out = vec![];
     for (asset, dest) in files(loc) {
         let want = sum_for(&sums, asset).with_context(|| format!("{asset} isn't in the signed SHA256SUMS"))?;
@@ -202,6 +268,61 @@ mod tests {
     }
 
     #[test]
+    fn tags_from_the_network_are_checked() {
+        for ok in ["v0.1.9", "v10.20.30", "v0.2.0-rc.1", "v1.0.0-beta2"] {
+            assert!(valid_tag(ok), "{ok}");
+        }
+        for bad in [
+            "",
+            "v",
+            "0.1.9",
+            "v0.1",
+            "v0.1.9.1",
+            "v0.1.x",
+            "v0.1.9-",
+            "v0.1.9-a/b",
+            "v0.1.9/../..",
+            "../v0.1.9",
+            "v0.1.9\n",
+            "v0.1.9 ",
+            "v.1.9",
+            "v0..9",
+            "v0.1.9-rc_1",
+        ] {
+            assert!(!valid_tag(bad), "{bad:?}");
+        }
+    }
+
+    #[test]
+    fn the_signed_version_must_name_a_newer_tag() {
+        assert!(check_version("v0.1.9\n", "v0.1.9", "0.1.8").is_ok());
+        assert!(check_version("v0.1.9", "v0.1.9", "0.1.8").is_ok());
+        // An old signed release served as the latest one.
+        assert!(check_version("v0.1.7\n", "v0.1.9", "0.1.8").is_err());
+        assert!(check_version("v0.1.9\n\n", "v0.1.9", "0.1.8").is_err());
+        assert!(check_version(" v0.1.9\n", "v0.1.9", "0.1.8").is_err());
+        // Same or older than the running one.
+        assert!(check_version("v0.1.8\n", "v0.1.8", "0.1.8").is_err());
+        assert!(check_version("v0.1.7\n", "v0.1.7", "0.1.8").is_err());
+        let err = check_version("v0.1.7\n", "v0.1.7", "0.1.8").unwrap_err().to_string();
+        assert!(err.contains("not downgrading"), "{err}");
+    }
+
+    #[test]
+    fn download_refuses_bad_or_older_tags_before_touching_anything() {
+        let dir = std::env::temp_dir().join(format!("bindle-selfupdate-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("keep"), b"").unwrap();
+        let loc = Location::AppImage("/nonexistent/Bindle.AppImage".into());
+        assert!(download("../../x", "0.1.8", &loc, &dir).is_err());
+        assert!(download("v0.1.7", "0.1.8", &loc, &dir).is_err());
+        assert!(download("v0.1.8", "0.1.8", &loc, &dir).is_err());
+        // Refused before the old download directory was cleared.
+        assert!(dir.join("keep").exists());
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
     fn where_bindle_runs_decides_what_is_replaced() {
         let yes = |_: &Path| true;
         let no = |_: &Path| false;
@@ -229,8 +350,10 @@ mod tests {
         assert_eq!(sum_for(&sums, "Bindle-x86_64.AppImage"), Some("b".repeat(64)));
         assert_eq!(sum_for(&sums, "bindle"), None);
         let status = format!("[GNUPG:] GOODSIG X\n[GNUPG:] VALIDSIG {SIGNING_FPR} 2026-11-11 1\n");
-        assert!(valid_signature(&status, SIGNING_FPR));
-        assert!(!valid_signature("[GNUPG:] VALIDSIG 0000 2026", SIGNING_FPR));
+        assert!(valid_signature(&status, SIGNING_FPRS));
+        assert!(valid_signature(&status, &["0000", SIGNING_FPR]));
+        assert!(!valid_signature("[GNUPG:] VALIDSIG 0000 2026", SIGNING_FPRS));
+        assert!(!valid_signature(&status, &[]));
         assert!(KEY.starts_with("-----BEGIN PGP PUBLIC KEY BLOCK-----"));
     }
 }

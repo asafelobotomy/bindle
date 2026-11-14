@@ -1,6 +1,8 @@
 //! Pre-apply snapshots under /var/lib/bindle/snapshots/<id>/.
 //! manifest.json is world-readable (paths and package names only); copies of
-//! the original files live in a root-only `files/` directory.
+//! the original files live in a root-only `files/` directory. Each file also
+//! records what Bindle left there (a sha256), so undo never puts an original
+//! back over edits made since.
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -26,7 +28,16 @@ pub struct FileEntry {
     #[serde(default)]
     pub owner: Option<(u32, u32)>,
     pub stored: Option<String>,
+    /// What this apply left at `path`: the sha256 of what it wrote, or
+    /// [`REMOVED`]. None: it hasn't touched the file (yet).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub written: Option<String>,
 }
+
+/// `written` for a file the apply removed.
+pub const REMOVED: &str = "removed";
+
+mod sha256;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Manifest {
@@ -65,14 +76,23 @@ pub struct Manifest {
     /// Modules this apply retired: earlier records of them no longer count.
     #[serde(default)]
     pub forget: Vec<String>,
+    /// Files record what the apply wrote (`FileEntry::written`). Older
+    /// snapshots don't: their undo restores every file, as it always did.
+    #[serde(default)]
+    pub tracks_writes: bool,
 }
 
 /// What a restore did, and what it could not do.
 #[derive(Debug, Default)]
 pub struct RestoreReport {
     pub done: Vec<String>,
+    /// Files changed since Bindle wrote them, left as they are.
+    pub kept: Vec<String>,
     pub errors: Vec<String>,
 }
+
+/// What a restore says about a file it leaves alone.
+pub const KEPT: &str = "changed since Bindle wrote it; kept (the original is in the snapshot)";
 
 pub fn valid_id(id: &str) -> bool {
     !id.is_empty() && id.chars().all(|c| c.is_ascii_digit() || c == '-')
@@ -149,6 +169,7 @@ fn fill(root: &Path, plan: &SnapshotPlan, id: &str, dir: &Path) -> Result<Manife
         version: plan.version.clone(),
         record: plan.record.clone(),
         forget: plan.forget.clone(),
+        tracks_writes: true,
     };
     write_atomic(&dir.join("manifest.json"), serde_json::to_string_pretty(&manifest)?.as_bytes(), 0o644)?;
     Ok(manifest)
@@ -176,11 +197,13 @@ fn capture(root: &Path, files_dir: &Path, path: &str, stored: &str) -> Result<Fi
                 mode: Some(meta.permissions().mode() & 0o7777),
                 owner: Some((meta.uid(), meta.gid())),
                 stored: Some(stored.to_string()),
+                written: None,
             })
         }
         Ok(_) => bail!("{path} exists but is not a regular file"),
         Err(e) if e.kind() == ErrorKind::NotFound => {
-            Ok(FileEntry { path: path.to_string(), existed: false, mode: None, owner: None, stored: None })
+            let path = path.to_string();
+            Ok(FileEntry { path, existed: false, mode: None, owner: None, stored: None, written: None })
         }
         Err(e) => Err(e).with_context(|| format!("snapshot {path}")),
     }
@@ -188,16 +211,43 @@ fn capture(root: &Path, files_dir: &Path, path: &str, stored: &str) -> Result<Fi
 
 /// Just before a file is written: if the snapshot saw it missing but it exists
 /// now (a package installed earlier in this apply ships it), store that copy,
-/// so undo restores the package's version instead of deleting it.
+/// so undo restores the package's version instead of deleting it. Not once
+/// this apply has written it: that copy would be Bindle's own.
 pub fn capture_late(root: &Path, id: &str, path: &str) -> Result<()> {
     let mut m = load(root, id)?;
-    let late: Vec<usize> = (0..m.files.len()).filter(|&i| m.files[i].path == path && !m.files[i].existed).collect();
+    let late: Vec<usize> = (0..m.files.len())
+        .filter(|&i| m.files[i].path == path && !m.files[i].existed && m.files[i].written.is_none())
+        .collect();
     if late.is_empty() || !host(root, path).exists() {
         return Ok(());
     }
     let dir = snapshot_dir(root, id);
     for i in late {
         m.files[i] = capture(root, &dir.join("files"), path, &i.to_string())?;
+    }
+    save(root, &m)
+}
+
+/// What is at `path` now, in `FileEntry::written`'s terms. Anything that
+/// isn't a regular file never matches what Bindle wrote.
+fn state_of(target: &Path) -> Result<String> {
+    match fs::symlink_metadata(target) {
+        Ok(m) if m.is_file() => Ok(sha256::hex(&fs::read(target).context("read")?)),
+        Ok(_) => Ok("not a regular file".into()),
+        Err(e) if e.kind() == ErrorKind::NotFound => Ok(REMOVED.into()),
+        Err(e) => Err(e).context("inspect"),
+    }
+}
+
+/// Just after the apply wrote (or removed) `path`: remember what it left.
+pub fn record_written(root: &Path, id: &str, path: &str) -> Result<()> {
+    let mut m = load(root, id)?;
+    if !m.files.iter().any(|f| f.path == path) {
+        return Ok(());
+    }
+    let now = state_of(&host(root, path)).with_context(|| path.to_string())?;
+    for f in m.files.iter_mut().filter(|f| f.path == path) {
+        f.written = Some(now.clone());
     }
     save(root, &m)
 }
@@ -256,10 +306,22 @@ pub fn list(root: &Path) -> Vec<Manifest> {
 
 /// Restore files exactly as they were (removing ones that didn't exist, then
 /// the directories created for them). One failure doesn't stop the rest.
-pub fn restore_files(root: &Path, m: &Manifest) -> RestoreReport {
+/// A file that is no longer what the apply left is kept, unless `force`.
+pub fn restore_files(root: &Path, m: &Manifest, force: bool) -> RestoreReport {
     let dir = snapshot_dir(root, &m.id).join("files");
     let mut r = RestoreReport::default();
     for f in &m.files {
+        match ours(root, m, f, force) {
+            Ok(true) => {}
+            Ok(false) => {
+                r.kept.push(format!("{}: {KEPT}", f.path));
+                continue;
+            }
+            Err(e) => {
+                r.errors.push(format!("{}: {e:#}", f.path));
+                continue;
+            }
+        }
         match restore_one(root, &dir, f) {
             Ok(Some(line)) => r.done.push(line),
             Ok(None) => {}
@@ -273,6 +335,26 @@ pub fn restore_files(root: &Path, m: &Manifest) -> RestoreReport {
         }
     }
     r
+}
+
+/// The file is still what the apply left (or the snapshot predates that
+/// record, or `force`). For a file the apply didn't get to, "what it left"
+/// is the snapshot's own copy (or nothing): restoring that changes nothing.
+fn ours(root: &Path, m: &Manifest, f: &FileEntry, force: bool) -> Result<bool> {
+    if force || !m.tracks_writes {
+        return Ok(true);
+    }
+    check_system_path(&f.path)?;
+    let expect = match (&f.written, &f.stored) {
+        (Some(w), _) => w.clone(),
+        (None, _) if !f.existed => REMOVED.into(),
+        (None, Some(s)) if !s.is_empty() && s.chars().all(|c| c.is_ascii_digit()) => {
+            let copy = snapshot_dir(root, &m.id).join("files").join(s);
+            sha256::hex(&fs::read(copy).context("read stored copy")?)
+        }
+        (None, _) => return Ok(true),
+    };
+    Ok(state_of(&host(root, &f.path))? == expect)
 }
 
 fn restore_one(root: &Path, dir: &Path, f: &FileEntry) -> Result<Option<String>> {

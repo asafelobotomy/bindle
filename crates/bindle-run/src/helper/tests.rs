@@ -30,7 +30,7 @@ impl Sink {
 fn helper(name: &str) -> (Helper, Sink, PathBuf) {
     let root = crate::sys::test_dir(&format!("helper-{name}"));
     let sink = Sink::default();
-    let opts = HelperOpts { root: root.clone(), fake_commands: true, log: "/var/log/bindle.log".into() };
+    let opts = HelperOpts { root: root.clone(), fake_commands: true, log: "/var/log/bindle/test.log".into() };
     (Helper { opts, log: None, out: Box::new(sink.clone()), snapshot: None }, sink, root)
 }
 
@@ -127,26 +127,35 @@ fn install_files_fails_without_running_pacman_on_a_bad_file() {
     assert!(!sink.lines().iter().any(|l| l.contains("would run: pacman")), "{:?}", sink.lines());
 }
 
+/// Snapshot `paths`, then write each through the helper as an apply would.
+fn apply_writes(h: &mut Helper, paths: &[&str], units: &[&str]) -> String {
+    let plan = SnapshotPlan {
+        files: paths.iter().map(|p| p.to_string()).collect(),
+        units: units.iter().map(|u| u.to_string()).collect(),
+        ..Default::default()
+    };
+    let Some(Event::Snapshot { id }) = h.handle(Request::Snapshot { plan: Box::new(plan) }).unwrap() else {
+        panic!("no snapshot")
+    };
+    for p in paths {
+        let file = bindle_core::catalog::FileSpec { path: p.to_string(), content: "bindle\n".into(), mode: 0o644 };
+        h.handle(Request::Run { step: Step::WriteFile { module: "m".into(), file } }).unwrap();
+    }
+    id
+}
+
 #[test]
 fn restore_reports_each_item_it_could_not_put_back_and_stays_not_undone() {
     let (mut h, sink, root) = helper("restore");
     fs::create_dir_all(root.join("etc")).unwrap();
     fs::write(root.join("etc/a.conf"), "a\n").unwrap();
     fs::write(root.join("etc/b.conf"), "b\n").unwrap();
-    let plan = SnapshotPlan {
-        files: vec!["/etc/a.conf".into(), "/etc/b.conf".into()],
-        units: vec!["-bad.service".into()],
-        ..Default::default()
-    };
-    let Some(Event::Snapshot { id }) = h.handle(Request::Snapshot { plan: Box::new(plan) }).unwrap() else {
-        panic!("no snapshot")
-    };
-    fs::write(root.join("etc/b.conf"), "changed\n").unwrap();
+    let id = apply_writes(&mut h, &["/etc/a.conf", "/etc/b.conf"], &["-bad.service"]);
     // a.conf became a symlink: it can't be put back, b.conf still is.
     fs::remove_file(root.join("etc/a.conf")).unwrap();
     std::os::unix::fs::symlink("/dev/null", root.join("etc/a.conf")).unwrap();
 
-    let err = h.handle(Request::Restore { id: id.clone() }).unwrap_err().to_string();
+    let err = h.handle(Request::Restore { id: id.clone(), force: true }).unwrap_err().to_string();
     assert!(err.contains("2 item(s) could not be restored"), "{err}");
     assert_eq!(fs::read_to_string(root.join("etc/b.conf")).unwrap(), "b\n");
     let lines = sink.lines();
@@ -157,7 +166,37 @@ fn restore_reports_each_item_it_could_not_put_back_and_stays_not_undone() {
 }
 
 #[test]
+fn undo_keeps_a_file_changed_since_bindle_wrote_it_unless_forced() {
+    let (mut h, sink, root) = helper("restore-kept");
+    fs::create_dir_all(root.join("etc")).unwrap();
+    fs::write(root.join("etc/a.conf"), "a\n").unwrap();
+    fs::write(root.join("etc/b.conf"), "b\n").unwrap();
+    let id = apply_writes(&mut h, &["/etc/a.conf", "/etc/b.conf", "/etc/new.conf"], &[]);
+    fs::write(root.join("etc/b.conf"), "edited since\n").unwrap();
+
+    h.handle(Request::Restore { id: id.clone(), force: false }).unwrap();
+    assert_eq!(fs::read_to_string(root.join("etc/a.conf")).unwrap(), "a\n");
+    assert_eq!(fs::read_to_string(root.join("etc/b.conf")).unwrap(), "edited since\n");
+    assert!(!root.join("etc/new.conf").exists());
+    let lines = sink.lines();
+    assert!(lines.iter().any(|l| l.contains(&format!("/etc/b.conf: {}", snapshot::KEPT))), "{lines:?}");
+    assert!(lines.iter().any(|l| l.contains(&format!("bindle undo --force {id}"))), "{lines:?}");
+    assert!(snapshot::load(&root, &id).unwrap().undone, "the rest was undone");
+
+    h.handle(Request::Restore { id, force: true }).unwrap();
+    assert_eq!(fs::read_to_string(root.join("etc/b.conf")).unwrap(), "b\n");
+}
+
+#[test]
+fn the_log_goes_in_var_log_bindle_only() {
+    assert!(check_log_path("/var/log/bindle/apply-20261008-153012.log").is_ok());
+    for bad in ["/etc/shadow", "/var/log/bindle/", "/var/log/bindle/../x", "/var/log/bindle/a/b", "var/log/bindle/x"] {
+        assert!(check_log_path(bad).is_err(), "{bad}");
+    }
+}
+
+#[test]
 fn restore_of_an_unknown_snapshot_fails() {
     let (mut h, _, _) = helper("restore-unknown");
-    assert!(h.handle(Request::Restore { id: "../etc".into() }).is_err());
+    assert!(h.handle(Request::Restore { id: "../etc".into(), force: false }).is_err());
 }

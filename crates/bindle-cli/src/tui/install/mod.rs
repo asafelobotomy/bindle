@@ -2,8 +2,11 @@
 //! same look and keys as the `bindle` wizard. Network → Desktop → Hardware →
 //! Disk → You → Apps → Review. Nothing is written until Install is confirmed on Review.
 
+mod answers;
 mod draw;
 mod flow;
+pub mod guard;
+mod keys;
 mod manual;
 mod pages;
 pub mod progress;
@@ -13,12 +16,11 @@ use bindle_core::catalog::Profile;
 use bindle_core::desktops::Desktop;
 use bindle_core::install::hardware::Hardware;
 use bindle_core::install::preset::{self, IsoChoice};
-use bindle_core::install::target::{self, Answers, Filesystem, MIN_DISK_BYTES};
+use bindle_core::install::target::{Answers, Filesystem, MIN_DISK_BYTES};
 use bindle_core::{Catalog, Facts, Selection};
-use ratatui::crossterm::event::KeyCode;
 use ratatui::widgets::ListState;
 
-use crate::livesys::{self, Disk, WifiNetwork};
+use crate::livesys::{Disk, Medium, WifiNetwork};
 use manual::ManualDisk;
 
 /// What the wizard hands back when the user confirms Install.
@@ -26,6 +28,8 @@ pub struct Outcome {
     pub choice: IsoChoice,
     pub answers: Answers,
     pub selection: Selection,
+    /// The whole disk to erase, as it was shown (None: a manual layout).
+    pub disk: Option<Disk>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -51,13 +55,14 @@ pub(crate) const STEPS: [(Step, &str); 7] = [
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(crate) enum Key {
+    Keyboard,
     Hostname,
     Username,
     Password,
     Confirm,
     DiskPassphrase,
+    DiskConfirm,
     Timezone,
-    Keyboard,
     Language,
 }
 
@@ -78,6 +83,10 @@ enum Action {
     Apps,
     /// Open archinstall's disk editor (manual partitioning).
     Partition,
+    /// Look for disks again.
+    Rescan,
+    /// Switch the console to this keyboard layout (`loadkeys`).
+    Keymap(String),
     Install,
 }
 
@@ -111,8 +120,25 @@ pub(crate) struct Wizard<'a> {
     /// there), else the profile's.
     pub apps: Option<Selection>,
     pub confirm: bool,
+    /// Ctrl-C after typing something: asking before quitting.
+    pub quit_ask: bool,
+    /// Something was typed into a field (Ctrl-C asks before throwing it away).
+    pub typed: bool,
     pub message: Option<String>,
     pub uefi: bool,
+    /// On the live ISO: Wi-Fi, the disk editor and loadkeys are only used there.
+    pub live: bool,
+    /// The disk(s) the ISO booted from, left out of `disks`.
+    pub medium: Medium,
+    /// The ISO's keymaps and glibc's SUPPORTED list; None: not checked.
+    pub keymaps: Option<Vec<String>>,
+    pub locales: Option<String>,
+    /// The ISO's /etc/passwd: system accounts a user name can't take.
+    pub passwd: String,
+    /// The keyboard layout the console was last switched to.
+    pub keymap: String,
+    /// AUR packages the plan builds, for Review (Err: why it couldn't tell).
+    pub aur: Option<Result<Vec<String>, String>>,
 }
 
 fn field(key: Key, label: &'static str, value: &str, secret: bool) -> Field {
@@ -143,21 +169,33 @@ impl<'a> Wizard<'a> {
             filesystem: Filesystem::Btrfs,
             encrypt: false,
             manual: None,
+            // The keyboard first: everything after it, passwords included,
+            // is typed with the layout the new system will have.
             fields: vec![
+                field(Key::Keyboard, "Keyboard layout", "us", false),
                 field(Key::Hostname, "Computer name", "archlinux", false),
                 field(Key::Username, "Your user name", "", false),
                 field(Key::Password, "Password", "", true),
                 field(Key::Confirm, "Password again", "", true),
                 field(Key::DiskPassphrase, "Disk passphrase", "", true),
+                field(Key::DiskConfirm, "Disk passphrase again", "", true),
                 field(Key::Timezone, "Timezone", "UTC", false),
-                field(Key::Keyboard, "Keyboard layout", "us", false),
                 field(Key::Language, "Language", "en_US", false),
             ],
             field: 0,
             apps: None,
             confirm: false,
+            quit_ask: false,
+            typed: false,
             message: None,
             uefi: true,
+            live: false,
+            medium: Medium::NotLive,
+            keymaps: None,
+            locales: None,
+            passwd: String::new(),
+            keymap: "us".into(),
+            aur: None,
         }
     }
 
@@ -191,60 +229,33 @@ impl<'a> Wizard<'a> {
 
     /// The fields shown: the disk passphrase only with encryption on.
     pub fn visible(&self) -> Vec<usize> {
-        (0..self.fields.len()).filter(|&i| self.encrypting() || self.fields[i].key != Key::DiskPassphrase).collect()
+        let disk = |k| matches!(k, Key::DiskPassphrase | Key::DiskConfirm);
+        (0..self.fields.len()).filter(|&i| self.encrypting() || !disk(self.fields[i].key)).collect()
+    }
+
+    /// The highlighted disk on the Disk page.
+    pub fn chosen_disk(&self) -> Option<&Disk> {
+        self.disks.get(self.disk.selected().unwrap_or(0))
+    }
+
+    /// New disks (after a rescan or at start), starting on the preferred one.
+    pub fn set_disks(&mut self, disks: Vec<Disk>, medium: Medium) {
+        self.disk.select(Some(crate::livesys::preferred(&disks)));
+        self.disks = disks;
+        self.medium = medium;
     }
 
     fn value(&self, key: Key) -> &str {
         self.fields.iter().find(|f| f.key == key).map_or("", |f| f.value.as_str())
     }
 
-    /// Why the You page isn't complete, or the answers.
-    pub fn answers(&self) -> Result<Answers, String> {
-        let disk = match (&self.manual, self.disks.get(self.disk.selected().unwrap_or(0))) {
-            (Some(m), _) => Disk { path: m.devices(), bytes: 0, model: String::new(), transport: String::new() },
-            (None, Some(d)) => d.clone(),
-            (None, None) => return Err("choose a disk".into()),
-        };
-        let v = |k| self.value(k).trim().to_string();
-        if !target::valid_hostname(&v(Key::Hostname)) {
-            return Err("Computer name: lower-case letters, digits and -, up to 63".into());
-        }
-        if !target::valid_username(&v(Key::Username)) {
-            return Err("User name: lower-case letters, digits, - and _, starting with a letter".into());
-        }
-        if self.value(Key::Password).is_empty() || self.value(Key::Password) != self.value(Key::Confirm) {
-            return Err("The two passwords must match and can't be empty".into());
-        }
-        if self.encrypting() && self.value(Key::DiskPassphrase).len() < 8 {
-            return Err("Disk passphrase: at least 8 characters".into());
-        }
-        if !livesys::valid_timezone(&v(Key::Timezone)) {
-            return Err(format!("Timezone `{}` isn't known; use Area/City, e.g. Europe/London", v(Key::Timezone)));
-        }
-        Ok(Answers {
-            disk: disk.path,
-            disk_bytes: disk.bytes,
-            filesystem: self.filesystem,
-            encryption: match &self.manual {
-                Some(m) => m.passphrase.clone(),
-                None => self.encrypt.then(|| self.value(Key::DiskPassphrase).to_string()),
-            },
-            manual_disk: self.manual.as_ref().map(|m| m.config.clone()),
-            uefi: self.uefi,
-            hostname: v(Key::Hostname),
-            username: v(Key::Username),
-            password: self.value(Key::Password).to_string(),
-            timezone: v(Key::Timezone),
-            keyboard: v(Key::Keyboard),
-            locale: v(Key::Language),
-            hardware: self.hardware(),
-        })
-    }
-
     fn go(&mut self, step: Step) {
         self.step = step;
         self.confirm = false;
         self.message = None;
+        if step == Step::Review {
+            self.aur = Some(self.aur_packages());
+        }
     }
 
     fn next(&mut self) {
@@ -264,7 +275,7 @@ impl<'a> Wizard<'a> {
                 Step::Hardware
             }
             Step::Hardware => Step::Disk,
-            Step::Disk => match self.disks.get(self.disk.selected().unwrap_or(0)) {
+            Step::Disk => match self.chosen_disk() {
                 _ if self.manual.is_some() => Step::You,
                 None => {
                     self.message = Some("No disk to install to.".into());
@@ -294,80 +305,6 @@ impl<'a> Wizard<'a> {
         if i > 0 {
             self.go(STEPS[i - 1].0);
         }
-    }
-
-    fn on_key(&mut self, key: KeyCode) -> Action {
-        // Typing: the passphrase box and the You page take characters.
-        if let Some(p) = self.passphrase.as_mut() {
-            match key {
-                KeyCode::Char(c) => p.push(c),
-                KeyCode::Backspace => drop(p.pop()),
-                KeyCode::Esc => self.passphrase = None,
-                KeyCode::Enter => {
-                    let ssid = self.networks.get(self.net.selected().unwrap_or(0)).map(|n| n.ssid.clone());
-                    let pass = self.passphrase.take();
-                    return ssid.map_or(Action::None, |s| Action::Connect(s, pass));
-                }
-                _ => {}
-            }
-            return Action::None;
-        }
-        if self.step == Step::You {
-            let vis = self.visible();
-            let pos = vis.iter().position(|&i| i == self.field).unwrap_or(0);
-            match key {
-                KeyCode::Up => self.field = vis[pos.saturating_sub(1)],
-                KeyCode::Down | KeyCode::Tab => self.field = vis[(pos + 1).min(vis.len() - 1)],
-                KeyCode::Enter if pos + 1 < vis.len() => self.field = vis[pos + 1],
-                KeyCode::Enter => self.next(),
-                KeyCode::Esc => self.back(),
-                KeyCode::Backspace => drop(self.fields[self.field].value.pop()),
-                KeyCode::Char(c) => self.fields[self.field].value.push(c),
-                _ => {}
-            }
-            return Action::None;
-        }
-        if self.confirm {
-            self.confirm = false;
-            return if matches!(key, KeyCode::Char('y' | 'Y')) { Action::Install } else { Action::None };
-        }
-        self.message = None;
-        if let Some(action) = self.on_page_key(key) {
-            return action;
-        }
-        match (self.step, key) {
-            (_, KeyCode::Char('q')) => return Action::Quit,
-            (_, KeyCode::Esc | KeyCode::Left) if self.step != Step::Desktop => self.back(),
-            (Step::Desktop, KeyCode::Esc) => self.back(),
-            (Step::Network, KeyCode::Char('r')) => return Action::Scan,
-            (Step::Network, KeyCode::Up) => self.net.select_previous(),
-            (Step::Network, KeyCode::Down) => {
-                let max = self.networks.len().saturating_sub(1);
-                self.net.select(Some((self.net.selected().unwrap_or(0) + 1).min(max)));
-            }
-            (Step::Network, KeyCode::Char('c')) => match self.networks.get(self.net.selected().unwrap_or(0)) {
-                Some(n) if n.security == "open" => return Action::Connect(n.ssid.clone(), None),
-                Some(n) if n.security == "psk" => self.passphrase = Some(String::new()),
-                Some(_) => self.message = Some("Enterprise Wi-Fi isn't supported here; use iwctl.".into()),
-                None => {}
-            },
-            (Step::Desktop, KeyCode::Tab | KeyCode::Left | KeyCode::Right) => self.focus_profile = !self.focus_profile,
-            (Step::Desktop, KeyCode::Up) => {
-                self.desk_list().select_previous();
-                self.reset_choices();
-            }
-            (Step::Desktop, KeyCode::Down) => {
-                let max = if self.focus_profile { self.profiles().len() - 1 } else { self.desktops.len() };
-                let l = self.desk_list();
-                l.select(Some((l.selected().unwrap_or(0) + 1).min(max)));
-                self.reset_choices();
-            }
-            (Step::Review, KeyCode::Char('m')) => return Action::Apps,
-            (Step::Review, KeyCode::Char('i') | KeyCode::Enter) => self.confirm = true,
-            (_, KeyCode::Enter | KeyCode::Right) => self.next(),
-            _ => {}
-        }
-        Action::None
     }
 
     /// Another desktop or profile: its own recommendations and apps.

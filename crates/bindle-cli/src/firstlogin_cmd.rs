@@ -28,6 +28,9 @@ pub enum FirstLoginCmd {
         /// Also remove the binary, launcher and icon.
         #[arg(long)]
         purge: bool,
+        /// Only once every regular user has finished first-login setup.
+        #[arg(long)]
+        if_all_done: bool,
     },
     /// Show what is installed and whether this user has seen the wizard.
     Status {
@@ -70,7 +73,15 @@ pub enum FirstLoginCmd {
 pub fn dispatch(action: FirstLoginCmd) -> Result<()> {
     let lines = match action {
         FirstLoginCmd::Install { root, no_tty_hook } => firstlogin::install(&root, !no_tty_hook)?,
-        FirstLoginCmd::Remove { root, purge } => firstlogin::remove(&root, purge)?,
+        FirstLoginCmd::Remove { root, purge, if_all_done } => {
+            let left = if if_all_done { firstlogin::unfinished(&root) } else { vec![] };
+            if left.is_empty() {
+                firstlogin::remove(&root, purge)?
+            } else {
+                let homes: Vec<String> = left.iter().map(|h| h.display().to_string()).collect();
+                vec![format!("Kept: first-login setup isn't finished for {}.", homes.join(", "))]
+            }
+        }
         FirstLoginCmd::Status { root } => firstlogin::status(&root),
         FirstLoginCmd::Snippet { url, sha256 } => {
             if sha256.is_none() {
@@ -274,15 +285,22 @@ fn wizard_once(catalog: &Catalog, facts: &Facts) -> Result<()> {
 }
 
 /// Once the last user is done, the system-wide login hooks have no one left
-/// to open for, except users created later: offer to remove them.
+/// to open for, except users created later: offer to remove them. Other
+/// users' homes are private, so with others here only root can tell.
 fn offer_remove() {
     let root = Path::new("/");
-    if !firstlogin::hooks_installed(root) || !firstlogin::all_users_done(root) {
+    if !firstlogin::hooks_installed(root) {
+        return;
+    }
+    let exe = if Path::new(firstlogin::BIN).exists() { PathBuf::from(firstlogin::BIN) } else { "bindle".into() };
+    let home = std::env::var_os("HOME").map(PathBuf::from);
+    if !home.is_some_and(|h| firstlogin::only_user(root, &h)) {
+        println!("Once every user here has finished, remove the login hooks with:");
+        println!("  pkexec {} first-login remove --if-all-done", exe.display());
         return;
     }
     println!("\nEvery user here has finished first-login setup. The login hooks stay installed");
     println!("(and new users still get the wizard) until they are removed.");
-    let exe = if Path::new(firstlogin::BIN).exists() { PathBuf::from(firstlogin::BIN) } else { "bindle".into() };
     if std::io::stdin().is_terminal() && apply::confirm("Remove them now? (asks for your password)", false) {
         match std::process::Command::new("pkexec").arg(&exe).args(["first-login", "remove"]).status() {
             Ok(s) if s.success() => return,

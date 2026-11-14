@@ -37,9 +37,15 @@ pub(super) fn panes(body: Rect, left: u16) -> (Rect, Rect) {
 
 impl Wizard<'_> {
     pub(crate) fn draw(&mut self, f: &mut Frame) {
-        let [head, body, msg, foot] =
-            Layout::vertical([Constraint::Length(1), Constraint::Min(0), Constraint::Length(1), Constraint::Length(1)])
-                .areas(f.area());
+        // The wipe question takes two lines: the disk in full, then the keys.
+        let msg_rows = if self.confirm { 2 } else { 1 };
+        let [head, body, msg, foot] = Layout::vertical([
+            Constraint::Length(1),
+            Constraint::Min(0),
+            Constraint::Length(msg_rows),
+            Constraint::Length(1),
+        ])
+        .areas(f.area());
         let mut spans = vec![Span::from(" Bindle install  ").bold().fg(Color::Yellow)];
         for (i, (s, name)) in STEPS.iter().enumerate() {
             if i > 0 {
@@ -66,10 +72,11 @@ impl Wizard<'_> {
             f.render_widget(Line::from(format!(" {m}")).fg(Color::Yellow), msg);
         }
         if self.confirm {
-            let disk = self.answers().map(|a| a.disk).unwrap_or_default();
-            let what = if self.manual.is_some() { "Apply your partitioning to" } else { "Erase everything on" };
-            let ask = format!(" {what} {disk} and install? y to start, any other key to go back");
-            f.render_widget(Line::from(ask).bold().fg(Color::Red), msg);
+            let ask = vec![
+                Line::from(format!(" {}", self.wipe_question())).bold().fg(Color::Red),
+                Line::from(" y to start, any other key to go back").bold().fg(Color::Red),
+            ];
+            f.render_widget(Paragraph::new(ask), msg);
         }
         let keys = match self.step {
             _ if self.passphrase.is_some() => "type the Wi-Fi password · Enter join · Esc cancel",
@@ -80,8 +87,10 @@ impl Wizard<'_> {
             Step::Disk if self.manual.is_some() => {
                 "p edit the layout again · x Bindle's layout · Enter next · Esc back"
             }
-            Step::Disk => "↑↓ disk · f filesystem · e encryption · p manual partitioning · Enter next · Esc back",
-            Step::You => "↑↓ field · type to edit · Enter next field · Esc back",
+            Step::Disk => {
+                "↑↓ disk · f filesystem · e encryption · p manual partitioning · r look again · Enter next · Esc back"
+            }
+            Step::You => "↑↓ field · type to edit · Enter next field · Esc back · Ctrl-C quit",
             Step::Review => "i install · Esc back · q quit",
         };
         f.render_widget(Line::from(format!(" {keys}")).dim(), foot);
@@ -93,6 +102,15 @@ impl Wizard<'_> {
             Step::Disk => self.draw_disk(f, body),
             Step::You => self.draw_you(f, body),
             Step::Review => self.draw_review(f, body),
+        }
+    }
+
+    /// The wipe question: the disk in full (path, size, model, transport).
+    pub(super) fn wipe_question(&self) -> String {
+        match (&self.manual, self.chosen_disk()) {
+            (Some(m), _) => format!("Apply your partitioning to {} and install?", m.devices()),
+            (None, Some(d)) => format!("Erase everything on {} and install?", d.label()),
+            (None, None) => "No disk chosen.".into(),
         }
     }
 
@@ -186,8 +204,13 @@ impl Wizard<'_> {
             Line::from("p  Manual partitioning: keep other systems, several disks, LVM (archinstall's editor)"),
             Line::from(""),
         ];
-        if let Some(d) = self.disks.get(self.disk.selected().unwrap_or(0)) {
-            lines.push(Line::from(format!("Everything on {} will be erased.", d.path)).fg(Color::Red));
+        if let Some(d) = self.chosen_disk() {
+            lines.push(Line::from(format!("Everything on {} will be erased.", d.label())).fg(Color::Red));
+            if d.maybe_medium {
+                lines.push(Line::from("This could be the USB stick the installer started from.").fg(Color::Red));
+            } else if d.removable {
+                lines.push(Line::from("This is a removable (USB) disk.").fg(Color::Yellow));
+            }
         } else {
             lines.push(Line::from("No disk found to install to.").fg(Color::Red));
         }
@@ -196,7 +219,7 @@ impl Wizard<'_> {
     }
 
     fn draw_you(&mut self, f: &mut Frame, body: Rect) {
-        let lines: Vec<Line> = self
+        let mut lines: Vec<Line> = self
             .visible()
             .into_iter()
             .map(|i| {
@@ -207,6 +230,9 @@ impl Wizard<'_> {
                 if i == self.field { Line::from(row).bg(Color::DarkGray) } else { Line::from(row) }
             })
             .collect();
+        lines.push(Line::from(""));
+        lines.push(Line::from("The keyboard layout is set first: this console switches to it,").dim());
+        lines.push(Line::from("so passwords are typed the way you'll type them at boot.").dim());
         let block = Block::bordered().title(" You ").border_style(focused(true));
         f.render_widget(Paragraph::new(lines).block(block), body);
     }
@@ -221,13 +247,24 @@ impl Wizard<'_> {
         let on = mods.iter().filter(|m| !sel.exclude.contains(&m.id)).count();
         let custom = if self.apps.is_some() { " (your choice)" } else { "" };
         lines.push(Line::from(format!("Apps         {on} of {}{custom}", mods.len())));
+        match &self.aur {
+            Some(Ok(p)) if !p.is_empty() => lines.push(Line::from(format!(
+                "AUR          {}: built from the AUR (community packages, not reviewed by Arch)",
+                p.join(", ")
+            ))),
+            Some(Err(e)) => lines.push(Line::from(format!("AUR          couldn't tell: {e}")).dim()),
+            _ => {}
+        }
         match self.answers() {
             Ok(a) => {
                 let fs = if a.filesystem == Filesystem::Btrfs { "Btrfs + snapshots" } else { "ext4" };
                 let enc = if a.encryption.is_some() { ", encrypted" } else { "" };
                 match &self.manual {
                     Some(m) => lines.push(Line::from(format!("Disk         manual layout: {}", m.lines().join("; ")))),
-                    None => lines.push(Line::from(format!("Disk         {} (erased) · {fs}{enc}", a.disk))),
+                    None => {
+                        let disk = self.chosen_disk().map_or(a.disk.clone(), |d| d.label());
+                        lines.push(Line::from(format!("Disk         {disk} (erased) · {fs}{enc}")));
+                    }
                 }
                 lines.push(Line::from(format!("You          {} on {}", a.username, a.hostname)));
                 lines.push(Line::from(format!("Locale       {} · {} keyboard · {}", a.locale, a.keyboard, a.timezone)));

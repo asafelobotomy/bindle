@@ -98,6 +98,9 @@ enum Cmd {
         /// Don't ask for confirmation.
         #[arg(long, short)]
         yes: bool,
+        /// Also put back files changed since Bindle wrote them.
+        #[arg(long)]
+        force: bool,
         #[arg(long, hide = true)]
         sandbox: Option<PathBuf>,
     },
@@ -280,8 +283,8 @@ echo; printf 'Press Enter to close. '; read -r _"#;
         Cmd::FirstLogin { action } if !matches!(action, FirstLoginCmd::Run { .. }) => {
             return firstlogin_cmd::dispatch(action);
         }
-        Cmd::Undo { id, list, yes, sandbox } => {
-            return apply::undo(id, list, &apply::Options { yes, sandbox, ..Default::default() });
+        Cmd::Undo { id, list, yes, force, sandbox } => {
+            return apply::undo(id, list, force, &apply::Options { yes, sandbox, ..Default::default() });
         }
         Cmd::Bindo { args } => return bindo_cmd::main(args),
         Cmd::Upgrade(args) => return upgrade_cmd::main(args),

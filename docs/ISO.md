@@ -3,10 +3,15 @@
 Boot the Arch Linux ISO, connect to the internet, and run:
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/asafelobotomy/bindle/main/install.sh)
+curl -fsSLO https://github.com/asafelobotomy/bindle/releases/latest/download/install.sh
+bash install.sh
 ```
 
-(`curl … | bash` works too; the script reattaches the wizard to the terminal.)
+This is the release's own `install.sh`, covered by its signed `SHA256SUMS`;
+[Trust](#trust) shows how to check it before running it. The copy on `main`
+works too (`bash <(curl -fsSL https://raw.githubusercontent.com/asafelobotomy/bindle/main/install.sh)`,
+or `curl … | bash`: the script reattaches the wizard to the terminal), but
+nothing signs it.
 Downloading the script needs a connection: plug in a cable, or join Wi-Fi with
 `iwctl station wlan0 connect "<network>"`. The installer saves that Wi-Fi in the
 new system, so you are never asked again.
@@ -21,11 +26,36 @@ One wizard, in the same look and keys as the `bindle` wizard on the desktop
 | Network | Connected already, or a Wi-Fi network and its password (`iwctl` underneath). Saved into the new system. |
 | Desktop | Desktop (uQ is recommended) and profile; the right pane shows what this hardware gets |
 | Hardware | What Bindle recommends for the detected hardware, one row each: graphics driver, kernel (linux, linux-lts, linux-zen), boot loader (systemd-boot on UEFI, GRUB on BIOS; Limine on either), zram swap, power profiles, Bluetooth, audio. ←/→ changes a row, `r` goes back to the recommendation. CPU microcode is shown but set by archinstall |
-| Disk | The disk (erased), Btrfs with Snapper snapshots or ext4, optional encryption (LUKS). `p` is manual partitioning: archinstall's own disk editor for this one step (keep another system, several disks, LVM), then back to the wizard; `x` returns to Bindle's layout |
-| You | Computer name, user and password (with sudo), timezone, keyboard, language |
+| Disk | The disk (erased), Btrfs with Snapper snapshots or ext4, optional encryption (LUKS). The disk the ISO started from is never listed (see below); the largest fixed disk is preselected, and USB disks are marked. `r` looks for disks again. `p` is manual partitioning: archinstall's own disk editor for this one step (keep another system, several disks, LVM), then back to the wizard; `x` returns to Bindle's layout |
+| You | Keyboard layout first (the console switches to it with `loadkeys` as you leave the field, so the passwords are typed as at the boot passphrase prompt; changing it after typing a password warns), computer name, user and password (with sudo), disk passphrase twice when encrypting, timezone, language |
 | Apps | Every app and setup step the profile and desktop bring, ticked; Space unticks one, `m` opens the bindle wizard to add more |
-| Review | Everything above; `i` installs after a y/N confirmation |
-| Install | One progress screen: the steps (disk, base system, boot loader, users and desktop, your apps and setup) with the latest output beside them, then Enter restarts |
+| Review | Everything above, the disk in full (path · size · model · transport), and the AUR packages the profile builds ("built from the AUR (community packages, not reviewed by Arch)"); `i` installs after a y/N confirmation naming the disk the same way |
+| Install | One progress screen: the steps (disk, base system, boot loader, users and desktop, your apps and setup) with the latest output beside them, then Enter restarts. When setup didn't finish, only `q` leaves (restart yourself once you've read what's left) |
+
+Ctrl-C quits the wizard before the install starts (asking first once anything
+was typed). Keys held with Ctrl or Alt never type into a field or answer the
+wipe question.
+
+The You page is checked before anything is erased: the keyboard layout against
+the ISO's keymaps (`/usr/share/kbd/keymaps`), the language against glibc's
+`/usr/share/i18n/SUPPORTED` (with UTF-8), the timezone against
+`/usr/share/zoneinfo`. User names the system uses are refused: `root`,
+`systemd-*`, greeters (`sddm`, `gdm`, `lightdm`, `greeter`), `alpm`, `colord`,
+`avahi`, `rtkit`, `polkitd` and the like, and any name in the ISO's
+`/etc/passwd`. Just before archinstall starts, the chosen disk is read again; if
+its size or model changed (another disk took its name), Bindle stops without
+changing anything.
+
+### The disk the ISO started from
+
+The install medium is found from the kernel command line (`archisosearchuuid=`,
+`archisolabel=`, `archisodevice=`, and `img_dev=` for an ISO file on another
+disk), and from what is mounted at `/run/archiso/bootmnt`, each resolved to its
+whole disk with `lsblk` (a Ventoy-style `/dev/mapper` source leads to the USB
+stick under it). That works after `copytoram` too, when nothing of the stick is
+mounted. That disk is left out of the list, and a manual layout that touches it
+is refused. If archiso names a medium that can't be matched to a disk, removable
+disks stay listed, marked "may be the install USB".
 
 Bindle then writes a complete archinstall config and credentials file to a private
 directory and runs the ISO's own archinstall unattended (`--silent`) with Bindle's
@@ -49,7 +79,27 @@ install then uses unchanged. Nothing is written to a disk before the confirmatio
 on Review. If this archinstall's menu can't be opened, the wizard says so and
 `install.sh iso` remains the way to partition by hand.
 
+A manual layout is also refused below 20 GiB for `/` (a partition or an LVM
+volume), and on UEFI without an EFI partition (FAT32, mounted at `/boot` or
+`/efi`, with the ESP/boot flag).
+
+### Losing the terminal
+
+archinstall runs in a session of its own, and Bindle ignores the hang-up, so
+closing the console or dropping an SSH connection doesn't stop the install
+partway: it carries on, writing to the log, and Bindle leaves without asking
+anything at the end. Ctrl-C or SIGTERM (`kill`) still stops Bindle, after
+removing the passwords file. Over SSH, start the installer inside `tmux` so you
+can reattach and watch it (`tmux new -s install`, then `tmux attach -t install`).
+
+The log `/var/log/bindle-install.log` is root-only and appended to, so a second
+try keeps the first one's failure. After a failed install Bindle unmounts `/mnt`
+and closes the LUKS volumes left open on the target disks, and says so, so you can
+try again straight away.
+
 `bindle install --dry-run` writes the files and prints the archinstall command.
+The credentials file it leaves has the passwords left out. Off the live ISO it
+joins no Wi-Fi, opens no disk editor and leaves the keyboard layout alone.
 
 ## `bindle iso` (archinstall's own menu)
 
@@ -103,8 +153,10 @@ install.sh ──► bindle iso ──► pre-install screen ──► archinsta
    It runs `bindle apply --yes --from /etc/bindle/selection.toml` inside the new system
    (`arch-chroot`, as its first regular user, or `BINDLE_USER`), while the ISO still has
    the network: packages, config files, services, the AUR helper and AUR packages (uQ
-   and its apps). sudo needs no password for that user while it runs (a drop-in in
-   `/etc/sudoers.d/` that is removed afterwards, also on failure). Services are
+   and its apps). sudo needs no password for that user while it runs: the rule lives in
+   the ISO's `/run` and is bind-mounted over an empty `/etc/sudoers.d/` placeholder
+   only for that run, so it never reaches the disk; the placeholder is removed
+   afterwards (also after a failure, and at every boot by a tmpfiles rule). Services are
    enabled, not started. User commands that fail there because they need a running
    session (such as `systemctl --user` or noti-fi's takeover) are saved to
    `~/.local/state/bindle/finish-at-login.jsonl` and run once at first login,
@@ -198,7 +250,8 @@ archinstall, since they can be erased.
 ## Trust
 
 Releases are signed. CI signs `SHA256SUMS` (covering `bindle-x86_64`,
-`install.sh` and the AppImages) with the Bindle release key:
+`bindle-gui-x86_64`, `install.sh`, the AppImages and, from v0.1.9, `VERSION`)
+with the Bindle release key:
 
     75C4 0FA1 27FB F8D4 FBF9  E710 FAC4 0EFF E02D 69FC   Bindle release signing
 
@@ -213,8 +266,26 @@ gpg --verify SHA256SUMS.sig SHA256SUMS
 sha256sum -c --ignore-missing SHA256SUMS
 ```
 
-`install.sh` itself is fetched from `main` over HTTPS; as with any
-`curl | bash`, you can download it and read it first.
+`VERSION` holds the release's tag. `install.sh` requires it for the latest
+release and checks it names the tag it resolved, so an older signed release
+can't be served in place of the latest one; a release pinned with
+`BINDLE_VERSION` from before `VERSION` existed (up to v0.1.8) gets a warning.
+
+To check the release's `install.sh` before running it, on the live ISO:
+
+```bash
+curl -fsSL --remote-name-all \
+  https://github.com/asafelobotomy/bindle/releases/latest/download/{install.sh,SHA256SUMS,SHA256SUMS.sig}
+curl -fsSL https://raw.githubusercontent.com/asafelobotomy/bindle/main/packaging/bindle-release.asc | gpg --import
+gpg --verify SHA256SUMS.sig SHA256SUMS      # Good signature, primary key 75C4 0FA1 … E02D 69FC
+sha256sum -c --ignore-missing SHA256SUMS    # install.sh: OK
+bash install.sh
+```
+
+Compare the fingerprint gpg prints with the one above (also in
+[SECURITY.md](../SECURITY.md)), not just "Good signature". The `install.sh`
+on `main` is fetched over HTTPS but isn't signed; as with any `curl | bash`,
+you can download it and read it first.
 
 ## Testing without an ISO
 

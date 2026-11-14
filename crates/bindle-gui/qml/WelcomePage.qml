@@ -19,6 +19,12 @@ QQC2.ScrollView {
 
     readonly property var working: summary.working || []
     // Per category with suggestions: how many, and the first few names.
+    // Selected modules already fully in place are left out of the suggestions.
+    readonly property var setUp: (summary.setUp || []).reduce((m, id) => { m[id] = true; return m; }, {})
+    readonly property int alreadySetUp: {
+        const picked = selection.selected || {};
+        return Object.keys(picked).filter(id => page.setUp[id]).length;
+    }
     readonly property var suggestions: {
         const picked = selection.selected || {};
         const out = [];
@@ -27,7 +33,7 @@ QQC2.ScrollView {
             for (const g of c.groups)
                 for (const item of g.items)
                     for (const m of item.modules)
-                        if (picked[m.id])
+                        if (picked[m.id] && !page.setUp[m.id])
                             names.push(m.name);
             if (names.length > 0)
                 out.push({ index: index, id: c.id, name: c.name, count: names.length,
@@ -151,7 +157,11 @@ QQC2.ScrollView {
                     QQC2.Label {
                         Layout.fillWidth: true
                         wrapMode: Text.Wrap
-                        text: "Picked for this computer to start with. Open a category to see each one, or change it."
+                        text: page.suggestions.length === 0
+                            ? "Everything Bindle would pick here is already set up. Get started to add more."
+                            : "Picked for this computer to start with"
+                                + (page.alreadySetUp > 0 ? " (" + page.alreadySetUp + " more already set up)" : "")
+                                + ". Open a category to see each one, or change it."
                         color: Theme.textMuted
                         font.pointSize: Theme.smallSize
                     }
