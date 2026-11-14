@@ -32,12 +32,23 @@ fn record(version: &str, modules: &[(&str, Content)]) -> Record {
 }
 
 fn run(rec: &Record, p: &Plan, table: &Changes, installed: &[&str], files: &[(&str, &str)]) -> WhatsNew {
+    run_as("0.1.9", rec, p, table, installed, files)
+}
+
+fn run_as(
+    version: &str,
+    rec: &Record,
+    p: &Plan,
+    table: &Changes,
+    installed: &[&str],
+    files: &[(&str, &str)],
+) -> WhatsNew {
     let catalog = Catalog::arch().unwrap();
     let f = facts(installed);
     let files: BTreeMap<String, String> = files.iter().map(|(a, b)| (a.to_string(), b.to_string())).collect();
     let current = |path: &str| files.get(path).cloned();
     let excluded: std::collections::BTreeSet<String> = ["firefox".to_string()].into();
-    diff(rec, p, &catalog, table, &Now { facts: &f, current_file: &current, excluded: &excluded }, "0.1.9")
+    diff(rec, p, &catalog, table, &Now { facts: &f, current_file: &current, excluded: &excluded }, version)
 }
 
 fn kinds(w: &WhatsNew) -> Vec<(String, Kind, bool)> {
@@ -107,6 +118,9 @@ fn optional_modules_new_since_the_last_apply_are_unticked() {
     assert_eq!(kinds(&w), [("bash-completion".into(), Kind::Optional, false)]);
     let seen = record("0.1.9", &[("firefox", content(&["firefox"], &[]))]);
     assert!(run(&seen, &p, &table, &["firefox"], &[]).is_empty(), "already offered by 0.1.9");
+    // A 0.1.8 build that just set this computer up: the 0.1.9 entry is for
+    // a release it isn't, so nothing opens.
+    assert!(run_as("0.1.8", &rec, &p, &table, &["firefox"], &[]).is_empty(), "not released yet");
 }
 
 #[test]

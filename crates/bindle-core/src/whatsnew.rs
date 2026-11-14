@@ -190,8 +190,17 @@ pub fn diff(record: &Record, plan: &Plan, catalog: &Catalog, table: &Changes, no
     let applied: BTreeMap<String, Content> =
         record.modules.iter().map(|(id, c)| (table.current_id(id).to_string(), c.clone())).collect();
     let name = |id: &str| catalog.module(id).map_or(id.to_string(), |m| m.name.clone());
+    // An entry for a later Bindle (changes.toml is written ahead of a
+    // release) means nothing to this one: a build before the release would
+    // offer the next version's additions right after its own install.
+    let released = |v: &str| !crate::version_cmp(v, version).is_gt();
     let added_why = |id: &str| {
-        table.added.iter().find(|a| a.modules.iter().any(|m| m == id)).map(|a| format!("new in Bindle {}", a.version))
+        table
+            .added
+            .iter()
+            .filter(|a| released(&a.version))
+            .find(|a| a.modules.iter().any(|m| m == id))
+            .map(|a| format!("new in Bindle {}", a.version))
     };
     // Applied before records: named by an old apply, or (with no trace at
     // all) partly installed.
@@ -224,7 +233,7 @@ pub fn diff(record: &Record, plan: &Plan, catalog: &Catalog, table: &Changes, no
     }
     // Optional modules new in versions after the last apply, not selected.
     let newer = |v: &str| record.version.as_deref().is_none_or(|since| crate::version_cmp(v, since).is_gt());
-    for a in table.added.iter().filter(|a| recorded && newer(&a.version)) {
+    for a in table.added.iter().filter(|a| recorded && newer(&a.version) && released(&a.version)) {
         for id in a.modules.iter().filter(|m| !plan.modules.contains(m) && !applied.contains_key(*m)) {
             let Some(m) = catalog.module(id) else { continue };
             if now.facts.matches(&m.when).is_err() || items.iter().any(|i| &i.id == id) {

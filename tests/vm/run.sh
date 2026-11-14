@@ -40,6 +40,14 @@ trap cleanup EXIT
 # Host-side helpers: guest files (8765) and a caching pacman mirror (8766).
 # A server left over from an earlier run would serve stale files or old proxy
 # code, so both ports must be free.
+# Host-side Python (stdlib only): through uv when it's installed, so a shell
+# where plain python3 is wrapped or blocked still works; python3 otherwise.
+if command -v uv >/dev/null 2>&1; then
+    PY=(uv run --no-project --quiet python)
+else
+    PY=(python3)
+fi
+
 SERVERS_UP=0
 start_servers() {
     local p
@@ -50,9 +58,9 @@ start_servers() {
             die "port $p is already in use (a server from an earlier run?); stop it first"
         fi
     done
-    python3 -m http.server "$PORT" --bind 127.0.0.1 --directory "$WORK/serve" >"$WORK/http.log" 2>&1 &
+    "${PY[@]}" -m http.server "$PORT" --bind 127.0.0.1 --directory "$WORK/serve" >"$WORK/http.log" 2>&1 &
     PIDS+=($!)
-    python3 -I "$HERE/pkgproxy.py" "$WORK/pkgcache" 8766 >>"$WORK/pkgproxy.log" 2>&1 &
+    "${PY[@]}" -I "$HERE/pkgproxy.py" "$WORK/pkgcache" 8766 >>"$WORK/pkgproxy.log" 2>&1 &
     PIDS+=($!)
     SERVERS_UP=1
 }
@@ -123,7 +131,7 @@ shot() {
     monitor "screendump $WORK/shots/$1.ppm"
     sleep 2
     if [[ -f "$WORK/shots/$1.ppm" ]]; then
-        python3 -I "$HERE/ppm2png.py" "$WORK/shots/$1.ppm" "$WORK/shots/$1.png" && rm -f "$WORK/shots/$1.ppm"
+        "${PY[@]}" -I "$HERE/ppm2png.py" "$WORK/shots/$1.ppm" "$WORK/shots/$1.png" && rm -f "$WORK/shots/$1.ppm"
     else
         say "no screenshot $1 (VM not running?)"
     fi
@@ -147,7 +155,7 @@ sign_test_release() {
     GNUPGHOME="$gh" gpg --batch -q --pinentry-mode loopback --passphrase '' \
         --quick-gen-key "Bindle VM test (not a release key)" ed25519 sign 1d
     fpr="$(GNUPGHOME="$gh" gpg --list-keys --with-colons | awk -F: '/^fpr/ { print $10; exit }')"
-    python3 -I - "$ROOT/install.sh" "$WORK/serve/install.sh" "$fpr" "$(GNUPGHOME="$gh" gpg --armor --export "$fpr")" <<'PY'
+    "${PY[@]}" -I - "$ROOT/install.sh" "$WORK/serve/install.sh" "$fpr" "$(GNUPGHOME="$gh" gpg --armor --export "$fpr")" <<'PY'
 import re, sys
 src, dst, fpr, key = sys.argv[1:]
 s = open(src).read()
