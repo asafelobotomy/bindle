@@ -75,12 +75,13 @@ checks the three agree). So a new key has to reach users before it is used.
 `scripts/new-release-key.sh` makes one, saves the private half in Proton Pass
 and adds the public half to `packaging/bindle-release.asc`.
 
-**In progress:** v0.1.9 adds `CCFF34EE…DE41DF9C`, made after the first key's
-private half turned out to exist only as the GitHub secret. v0.1.9 is signed
-by the first key; then `BINDLE_GPG_KEY` becomes an environment secret in
-`release` holding the new key, and the repository secret is deleted. The
-sign job signs with whichever listed key the secret holds. The first
-fingerprint is dropped in a later release.
+**Current rotation:** v0.1.9 added `CCFF34EE…DE41DF9C`, made after the first
+key's private half turned out to exist only as the GitHub secret. v0.1.9 was
+the last release signed by the first key; on 2026-11-15 `BINDLE_GPG_KEY`
+became an environment secret in `release` holding the new key, and the
+repository secret (the first key's only copy) was deleted. Releases after
+v0.1.9 are signed by the new key. The first fingerprint is dropped in a later
+release; it can no longer sign anything.
 
 The steps:
 
