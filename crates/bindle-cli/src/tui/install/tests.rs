@@ -61,7 +61,7 @@ fn walks_every_step_to_install() {
     }
     type_in(&mut w, "laptop");
     w.on_key(KeyCode::Enter);
-    type_in(&mut w, "solon");
+    type_in(&mut w, "alex");
     w.on_key(KeyCode::Enter);
     type_in(&mut w, "pw");
     w.on_key(KeyCode::Enter);
@@ -169,7 +169,7 @@ fn manual_layout_replaces_the_disk_choice() {
     w.on_key(KeyCode::Enter);
     assert_eq!(w.step, Step::You);
     w.live = true;
-    for (key, text) in [(Key::Username, "solon"), (Key::Password, "pw"), (Key::Confirm, "pw")] {
+    for (key, text) in [(Key::Username, "alex"), (Key::Password, "pw"), (Key::Confirm, "pw")] {
         w.fields.iter_mut().find(|f| f.key == key).unwrap().value = text.into();
     }
     w.fields.iter_mut().find(|f| f.key == Key::Timezone).unwrap().value = "UTC".into();
@@ -270,7 +270,7 @@ fn you_page_checks_before_anything_is_erased() {
     assert!(w.answers().unwrap_err().contains("system name"));
     set(&mut w, Key::Username, "nm-openconnect");
     assert!(w.answers().unwrap_err().contains("belongs to the system"));
-    set(&mut w, Key::Username, "solon");
+    set(&mut w, Key::Username, "alex");
     set(&mut w, Key::Keyboard, "qwerty");
     assert!(w.answers().unwrap_err().contains("Keyboard layout"));
     set(&mut w, Key::Keyboard, "us");

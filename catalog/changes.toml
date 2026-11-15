@@ -11,5 +11,16 @@
 
 [[added]]
 version = "0.1.9"
-modules = ["everyday-apps", "spellcheck", "disk-formats", "appimage", "bash-completion", "vpn-plugins", "text-editor", "xournalpp", "marknote", "nvidia-legacy", "clipboard-history", "copyq"]
+modules = ["everyday-apps", "spellcheck", "disk-formats", "appimage", "bash-completion", "vpn-plugins", "text-editor", "xournalpp", "marknote", "nvidia-legacy", "copyq"]
 why = "New in Bindle 0.1.9: everyday apps, spell checking, USB drive formats, AppImage support, tab completion, VPN plugins, notes and handwriting apps, clipboard history, and NVIDIA's driver for older cards."
+
+[[retired]]
+id = "clipboard-history"
+version = "0.1.10"
+replaced_by = "copyq"
+why = "Clipboard history is now CopyQ everywhere Bindle sets it up: a tray icon to paste from, and items that go after 30, 60 or 90 days."
+
+[[added]]
+version = "0.1.10"
+modules = ["flatpak-bazaar", "flatseal", "warehouse", "screenshots", "copyq"]
+why = "New in Bindle 0.1.10: Bazaar as the Flathub app store, Flatseal and Warehouse for your Flatpaks, screenshots of an area on Print, and clipboard history in the tray."

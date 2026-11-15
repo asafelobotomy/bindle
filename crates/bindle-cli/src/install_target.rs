@@ -141,13 +141,13 @@ mod tests {
         nobody:x:65534:65534:Kernel Overflow User:/:/usr/bin/nologin\n\
         dbus:x:81:81:System Message Bus:/:/usr/bin/nologin\n\
         svc:x:1001:1001::/srv/svc:/usr/bin/nologin\n\
-        solon:x:1000:1000::/home/solon:/bin/bash\n\
+        alex:x:1000:1000::/home/alex:/bin/bash\n\
         guest:x:1002:1002::/home/guest:/bin/zsh\n";
 
     #[test]
     fn first_regular_user_with_a_shell() {
         let a = pick_user(PASSWD, None).unwrap();
-        assert_eq!(a, Account { name: "solon".into(), home: "/home/solon".into() });
+        assert_eq!(a, Account { name: "alex".into(), home: "/home/alex".into() });
         assert_eq!(pick_user(PASSWD, Some("guest")).unwrap().home, "/home/guest");
         assert!(pick_user(PASSWD, Some("root")).is_none());
         assert!(pick_user(PASSWD, Some("missing")).is_none());
@@ -156,12 +156,12 @@ mod tests {
 
     #[test]
     fn runs_bindle_as_the_user_in_the_chroot_with_a_clean_environment() {
-        let a = Account { name: "solon".into(), home: "/home/solon".into() };
+        let a = Account { name: "alex".into(), home: "/home/alex".into() };
         let c = as_user(Path::new("/mnt"), &a, &["apply", "--yes"]);
         let args: Vec<String> = c.get_args().map(|s| s.to_string_lossy().into_owned()).collect();
         assert_eq!(c.get_program(), "arch-chroot");
-        assert_eq!(args[..7], ["/mnt", "runuser", "-u", "solon", "--", "env", "-i"]);
-        assert!(args.contains(&"HOME=/home/solon".to_string()));
+        assert_eq!(args[..7], ["/mnt", "runuser", "-u", "alex", "--", "env", "-i"]);
+        assert!(args.contains(&"HOME=/home/alex".to_string()));
         assert!(args.contains(&format!("{}=1", bindle_run::client::GRANTED_SUDO)));
         assert_eq!(args[args.len() - 3..], [firstlogin::BIN, "apply", "--yes"]);
         // Every variable is named: env -i, then NAME=value up to the program.

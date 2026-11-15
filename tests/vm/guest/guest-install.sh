@@ -56,14 +56,35 @@ extra=(); [[ "$(arg bindle_keep_welcome)" == 1 ]] && extra+=(--keep-welcome)
 [[ "$(arg bindle_setup_target)" == 1 ]] || extra+=(--setup-at-first-login)
 echo "BINDLE-VM: guest start desktop=$desktop profile=$profile archinstall=$(archinstall --version 2>/dev/null)"
 cd /tmp || exit 1
-for f in archinstall-test.json creds-test.json firstboot-check.sh bindle-vm-check.service bindle-vm-diag.service; do
+for f in archinstall-test.json creds-test.json firstboot-check.sh bindle-vm-check.service bindle-vm-diag.service drive-install.py; do
     curl -fsSO "$base/$f" || { echo "BINDLE-VM: INSTALL FAILED (fetch $f)"; poweroff; exit 1; }
 done
 
-# The host serves over plain http and signs with a throwaway key (run.sh).
-if BINDLE_INSECURE=1 BINDLE_BASE_URL=$base bash <(curl -fsSL "$base/install.sh") \
-    --desktop "$desktop" --profile "$profile" --yes --silent \
-    --config /tmp/archinstall-test.json --creds /tmp/creds-test.json "${extra[@]}"; then
+# bindle_wizard=1: `bindle install` (install.sh with no arguments), the
+# wizard driven key by key in a pseudo-terminal with its defaults (the
+# recommended desktop and profile, set up before the reboot).
+run_wizard() {
+    local user pass
+    read -r user pass < <(python -c 'import json; u = json.load(open("creds-test.json"))["users"][0]; print(u["username"], u["!password"])')
+    curl -fsS -o install.sh "$base/install.sh" || return 1
+    if ! BINDLE_INSECURE=1 BINDLE_BASE_URL=$base python drive-install.py install.sh "$user" "$pass"; then
+        echo "BINDLE-VM: end of /var/log/bindle-install.log:"
+        grep -v '^ *["{}\[\]]' /var/log/bindle-install.log | tail -n 80
+        return 1
+    fi
+    # The wizard leaves /mnt mounted when not restarting; mount it if not.
+    mountpoint -q /mnt || mount "$(lsblk -lnpo NAME,PARTTYPENAME /dev/vda | awk '/Linux (root|filesystem)/ { print $1; exit }')" /mnt
+}
+run_iso() {
+    # The host serves over plain http and signs with a throwaway key (run.sh).
+    BINDLE_INSECURE=1 BINDLE_BASE_URL=$base bash <(curl -fsSL "$base/install.sh") \
+        --desktop "$desktop" --profile "$profile" --yes --silent \
+        --config /tmp/archinstall-test.json --creds /tmp/creds-test.json "${extra[@]}"
+}
+installer=run_iso
+# The wizard picks the recommended desktop; autologin then takes the first session.
+[[ "$(arg bindle_wizard)" == 1 ]] && { installer=run_wizard; desktop=; }
+if $installer; then
     # Test-only: run checks on first boot (it also sets passwordless sudo), GDM autologin.
     install -Dm755 firstboot-check.sh /mnt/usr/local/libexec/bindle-vm-check
     install -Dm644 bindle-vm-check.service /mnt/etc/systemd/system/bindle-vm-check.service

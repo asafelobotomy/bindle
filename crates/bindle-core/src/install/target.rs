@@ -189,7 +189,7 @@ mod tests {
             manual_disk: None,
             uefi: true,
             hostname: "laptop".into(),
-            username: "solon".into(),
+            username: "alex".into(),
             password: "pw".into(),
             timezone: "Europe/London".into(),
             keyboard: "uk".into(),
@@ -241,7 +241,7 @@ mod tests {
         a.hardware = Hardware::recommended(&Facts::default(), false, true);
         assert_eq!(config(&Facts::default(), &data, &choice, &a)["bootloader_config"]["bootloader"], "Grub");
         let c = creds(&a);
-        assert_eq!(c["users"][0], json!({ "username": "solon", "!password": "pw", "sudo": true }));
+        assert_eq!(c["users"][0], json!({ "username": "alex", "!password": "pw", "sudo": true }));
         assert!(c.get("encryption_password").is_none());
     }
 
@@ -260,15 +260,15 @@ mod tests {
     fn names() {
         assert!(valid_hostname("my-laptop2"));
         assert!(!valid_hostname("-x") && !valid_hostname("My") && !valid_hostname(""));
-        assert!(valid_username("solon") && valid_username("_svc") && valid_username("a-b_1"));
-        assert!(!valid_username("root") && !valid_username("1x") && !valid_username("Solon"));
+        assert!(valid_username("alex") && valid_username("_svc") && valid_username("a-b_1"));
+        assert!(!valid_username("root") && !valid_username("1x") && !valid_username("Alex"));
         for system in ["alpm", "sddm", "gdm", "lightdm", "greeter", "colord", "avahi", "rtkit", "polkitd"] {
             assert!(!valid_username(system), "{system}");
         }
         assert!(!valid_username("systemd-network") && valid_username("systemdfan"));
         let passwd = "root:x:0:0::/root:/usr/bin/bash\nnm-openconnect:x:956:956::/:/usr/bin/nologin\n";
         assert!(username_in_passwd("nm-openconnect", passwd) && username_in_passwd("root", passwd));
-        assert!(!username_in_passwd("solon", passwd) && !username_in_passwd("x", ""));
+        assert!(!username_in_passwd("alex", passwd) && !username_in_passwd("x", ""));
     }
 
     #[test]

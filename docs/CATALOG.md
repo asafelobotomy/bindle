@@ -75,6 +75,14 @@ content = '''
 '''
 ```
 
+A file's text is `content`, or `source` names one of Bindle's own scripts in
+`catalog/files/` (registered in `crates/bindle-core/src/catalog/files.rs`, which
+also checks each starts with `#!/bin/sh` and `# Managed by Bindle`), kept as
+real files so shellcheck and the tests can run them.
+
+A category file may hold only modules for a category another file defines:
+`extends = "desktop"` in place of `[category]` (`desktop-tools.toml`).
+
 ## Modules that install from the AUR or a release
 
 A module with `aur` or `[[module.release]]` has its `enable` units and
@@ -210,7 +218,7 @@ their own, recommended or not.
 | System | pacman-qol, mirrors, multilib, build-tools, aur-helper, microcode, firmware-updates, fstrim, man-pages |
 | Hardware | gpu-driver, nvidia-legacy, audio-firmware, audio-pipewire, bluetooth, power-profiles, tlp, tlp-rdw, thermald, fingerprint, printing, scanning-qt, scanning-gtk, solaar, piper, openrgb, android-tools |
 | Performance | zram, xzram, oomd, earlyoom, io-schedulers, scdr, scdr-sched-ext, scdr-devbox, scx-schedulers, kernel-zen, makepkg-parallel, makepkg-native |
-| Desktop & apps | desktop-essentials, uq, noti-fi, crumbs, uq-dev, fonts, nerd-fonts, codecs, archives, user-dirs, everyday-apps, clipboard-history, copyq, spellcheck, disk-formats, appimage, bash-completion, vpn-plugins, flatpak, flatpak-discover, flatpak-gnome-software, media-players, spotify, libreoffice, obsidian, marknote, xournalpp, text-editor, kyko, yakuake, emobie, appofholding |
+| Desktop & apps | desktop-essentials, uq, noti-fi, crumbs, uq-dev, fonts, nerd-fonts, codecs, archives, user-dirs, everyday-apps, copyq, screenshots, spellcheck, disk-formats, appimage, bash-completion, vpn-plugins, flatpak, flatpak-bazaar, flatseal, warehouse, flatpak-discover, flatpak-gnome-software, media-players, spotify, libreoffice, obsidian, marknote, xournalpp, text-editor, kyko, yakuake, emobie, appofholding |
 | Internet | firefox, chromium, brave, brave-origin, vivaldi, zen-browser, google-chrome, thunderbird, signal, telegram, element, proton-mail, proton-mail-bridge, proton-pass, proton-pass-cli, proton-vpn, proton-authenticator, proton-drive-cli, syncthing, nextcloud-client, tailscale, scale_tail, qbittorrent, qbittorrent-enhanced, qbit-plugin-dl, hauler, av-morning-star |
 | Creative | gimp, krita, inkscape, darktable, rawtherapee, digikam, kdenlive, handbrake, obs-studio, audacity, blender, photocraft, lightcraft, filmcraft, vectorcraft, effectcraft, designcraft, pdfcraft, wordcraft, deckcraft, gridcraft |
 | Development | rustup, python, nodejs, js-runtimes, go, c-cpp, java, dotnet, zig, mise, git-tools, jujutsu, cli-tools, neovim, helix, code-oss, vscodium, vscode, zed, ghostty, kitty, alacritty, fish, zsh, docker, podman, distrobox, virt-manager |

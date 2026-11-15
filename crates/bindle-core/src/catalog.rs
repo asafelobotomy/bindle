@@ -3,16 +3,21 @@
 
 use std::collections::BTreeMap;
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
+mod files;
+mod load;
 mod validate;
+
+pub use files::FileSpec;
 
 const ARCH_FILES: &[(&str, &str)] = &[
     ("base", include_str!("../../../catalog/arch/base.toml")),
     ("hardware", include_str!("../../../catalog/arch/hardware.toml")),
     ("performance", include_str!("../../../catalog/arch/performance.toml")),
     ("desktop", include_str!("../../../catalog/arch/desktop.toml")),
+    ("desktop-tools", include_str!("../../../catalog/arch/desktop-tools.toml")),
     ("internet", include_str!("../../../catalog/arch/internet.toml")),
     ("creative", include_str!("../../../catalog/arch/creative.toml")),
     ("development", include_str!("../../../catalog/arch/development.toml")),
@@ -99,19 +104,6 @@ impl ReleaseAsset {
     pub fn desktop_entry(&self) -> String {
         format!("~/.local/share/applications/bindle-{}.desktop", self.name)
     }
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
-#[serde(deny_unknown_fields)]
-pub struct FileSpec {
-    pub path: String,
-    pub content: String,
-    #[serde(default = "default_mode")]
-    pub mode: u32,
-}
-
-fn default_mode() -> u32 {
-    0o644
 }
 
 /// A file condition, read through the planner's current-file reader. Holds
@@ -266,21 +258,6 @@ impl Module {
     }
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct CategoryFile {
-    category: Category,
-    #[serde(default, rename = "module")]
-    modules: Vec<Module>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct ProfileFile {
-    #[serde(rename = "profile")]
-    profiles: Vec<Profile>,
-}
-
 #[derive(Debug, Clone, Serialize)]
 pub struct Catalog {
     pub distro: String,
@@ -296,21 +273,7 @@ impl Catalog {
     }
 
     pub fn from_sources(distro: &str, files: &[(&str, &str)], profiles: &str) -> Result<Self> {
-        let mut categories = Vec::new();
-        let mut modules = Vec::new();
-        for (name, text) in files {
-            let file: CategoryFile = toml::from_str(text).with_context(|| format!("catalog file {name}.toml"))?;
-            for mut module in file.modules {
-                module.category = file.category.id.clone();
-                modules.push(module);
-            }
-            categories.push(file.category);
-        }
-        categories.sort_by_key(|c| c.order);
-        let profiles: ProfileFile = toml::from_str(profiles).context("profiles.toml")?;
-        let catalog = Self { distro: distro.into(), categories, profiles: profiles.profiles, modules };
-        validate::validate(&catalog)?;
-        Ok(catalog)
+        load::from_sources(distro, files, profiles)
     }
 
     /// Plus one module per drive this machine could mount at startup

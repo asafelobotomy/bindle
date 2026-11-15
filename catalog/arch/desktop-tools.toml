@@ -1,0 +1,136 @@
+# More of the Desktop category: tools window managers don't set up themselves.
+extends = "desktop"
+
+# Print → select an area → mark it up in satty, on the window managers that
+# leave Print unbound. uQ binds it itself; GNOME, Plasma and COSMIC have their
+# own. Not river 0.4 (each window manager for it binds keys its own way), not
+# xmonad (its config is a Haskell program) and not DMS (its own shell).
+# print-key writes a marked block into the window manager's config (making
+# the config from its default when there's none); `bindo screenshot-key-remove`
+# takes it out again.
+[[module]]
+id = "screenshots"
+group = "Desktop basics"
+name = "Screenshots of an area (Print)"
+description = "Print lets you select part of the screen, then mark it up in satty: Enter saves it to Pictures/Screenshots, the copy button puts it on the clipboard too."
+notes = [
+  "Print is added to your window manager's own config, between `BEGIN Bindle` and `END Bindle` lines; `bindo screenshot-key-remove` takes it out again (bindle undo doesn't).",
+  "Hyprland writes its config the first time it starts: until then Print is bound at your first login there.",
+]
+when = ["bare-desktop", "!desktop:uq", "!desktop:niri-dms", "!desktop:river", "!desktop:xmonad"]
+profiles = ["desktop", "gaming", "developer"]
+# grim and slurp capture on Wayland, maim on X11; satty edits either.
+packages = ["satty", "grim", "slurp", "wl-clipboard", "maim", "xclip", "xdg-user-dirs"]
+user_commands = [
+  { argv = ["/usr/local/lib/bindle/print-key", "sway"], when = ["desktop:sway"], unless = [{ path = "~/.config/sway/config", contains = "BEGIN Bindle: Print" }] },
+  { argv = ["/usr/local/lib/bindle/print-key", "i3"], when = ["desktop:i3"], unless = [{ path = "~/.config/i3/config", contains = "BEGIN Bindle: Print" }] },
+  { argv = ["/usr/local/lib/bindle/print-key", "awesome"], when = ["desktop:awesome"], unless = [{ path = "~/.config/awesome/rc.lua", contains = "BEGIN Bindle: Print" }] },
+  { argv = ["/usr/local/lib/bindle/print-key", "qtile"], when = ["desktop:qtile"], unless = [{ path = "~/.config/qtile/config.py", contains = "BEGIN Bindle: Print" }] },
+  { argv = ["/usr/local/lib/bindle/print-key", "bspwm"], when = ["desktop:bspwm"], unless = [{ path = "~/.config/sxhkd/sxhkdrc", contains = "BEGIN Bindle: Print" }] },
+  { argv = ["/usr/local/lib/bindle/print-key", "niri"], when = ["desktop:niri"], unless = [{ path = "~/.config/niri/config.kdl", contains = "BEGIN Bindle: Print" }] },
+  { argv = ["/usr/local/lib/bindle/print-key", "labwc"], when = ["desktop:labwc"], unless = [{ path = "~/.config/labwc/rc.xml", contains = "BEGIN Bindle: Print" }] },
+  { argv = ["/usr/local/lib/bindle/print-key", "hyprland"], when = ["desktop:hyprland"], unless = [{ path = "~/.config/hypr/hyprland.lua", contains = "BEGIN Bindle: Print" }], manual = { 3 = "Hyprland hasn't written its config yet: log in to Hyprland once, then run `bindo screenshot-key` to bind Print." } },
+]
+
+[[module.files]]
+path = "/usr/local/bin/bindle-screenshot"
+source = "bindle-screenshot.sh"
+mode = 0o755
+
+[[module.files]]
+path = "/usr/local/lib/bindle/print-key"
+source = "print-key.sh"
+mode = 0o755
+
+[[module.recipe]]
+name = "screenshot-key"
+category = "Desktop"
+description = "Bind Print to a screenshot of an area in your window manager's config"
+run = '''
+for wm in sway i3 awesome qtile bspwm niri labwc hyprland; do
+    bin=$wm; [ "$wm" = hyprland ] && bin=Hyprland
+    command -v "$bin" >/dev/null 2>&1 && /usr/local/lib/bindle/print-key "$wm" && echo "Print bound in $wm's config."
+done
+'''
+
+[[module.recipe]]
+name = "screenshot-key-remove"
+category = "Desktop"
+description = "Take Bindle's Print binding out of your window manager's config again"
+confirm = "Remove Bindle's Print block from your window manager's config?"
+run = '''
+for wm in sway i3 awesome qtile bspwm niri labwc hyprland; do
+    /usr/local/lib/bindle/print-key "$wm" --remove
+done
+echo "Removed. Reload your window manager's config (or log in again) to let go of Print."
+'''
+
+# Clipboard history with a tray icon, where the desktop has none: Plasma has
+# Klipper; GNOME shows no tray icons; Xfce (Clipman), LXQt, Enlightenment,
+# Deepin and DMS have their own; COSMIC lets other apps read the clipboard
+# only after an opt-in. copyq-commands adds Bindle's commands (stamp each
+# copy, drop items past the chosen age, the age in the tray menu). CopyQ
+# starts with the session (the user unit, for uwsm and uQ) or from XDG
+# autostart; a second start finds it running and leaves it.
+[[module]]
+id = "copyq"
+group = "Desktop basics"
+name = "Clipboard history (CopyQ)"
+description = "Keeps what you copy, text and images, in a tray icon: click it to paste something from earlier. Items go after 30 days; pick 60, 90 or forever in the tray menu."
+notes = [
+  "History starts from your next login. On i3, bspwm, qtile, xmonad and awesome, nothing starts CopyQ: add `exec copyq` to your config.",
+  "The tray icon needs a panel with a tray (waybar, swaybar, i3bar, polybar…).",
+]
+when = ["desktop", "!desktop:plasma", "!desktop:gnome", "!desktop:cosmic", "!desktop:xfce4", "!desktop:lxqt", "!desktop:enlightenment", "!desktop:deepin", "!desktop:niri-dms"]
+profiles = ["desktop", "gaming", "developer"]
+packages = ["copyq"]
+user_commands = [
+  { argv = ["/usr/local/lib/bindle/copyq-commands"], unless = [{ path = "~/.config/copyq/copyq-commands.ini", contains = "bindle-keep-days" }] },
+  { argv = ["systemctl", "--user", "enable", "bindle-copyq.service"], unless = [{ path = "~/.config/systemd/user/graphical-session.target.wants/bindle-copyq.service" }] },
+]
+
+[[module.files]]
+path = "/usr/local/lib/bindle/copyq-commands"
+source = "copyq-commands.sh"
+mode = 0o755
+
+[[module.files]]
+path = "/etc/systemd/user/bindle-copyq.service"
+content = '''
+# Managed by Bindle
+[Unit]
+Description=Clipboard history (CopyQ)
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+ExecStart=/usr/bin/copyq
+Restart=on-failure
+
+[Install]
+WantedBy=graphical-session.target
+'''
+
+[[module.files]]
+path = "/etc/xdg/autostart/bindle-copyq.desktop"
+content = '''
+# Managed by Bindle
+[Desktop Entry]
+Type=Application
+Name=Clipboard history (CopyQ)
+Exec=copyq
+Icon=copyq
+NoDisplay=true
+X-GNOME-Autostart-enabled=true
+'''
+
+[[module.recipe]]
+name = "clipboard-keep"
+category = "Desktop"
+description = "How long clipboard history is kept: 30, 60 or 90 days, or 0 for forever"
+args = [{ name = "days", help = "30, 60, 90, or 0 for forever" }]
+run = '''
+case "$1" in 30|60|90|0) ;; *) echo "days: 30, 60, 90 or 0 (forever)" >&2; exit 2 ;; esac
+copyq eval "settings('bindle-keep-days', $1)"
+if [ "$1" = 0 ]; then echo "Clipboard history is kept until you remove it."; else echo "Clipboard history: items go $1 days after they were copied."; fi
+'''

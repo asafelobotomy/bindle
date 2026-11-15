@@ -301,11 +301,11 @@ mod tests {
     #[test]
     fn dry_run_creds_hold_no_password() {
         let a = serde_json::json!({
-            "users": [{ "username": "solon", "!password": "hunter22", "sudo": true }],
+            "users": [{ "username": "alex", "!password": "hunter22", "sudo": true }],
             "encryption_password": "disk-secret",
         });
         let text = redacted(a).to_string();
         assert!(!text.contains("hunter22") && !text.contains("disk-secret"), "{text}");
-        assert!(text.contains("solon") && text.contains("left out"));
+        assert!(text.contains("alex") && text.contains("left out"));
     }
 }

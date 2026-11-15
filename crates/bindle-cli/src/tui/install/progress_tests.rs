@@ -19,12 +19,12 @@ fn follows_the_install_through_its_steps() {
     p.feed(b"ages: ['base']\x1b[0m\r\n downloading 10%\r downloading 90%\n");
     assert_eq!(p.phase, 2);
     assert_eq!(p.last_lines(2), [" downloading 10%", " downloading 90%"]);
-    p.feed(b"Adding bootloader Systemd-boot to /dev/vda1\nCreating user solon\n");
+    p.feed(b"Adding bootloader Systemd-boot to /dev/vda1\nCreating user alex\n");
     assert_eq!(p.phase, 4);
     // Earlier words later on don't move it back; counters only count in the last step.
     p.feed(b"Creating partitions: again\n[1/3] not yet\n");
     assert_eq!((p.phase, p.step.clone()), (4, None));
-    p.feed(b"[bindle] Setting up the new system for solon (this can take a while: AUR builds)\xe2\x80\xa6\n");
+    p.feed(b"[bindle] Setting up the new system for alex (this can take a while: AUR builds)\xe2\x80\xa6\n");
     p.feed(b"[3/16] write /etc/sysctl.d/99-bindle-zram.conf [zram]\n");
     assert_eq!(p.phase, 5);
     assert_eq!(p.step.as_deref(), Some("Step 3 of 16: write /etc/sysctl.d/99-bindle-zram.conf [zram]"));

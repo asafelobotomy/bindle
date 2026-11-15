@@ -161,7 +161,8 @@ pub fn advisories(f: &crate::detect::Facts) -> Vec<String> {
     if !r.desktops.is_empty() && r.network.as_deref() == Some("iwd") && !installed.contains("networkmanager") {
         out.push("Networking is plain iwd; desktop network panels and applets expect NetworkManager.".into());
     }
-    if r.zram == Some(true) && f.swap_sysctl_owner.is_none() {
+    // Swap tuning from another file (XZram) or from Bindle's own zram module.
+    if r.zram == Some(true) && f.swap_sysctl_owner.is_none() && !f.bindle_swap_sysctl {
         out.push(
             "archinstall enabled zram with default sizing and no swap tuning; the ZRAM module adds the sysctls.".into(),
         );
@@ -234,5 +235,18 @@ mod tests {
         assert_eq!(pacman_log::transactions(&text).0.len(), 2);
         assert_eq!(read_lossy(&dir.join("missing")), "");
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn zram_advice_goes_once_swap_is_tuned() {
+        let zram = |f: &crate::detect::Facts| advisories(f).iter().any(|a| a.contains("zram"));
+        let mut f = crate::detect::Facts::default();
+        f.install.zram = Some(true);
+        assert!(zram(&f));
+        f.bindle_swap_sysctl = true; // Bindle's zram module applied
+        assert!(!zram(&f));
+        f.bindle_swap_sysctl = false;
+        f.swap_sysctl_owner = Some("/etc/sysctl.d/99-xzram.conf".into());
+        assert!(!zram(&f));
     }
 }

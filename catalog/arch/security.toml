@@ -76,12 +76,19 @@ packages = ["snapper", "snap-pac"]
 # an empty directory, and the nested subvolume is deleted only while empty.
 # Done-checks: /etc/conf.d/snapper lists the config (configs/root is 0640);
 # /proc/self/mounts shows /.snapshots mounted.
+# snapper asks snapperd over the system bus. Setting up the new system from
+# the live ISO runs in a chroot, where the bus is the live system's and has no
+# snapperd for the new one, so there it works on the files directly
+# (--no-dbus); on a running system snapperd must hear of the config.
 root_commands = [
-  { argv = ["snapper", "-c", "root", "create-config", "/"], when = ["!snapshots-mount"], unless = [{ path = "/etc/conf.d/snapper", contains = 'SNAPPER_CONFIGS="root' }] },
+  { argv = ["sh", "-ec", """
+if systemd-detect-virt -q --chroot; then set -- --no-dbus; else set --; fi
+snapper "$@" -c root create-config /"""], when = ["!snapshots-mount"], unless = [{ path = "/etc/conf.d/snapper", contains = 'SNAPPER_CONFIGS="root' }] },
   { argv = ["sh", "-ec", """
 if mountpoint -q /.snapshots; then umount /.snapshots; fi
 if [ -d /.snapshots ] && ! btrfs subvolume show /.snapshots >/dev/null 2>&1; then rmdir /.snapshots; fi
-snapper -c root create-config /"""], when = ["snapshots-mount"], unless = [{ path = "/etc/conf.d/snapper", contains = 'SNAPPER_CONFIGS="root' }] },
+if systemd-detect-virt -q --chroot; then set -- --no-dbus; else set --; fi
+snapper "$@" -c root create-config /"""], when = ["snapshots-mount"], unless = [{ path = "/etc/conf.d/snapper", contains = 'SNAPPER_CONFIGS="root' }] },
   { argv = ["sh", "-ec", """
 if mountpoint -q /.snapshots; then exit 0; fi
 if btrfs subvolume show /.snapshots >/dev/null 2>&1 && [ -z "$(ls -A /.snapshots)" ]; then btrfs subvolume delete /.snapshots; fi

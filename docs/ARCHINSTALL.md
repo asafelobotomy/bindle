@@ -71,7 +71,7 @@ Bluetooth hardware is present.
 | Lxqt | Xorg | Qt | sddm | pavucontrol-qt, gvfs, nm-applet, blueman |
 | Deepin | Xorg | Qt | lightdm-gtk | deepin-extra |
 | Enlightenment | Xorg | — | lightdm-gtk | pavucontrol |
-| Hyprland | Wayland | — | sddm | waybar, hyprpaper, hyprlock, hypridle, hyprpolkitagent, portals, cliphist, nwg-look |
+| Hyprland | Wayland | — | sddm | waybar, hyprpaper, hyprlock, hypridle, hyprpolkitagent, portals, nwg-look, satty |
 | Sway | Wayland | — | lightdm-gtk | mako, wl-clipboard, portals, polkit agent |
 | niri | Wayland | — | lightdm-gtk | xwayland-satellite, portal, polkit agent, wl-clipboard |
 | niri + DankMaterialShell | Wayland | — | dms-greeter | xwayland-satellite, cliphist |

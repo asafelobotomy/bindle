@@ -61,6 +61,8 @@ pub struct Facts {
     pub zswap_cmdline_off: bool,
     /// Another sysctl.d file (e.g. XZram's) already tunes swap.
     pub swap_sysctl_owner: Option<String>,
+    /// Bindle's own zram sysctls (`builtins::ZRAM_SYSCTL`) are in place.
+    pub bindle_swap_sysctl: bool,
     pub zram_active: bool,
     pub zram_config_present: bool,
     pub hibernate_resume: bool,
@@ -190,6 +192,7 @@ impl Facts {
             },
             zswap_cmdline_off: cmdline.split_whitespace().any(|a| a == "zswap.enabled=0"),
             swap_sysctl_owner: system::swap_sysctl_owner(),
+            bindle_swap_sysctl: std::path::Path::new(crate::builtins::ZRAM_SYSCTL).exists(),
             zram_active: read("/proc/swaps").contains("/dev/zram"),
             zram_config_present: !zram_config_paths(&|d| system::list_dir(d)).is_empty(),
             hibernate_resume: cmdline.split_whitespace().any(|a| a.starts_with("resume=")),

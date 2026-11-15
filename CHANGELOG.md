@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 0.1.10 — 2026-11-15
+
+- **Bazaar is the Flathub app store.** With Flatpak, Bindle now installs Bazaar on every desktop and makes it open Flathub's Install buttons and `.flatpakref` files. Flatseal (what each Flatpak app may reach) and Warehouse (manage installed Flatpaks: batch remove, clear data, roll back) come with it. Discover and GNOME Software can be picked on any desktop too (before: only on Plasma and GNOME), no longer pre-selected.
+- **Screenshots of an area on Print.** On Hyprland, Sway, niri, labwc, i3, bspwm, awesome and qtile, Print now lets you select part of the screen and opens it in satty to mark up: Enter saves it to Pictures/Screenshots, the copy button puts it on the clipboard too (`bindle-screenshot`: grim and slurp on Wayland, maim on X11). Bindle adds the binding to the window manager's own config between `BEGIN Bindle` and `END Bindle` lines, starting from the window manager's default config when there's none; on Hyprland it waits for the config Hyprland writes at its first start. `bindo screenshot-key-remove` takes it out again. Flameshot is no longer installed with i3, bspwm, awesome and qtile.
+- **Clipboard history is CopyQ, with a tray icon.** Wherever Bindle sets up clipboard history (every desktop but Plasma, GNOME, COSMIC and the ones with their own), CopyQ now keeps it, Wayland included: click the tray icon to paste something from earlier. Items go 30 days after they were copied; the tray menu switches that to 60 or 90 days or forever (also `bindo clipboard-keep`). It replaces the cliphist history; What's new offers to remove cliphist's service.
+- Not shown any more: Welcome's "archinstall enabled zram with default sizing" advice once Bindle's zram module has tuned swap.
+- Setting the system up from the live ISO no longer stops at snapper: `snapper create-config` now runs without D-Bus inside the chroot, where the bus belongs to the live system.
 - Self-update trusts only the new release key (`CCFF 34EE … DE41 DF9C`). `install.sh` still accepts the retired key `75C4 0FA1 … E02D 69FC`, but only for releases up to v0.1.9, so `BINDLE_VERSION=v0.1.8` still installs.
 
 ## 0.1.9 — 2026-11-15

@@ -1,8 +1,8 @@
 # End-to-end VM test
 
 `tests/vm/run.sh` installs Arch in a QEMU/KVM VM through the `bindle iso` path
-(`install.sh` with options → `bindle iso` → archinstall; `install.sh` with no
-arguments runs `bindle install`, which this test doesn't cover), boots the result, runs a real `bindle apply`, and screenshots the first-login
+(`install.sh` with options → `bindle iso` → archinstall), or with `WIZARD=1`
+through `bindle install` (`install.sh` with no arguments; see below), boots the result, runs a real `bindle apply`, and screenshots the first-login
 wizard. No clicks.
 
 ## Requirements
@@ -55,6 +55,7 @@ Scenario switches (env vars for `run.sh`):
 | `KEEP_WELCOME=1` | install | `bindle iso --keep-welcome` |
 | `SETUP_TARGET=1` | install | set the profile up inside the new system before the reboot (what users get); without it the test passes `--setup-at-first-login` to keep checking the first-login wizard |
 | `CLOSE_WELCOME=1` | boot | Alt+F4 via the QEMU monitor after the third screenshot |
+| `WIZARD=1` | install | `bindle install` instead of `bindle iso`: `guest/drive-install.py` runs `install.sh` with no arguments in a pseudo-terminal and drives the wizard key by key (Network, Desktop, Hardware, Disk, You, Apps, Review, then `y`), taking every default (the recommended desktop and profile, the preferred disk erased, no encryption, set up before the reboot), presses `q` on the last screen and passes only if Bindle says the system is ready. `DESKTOP`, `PROFILE`, `KEEP_WELCOME` and `SETUP_TARGET` don't apply; 3 GiB of RAM by default |
 | `SECOND_LOGIN=1` | boot | pre-sets `first-login-seen` for the test user, so login shows the reminder notification |
 | `WITH="uq scdr crumbs noti-fi"` | boot | adds those modules to the check's `plan` and `apply` (`--with`); needs an install made with this switch's support |
 

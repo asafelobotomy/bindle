@@ -12,6 +12,9 @@
 #      SETUP_TARGET=1   apply the profile in the new system before the reboot (the default
 #                       for users; the first-boot checks then find setup already done)
 #      CLOSE_WELCOME=1  boot: press Alt+F4 after the third screenshot (closes a welcome app)
+#      WIZARD=1         install through `bindle install` (install.sh with no arguments): the
+#                       wizard driven key by key with its defaults; DESKTOP, PROFILE,
+#                       KEEP_WELCOME and SETUP_TARGET don't apply
 #      SECOND_LOGIN=1   boot: pre-mark the wizard as seen, so login shows the reminder notification
 #      WITH="m1 m2"     boot: add these modules to plan and apply (bindle apply --with)
 set -euo pipefail
@@ -21,7 +24,8 @@ WORK="$HERE/.work"
 ISO="${ISO:-$(ls -1 "$WORK"/archlinux*-x86_64.iso 2>/dev/null | tail -1)}"
 DESKTOP="${DESKTOP:-gnome}"
 PROFILE="${PROFILE:-desktop}"
-MEM_INSTALL="${MEM_INSTALL:-2048}"
+# The wizard sets the recommended desktop up before the reboot (AUR builds included).
+MEM_INSTALL="${MEM_INSTALL:-$([[ "${WIZARD:-0}" == 1 ]] && echo 3072 || echo 2048)}"
 MEM_BOOT="${MEM_BOOT:-2560}"
 CPUS="${CPUS:-2}"
 PORT=8765
@@ -88,7 +92,7 @@ install_phase() {
     say "building bindle"
     rm -rf "$WORK/serve"
     serve_build
-    cp "$HERE"/guest/* "$WORK/serve/"
+    find "$HERE/guest" -maxdepth 1 -type f -exec cp -t "$WORK/serve/" {} +
     sign_test_release
 
     say "extracting kernel from $(basename "$ISO")"
@@ -112,7 +116,7 @@ install_phase() {
     "${qemu_base[@]}" -m "$MEM_INSTALL" -drive "file=$ISO,format=raw,if=virtio,readonly=on" \
         -kernel "$WORK/iso/arch/boot/x86_64/vmlinuz-linux" \
         -initrd "$WORK/iso/arch/boot/x86_64/initramfs-linux.img" \
-        -append "$opts copytoram=n console=tty0 console=ttyS0,115200 script=http://10.0.2.2:$PORT/guest-install.sh bindle_desktop=$DESKTOP bindle_profile=$PROFILE bindle_keep_welcome=${KEEP_WELCOME:-0} bindle_setup_target=${SETUP_TARGET:-0}" \
+        -append "$opts copytoram=n console=tty0 console=ttyS0,115200 script=http://10.0.2.2:$PORT/guest-install.sh bindle_desktop=$DESKTOP bindle_profile=$PROFILE bindle_keep_welcome=${KEEP_WELCOME:-0} bindle_setup_target=${SETUP_TARGET:-0} bindle_wizard=${WIZARD:-0}" \
         -serial "file:$WORK/install-serial.log" -display none -no-reboot &
     local qemu=$!
     PIDS+=("$qemu")

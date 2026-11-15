@@ -224,13 +224,13 @@ mod tests {
 
     #[test]
     fn only_plain_login_names_get_a_rule() {
-        let r = rule("solon").unwrap();
-        assert!(r.ends_with("\nsolon ALL=(ALL:ALL) NOPASSWD: ALL\n"), "{r}");
-        assert!(r.lines().all(|l| l.starts_with('#') || l.starts_with("solon ")));
+        let r = rule("alex").unwrap();
+        assert!(r.ends_with("\nalex ALL=(ALL:ALL) NOPASSWD: ALL\n"), "{r}");
+        assert!(r.lines().all(|l| l.starts_with('#') || l.starts_with("alex ")));
         for ok in ["a", "_x", "user-1", "u_2"] {
             assert!(valid_user(ok), "{ok}");
         }
-        for bad in ["", "root", "Solon", "1user", "-x", "a b", "a,b", "a\nALL", "a=b", "ä", &"a".repeat(33)] {
+        for bad in ["", "root", "Alex", "1user", "-x", "a b", "a,b", "a\nALL", "a=b", "ä", &"a".repeat(33)] {
             assert!(rule(bad).is_err(), "{bad:?}");
         }
     }
@@ -239,7 +239,7 @@ mod tests {
     fn grant_sorts_after_archinstalls_sudoers() {
         // archinstall writes `00_<user>`; sudo's last matching rule wins.
         let ours = SUDOERS.rsplit('/').next().unwrap();
-        let mut names = [ours, "00_solon", "00_zz", "_tester", "wheel"];
+        let mut names = [ours, "00_alex", "00_zz", "_tester", "wheel"];
         names.sort_unstable();
         assert_eq!(names.last(), Some(&ours));
     }
@@ -259,11 +259,11 @@ mod tests {
         let leftover = host(&root, SUDOERS);
         fs::create_dir_all(leftover.parent().unwrap()).unwrap();
         // Also what an older Bindle left: the rule itself, on the disk.
-        fs::write(&leftover, "solon ALL=(ALL:ALL) NOPASSWD: ALL\n").unwrap();
-        fs::write(leftover.with_file_name("00_solon"), "solon ALL=(ALL) ALL\n").unwrap();
+        fs::write(&leftover, "alex ALL=(ALL:ALL) NOPASSWD: ALL\n").unwrap();
+        fs::write(leftover.with_file_name("00_alex"), "alex ALL=(ALL) ALL\n").unwrap();
         clear_grant(&root);
         assert!(!leftover.exists());
-        assert!(leftover.with_file_name("00_solon").exists(), "only Bindle's file goes");
+        assert!(leftover.with_file_name("00_alex").exists(), "only Bindle's file goes");
         clear_grant(&root);
         assert!(!is_mounted(&leftover));
     }

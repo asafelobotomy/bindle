@@ -165,53 +165,6 @@ when = ["bare-desktop"]
 profiles = ["desktop", "gaming", "developer"]
 builtin = "everyday"
 
-# Clipboard history where the desktop has none (Plasma has Klipper, DMS its
-# own). On Wayland, cliphist stores what wl-paste sees; a user unit starts it
-# with the session (uQ and uwsm start graphical-session.target).
-[[module]]
-id = "clipboard-history"
-group = "Desktop basics"
-name = "Clipboard history"
-description = "Keeps what you copy, text and images, so you can paste something from earlier."
-notes = [
-  "Pick from the history with a key bound to: cliphist list | fuzzel --dmenu | cliphist decode | wl-copy (rofi -dmenu or wofi --dmenu work too).",
-  "History starts from your next login. Without uwsm or uQ (plain sway, river, labwc) nothing starts it: add `exec wl-paste --watch cliphist store` to your config.",
-]
-when = ["bare-desktop", "display:wayland", "!desktop:niri-dms"]
-profiles = ["desktop", "gaming", "developer"]
-packages = ["cliphist", "wl-clipboard"]
-[[module.files]]
-path = "/etc/systemd/user/bindle-cliphist.service"
-content = '''
-# Managed by Bindle
-[Unit]
-Description=Clipboard history (cliphist)
-PartOf=graphical-session.target
-After=graphical-session.target
-
-[Service]
-ExecStart=/usr/bin/wl-paste --watch /usr/bin/cliphist store
-Restart=on-failure
-
-[Install]
-WantedBy=graphical-session.target
-'''
-[[module.user_commands]]
-argv = ["systemctl", "--user", "enable", "bindle-cliphist.service"]
-unless = [{ path = "~/.config/systemd/user/graphical-session.target.wants/bindle-cliphist.service" }]
-
-# X11 desktops with no clipboard history of their own (Xfce has Clipman,
-# LXQt lxqt-clip, Enlightenment its clipboard module, Deepin its own).
-[[module]]
-id = "copyq"
-group = "Desktop basics"
-name = "Clipboard history (CopyQ)"
-description = "Keeps what you copy, text and images, with search and a tray icon."
-notes = ["CopyQ starts itself at login once opened. On i3, bspwm, qtile, xmonad and awesome, add `exec copyq` to your config instead."]
-when = ["display:xorg", "!desktop:xfce4", "!desktop:lxqt", "!desktop:enlightenment", "!desktop:deepin"]
-profiles = ["desktop", "gaming", "developer"]
-packages = ["copyq"]
-
 [[module]]
 id = "spellcheck"
 group = "Desktop basics"
@@ -267,23 +220,56 @@ category = "Maintenance"
 description = "Remove Flatpak runtimes that no installed app uses any more"
 run = 'flatpak uninstall --unused -y'
 
+# Bazaar is the store Flathub links open in. Discover and GNOME Software are
+# on offer on any desktop (Plasma and GNOME ship their own already).
+[[module]]
+id = "flatpak-bazaar"
+group = "App stores"
+name = "Bazaar (Flathub app store)"
+description = "A fast app store for Flathub: browse, install and update Flatpak apps. Opens Flathub's Install buttons and .flatpakref files."
+profiles = ["desktop", "gaming"]
+when = ["desktop"]
+requires = ["flatpak"]
+packages = ["bazaar", "xdg-utils"]
+user_commands = [
+  { argv = ["xdg-mime", "default", "io.github.kolunmi.Bazaar.desktop", "x-scheme-handler/appstream", "x-scheme-handler/flatpak", "x-scheme-handler/flatpak+https", "application/vnd.flatpak", "application/vnd.flatpak.ref"], unless = [{ path = "~/.config/mimeapps.list", contains = "application/vnd.flatpak.ref=io.github.kolunmi.Bazaar.desktop" }] },
+]
+
+[[module]]
+id = "flatseal"
+group = "App stores"
+name = "Flatseal (Flatpak permissions)"
+description = "See and change what each Flatpak app may reach: files, devices, network."
+profiles = ["desktop", "gaming"]
+when = ["desktop"]
+requires = ["flatpak"]
+packages = ["flatseal"]
+
+[[module]]
+id = "warehouse"
+group = "App stores"
+name = "Warehouse (manage Flatpaks)"
+description = "Installed Flatpak apps at a glance: remove several at once, clear their data, pin or roll back versions."
+profiles = ["desktop", "gaming"]
+when = ["desktop"]
+requires = ["flatpak"]
+packages = ["warehouse"]
+
 [[module]]
 id = "flatpak-discover"
 group = "App stores"
-name = "Flatpak in Discover"
-description = "Browse and update Flathub apps in Plasma's Discover."
-profiles = ["desktop", "gaming"]
-when = ["desktop:plasma"]
+name = "Discover"
+description = "KDE's app store, Flathub apps included, with Flatpak permissions in System Settings."
+when = ["desktop"]
 requires = ["flatpak"]
 packages = ["discover", "flatpak-kcm"]
 
 [[module]]
 id = "flatpak-gnome-software"
 group = "App stores"
-name = "Flatpak in GNOME Software"
-description = "Browse and update Flathub apps in GNOME Software."
-profiles = ["desktop", "gaming"]
-when = ["desktop:gnome"]
+name = "GNOME Software"
+description = "GNOME's app store, Flathub apps included."
+when = ["desktop"]
 requires = ["flatpak"]
 packages = ["gnome-software"]
 

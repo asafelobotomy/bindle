@@ -195,6 +195,8 @@ mod checks;
 #[cfg(test)]
 mod conflict_tests;
 pub mod content;
+#[cfg(test)]
+mod desktop_tools_tests;
 mod emit;
 mod gather;
 mod mounts;
