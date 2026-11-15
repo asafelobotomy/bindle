@@ -23,13 +23,16 @@ making Bindle act on another user's behalf, is in scope.
 ## Verifying releases
 
 Every release carries `SHA256SUMS` and a detached GPG signature
-`SHA256SUMS.sig`, made in CI with the Bindle release key:
+`SHA256SUMS.sig`, made in CI with a Bindle release key:
 
     75C4 0FA1 27FB F8D4 FBF9  E710 FAC4 0EFF E02D 69FC   Bindle release signing (ed25519, expires 2028-11-07)
+    CCFF 34EE 4CC0 AE7C C686  5E92 7C23 0DE2 DE41 DF9C   Bindle release signing (ed25519, expires 2029-11-14)
 
-The public key is [packaging/bindle-release.asc](packaging/bindle-release.asc);
-`install.sh` embeds it and refuses anything it didn't sign, and Bindle's
-self-update (`bindleupgrade`) has it built in. See
+The first signs releases up to v0.1.9; the second, added in v0.1.9, signs
+the ones after it (see "Key rotation"). The public keys are
+[packaging/bindle-release.asc](packaging/bindle-release.asc); `install.sh`
+embeds them and refuses anything neither signed, and Bindle's self-update
+(`bindleupgrade`) has them built in. See
 [docs/ISO.md](docs/ISO.md#trust) to verify by hand.
 
 From v0.1.9 every release also carries `VERSION`: exactly its tag and a
@@ -65,10 +68,21 @@ set.
 
 ## Key rotation
 
-The key expires on 2028-11-07. Installed Bindles trust the fingerprints built
-into them (`SIGNING_FPRS` in `crates/bindle-upgrade/src/selfupdate.rs`, today
-only the one above), and `install.sh` the one it embeds. So a new key has to
-reach users before it is used:
+Installed Bindles trust the fingerprints built into them (`SIGNING_FPRS` in
+`crates/bindle-upgrade/src/selfupdate.rs`), and `install.sh` the ones it
+embeds (`SIGNING_FPRS`, the same list as the release workflow's; a unit test
+checks the three agree). So a new key has to reach users before it is used.
+`scripts/new-release-key.sh` makes one, saves the private half in Proton Pass
+and adds the public half to `packaging/bindle-release.asc`.
+
+**In progress:** v0.1.9 adds `CCFF34EE…DE41DF9C`, made after the first key's
+private half turned out to exist only as the GitHub secret. v0.1.9 is signed
+by the first key; then `BINDLE_GPG_KEY` becomes an environment secret in
+`release` holding the new key, and the repository secret is deleted. The
+sign job signs with whichever listed key the secret holds. The first
+fingerprint is dropped in a later release.
+
+The steps:
 
 1. Well before the expiry, make the next key, sign it with this one, and add
    its fingerprint to `SIGNING_FPRS` and its public key to
@@ -92,9 +106,9 @@ These live in GitHub's settings, not in the repository, and should be on:
   required to pass, no force-pushes, no deletion.
 - **A tag ruleset for `v*`**: only maintainers can create tags, and none can
   be moved or deleted (a release tag names one commit for good).
-- **The `release` environment**, with required reviewers, holding
-  `BINDLE_GPG_KEY` as an environment secret (and the repository secret of
-  that name removed). The sign job already runs in this environment;
-  repository secrets reach environment jobs too, so it works before the move,
-  but only the move makes signing wait for a reviewer's approval. Limit the
-  environment's deployment branches and tags to `v*` tags.
+- **The `release` environment**, with required reviewers and deployments
+  limited to `v*` tags, holding `BINDLE_GPG_KEY` as an environment secret
+  (and no repository secret of that name). The sign job runs in this
+  environment; repository secrets reach environment jobs too, so only an
+  environment secret makes signing wait for a reviewer's approval. A manual
+  run that signs must be dispatched on the tag (`--ref v0.1.9`), not `main`.

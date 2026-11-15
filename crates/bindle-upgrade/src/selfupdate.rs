@@ -29,10 +29,13 @@ use crate::system::vercmp;
 pub const REPO: &str = "asafelobotomy/bindle";
 /// The release key's fingerprint (as in install.sh and SECURITY.md).
 pub const SIGNING_FPR: &str = "75C40FA127FBF8D4FBF9E710FAC40EFFE02D69FC";
+/// The next release key (expires 2029-11-14), trusted from v0.1.9 on and
+/// used to sign once that release has been out (see SECURITY.md).
+pub const NEXT_SIGNING_FPR: &str = "CCFF34EE4CC0AE7CC6865E927C230DE2DE41DF9C";
 /// Every fingerprint a release may be signed by. To rotate the key, a release
 /// adds the next one here (and its public key to `bindle-release.asc`)
-/// before the current key expires (2028-11-07); see SECURITY.md.
-pub const SIGNING_FPRS: &[&str] = &[SIGNING_FPR];
+/// before the current key is retired; see SECURITY.md.
+pub const SIGNING_FPRS: &[&str] = &[SIGNING_FPR, NEXT_SIGNING_FPR];
 const KEY: &str = include_str!("../../../packaging/bindle-release.asc");
 /// Set in the environment of the Bindle that just replaced itself.
 pub const UPDATED_ENV: &str = "BINDLE_UPGRADED";
@@ -355,5 +358,18 @@ mod tests {
         assert!(!valid_signature("[GNUPG:] VALIDSIG 0000 2026", SIGNING_FPRS));
         assert!(!valid_signature(&status, &[]));
         assert!(KEY.starts_with("-----BEGIN PGP PUBLIC KEY BLOCK-----"));
+    }
+
+    /// install.sh, the release workflow and this file trust the same keys.
+    #[test]
+    fn every_copy_trusts_the_same_keys() {
+        let line = |text: &str, key: &str| -> String {
+            let l = text.lines().find(|l| l.trim_start().starts_with(key)).unwrap();
+            l.split_once(['=', ':']).unwrap().1.trim().trim_matches('"').to_string()
+        };
+        let want = SIGNING_FPRS.join(" ");
+        assert_eq!(line(include_str!("../../../install.sh"), "SIGNING_FPRS="), want);
+        assert_eq!(line(include_str!("../../../.github/workflows/release.yml"), "SIGNING_FPRS:"), want);
+        assert!(SIGNING_FPRS.contains(&SIGNING_FPR));
     }
 }

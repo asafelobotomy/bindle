@@ -25,16 +25,23 @@
 # asked for, so an older signed release can't be passed off as the latest.
 set -euo pipefail
 
-# Release signing key: packaging/bindle-release.asc (see SECURITY.md).
-SIGNING_FPR=75C40FA127FBF8D4FBF9E710FAC40EFFE02D69FC
+# Release signing keys: packaging/bindle-release.asc (see SECURITY.md). A
+# release signed by any of these fingerprints is accepted (two during a key
+# rotation).
+SIGNING_FPRS="75C40FA127FBF8D4FBF9E710FAC40EFFE02D69FC CCFF34EE4CC0AE7CC6865E927C230DE2DE41DF9C"
 SIGNING_KEY='-----BEGIN PGP PUBLIC KEY BLOCK-----
 
-mDMEavB/8xYJKwYBBAHaRw8BAQdAhhi5TJ4cbluXe608n8nowqL4xd0wKR8TfMLa
-2MA7H2i0FkJpbmRsZSByZWxlYXNlIHNpZ25pbmeIlgQTFgoAPhYhBHXED6En+/jU
-+/nnEPrEDv/gLWn8BQJq8H/zAhsDBQkDwmcABQsJCAcCBhUKCQgLAgQWAgMBAh4B
-AheAAAoJEPrEDv/gLWn8V5AA/jTNac8lR5rqhx8wREVB7Y9rAwBHkSUodT2Vm/c/
-5q+PAP4seYjXOD8k5UTyMDrPebJnk0f92K/U5YopuIJG3VyWDA==
-=m6zh
+mDMEavmesxYJKwYBBAHaRw8BAQdANqKQkVEzAI5BkMLuT0q0s0JCRFiJtmf58GzA
+a56Jmb60FkJpbmRsZSByZWxlYXNlIHNpZ25pbmeIlgQTFgoAPhYhBMz/NO5MwK58
+xoZeknwjDeLeQd+cBQJq+Z6zAhsDBQkFo5qABQsJCAcCBhUKCQgLAgQWAgMBAh4B
+AheAAAoJEHwjDeLeQd+cMwoBAMn4Oo1t4ZCBkr7pXjpIMimCsZjgexh2B2AB8OYh
+iyJ2AQCnQjYLd0Ip0nm/TZxikuWwRzbRNROMDNfnRY4HVCpiDZgzBGrwf/MWCSsG
+AQQB2kcPAQEHQIYYuUyeHG5bl3utPJ/J6MKi+MXdMCkfE3zC2tjAOx9otBZCaW5k
+bGUgcmVsZWFzZSBzaWduaW5niJYEExYKAD4WIQR1xA+hJ/v41Pv55xD6xA7/4C1p
+/AUCavB/8wIbAwUJA8JnAAULCQgHAgYVCgkICwIEFgIDAQIeAQIXgAAKCRD6xA7/
+4C1p/FeQAP40zWnPJUea6ocfMERFQe2PawMAR5ElKHU9lZv3P+avjwD+LHmI1zg/
+JOVE8jA6z3myZ5NH/div1OWKKbiCRt1clgw=
+=1H+K
 -----END PGP PUBLIC KEY BLOCK-----'
 
 main() {
@@ -129,14 +136,18 @@ main() {
     exec "$dir/bindle" "$cmd" "$@"
 }
 
-# SHA256SUMS must carry a valid signature by exactly SIGNING_FPR, and list
+# SHA256SUMS must carry a valid signature by one of SIGNING_FPRS, and list
 # the downloaded binary with a matching checksum.
 verify() {
     local dir="$1"
     mkdir -m 700 "$dir/gnupg"
     printf '%s\n' "$SIGNING_KEY" | GNUPGHOME="$dir/gnupg" gpg --batch --quiet --dearmor >"$dir/release.gpg" || return 1
-    GNUPGHOME="$dir/gnupg" gpgv --status-fd 1 --keyring "$dir/release.gpg" "$dir/SHA256SUMS.sig" "$dir/SHA256SUMS" 2>/dev/null \
-        | grep -q "^\[GNUPG:\] VALIDSIG $SIGNING_FPR " || return 1
+    local status fpr ok=1
+    status="$(GNUPGHOME="$dir/gnupg" gpgv --status-fd 1 --keyring "$dir/release.gpg" "$dir/SHA256SUMS.sig" "$dir/SHA256SUMS" 2>/dev/null)" || return 1
+    for fpr in $SIGNING_FPRS; do
+        grep -q "^\[GNUPG:\] VALIDSIG $fpr " <<<"$status" && ok=0
+    done
+    [[ $ok == 0 ]] || return 1
     matches "$dir" bindle-x86_64 "$dir/bindle"
 }
 

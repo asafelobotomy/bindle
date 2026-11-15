@@ -159,7 +159,7 @@ sign_test_release() {
 import re, sys
 src, dst, fpr, key = sys.argv[1:]
 s = open(src).read()
-s = re.sub(r"^SIGNING_FPR=.*$", f"SIGNING_FPR={fpr}", s, count=1, flags=re.M)
+s = re.sub(r"^SIGNING_FPRS=.*$", f'SIGNING_FPRS="{fpr}"', s, count=1, flags=re.M)
 s = re.sub(r"^SIGNING_KEY='[^']*'", lambda _: f"SIGNING_KEY='{key}'", s, count=1, flags=re.M)
 open(dst, "w").write(s)
 PY

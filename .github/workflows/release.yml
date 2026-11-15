@@ -26,9 +26,11 @@ permissions:
 env:
   # Pinned so a release doesn't change with whatever Arch shipped that day.
   RUST_VERSION: '1.99.1'
-  # The release signing key (public half: packaging/bindle-release.asc, also
-  # embedded in install.sh). The private half is the BINDLE_GPG_KEY secret.
-  SIGNING_FPR: 75C40FA127FBF8D4FBF9E710FAC40EFFE02D69FC
+  # The release signing keys (public halves: packaging/bindle-release.asc,
+  # also embedded in install.sh). The private half of the one that signs is
+  # the BINDLE_GPG_KEY secret; it must be one of these. During a rotation
+  # both keys are listed (see SECURITY.md, "Key rotation").
+  SIGNING_FPRS: 75C40FA127FBF8D4FBF9E710FAC40EFFE02D69FC CCFF34EE4CC0AE7CC6865E927C230DE2DE41DF9C
   TAG: ${{ inputs.tag || github.ref_name }}
 
 jobs:
@@ -129,19 +131,22 @@ jobs:
             [ -f "$f" ] || { echo "the build left out $f"; exit 1; }
           done
           sha256sum -c --quiet bindle-x86_64.sha256
-          # install.sh must embed the key that signs.
-          grep -q "$SIGNING_FPR" install.sh
           # The tag, signed with the files: an old release can't pass for a newer one.
           printf '%s\n' "$TAG" > VERSION
           sha256sum bindle-x86_64 bindle-gui-x86_64 install.sh VERSION *.AppImage > SHA256SUMS
           export GNUPGHOME="$(mktemp -d)"
           trap 'rm -rf "$GNUPGHOME"' EXIT
           printf '%s\n' "$BINDLE_GPG_KEY" | gpg --batch --quiet --import
-          gpg --batch --yes --local-user "$SIGNING_FPR" --output SHA256SUMS.sig --detach-sign SHA256SUMS
-          # The secret must be the key users verify against: the fingerprint
+          fpr="$(gpg --batch --list-secret-keys --with-colons | awk -F: '/^fpr/ { print $10; exit }')"
+          # The secret must be a key users verify against: the fingerprint
           # is a hash of the public key, so this checks it is that key.
-          gpg --batch --export "$SIGNING_FPR" > "$RUNNER_TEMP/release.gpg"
-          gpgv --status-fd 1 --keyring "$RUNNER_TEMP/release.gpg" SHA256SUMS.sig SHA256SUMS | grep -q "VALIDSIG $SIGNING_FPR "
+          [[ " $SIGNING_FPRS " == *" $fpr "* ]] || { echo "BINDLE_GPG_KEY ($fpr) isn't in SIGNING_FPRS"; exit 1; }
+          # install.sh must trust the key that signs.
+          grep -q "$fpr" install.sh || { echo "install.sh doesn't trust $fpr"; exit 1; }
+          echo "Signing with $fpr"
+          gpg --batch --yes --local-user "$fpr" --output SHA256SUMS.sig --detach-sign SHA256SUMS
+          gpg --batch --export "$fpr" > "$RUNNER_TEMP/release.gpg"
+          gpgv --status-fd 1 --keyring "$RUNNER_TEMP/release.gpg" SHA256SUMS.sig SHA256SUMS | grep -q "VALIDSIG $fpr "
           rm -f "$RUNNER_TEMP/release.gpg"
           cat SHA256SUMS
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

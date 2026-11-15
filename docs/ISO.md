@@ -251,11 +251,12 @@ archinstall, since they can be erased.
 
 Releases are signed. CI signs `SHA256SUMS` (covering `bindle-x86_64`,
 `bindle-gui-x86_64`, `install.sh`, the AppImages and, from v0.1.9, `VERSION`)
-with the Bindle release key:
+with a Bindle release key:
 
-    75C4 0FA1 27FB F8D4 FBF9  E710 FAC4 0EFF E02D 69FC   Bindle release signing
+    75C4 0FA1 27FB F8D4 FBF9  E710 FAC4 0EFF E02D 69FC   Bindle release signing (up to v0.1.9)
+    CCFF 34EE 4CC0 AE7C C686  5E92 7C23 0DE2 DE41 DF9C   Bindle release signing (after v0.1.9)
 
-The public key is `packaging/bindle-release.asc` and is embedded in
+The public keys are `packaging/bindle-release.asc` and are embedded in
 `install.sh`, which refuses a download whose signature or checksum doesn't
 match. A compromised release would need the private key as well. To verify by
 hand (for example the AppImage):
@@ -277,12 +278,12 @@ To check the release's `install.sh` before running it, on the live ISO:
 curl -fsSL --remote-name-all \
   https://github.com/asafelobotomy/bindle/releases/latest/download/{install.sh,SHA256SUMS,SHA256SUMS.sig}
 curl -fsSL https://raw.githubusercontent.com/asafelobotomy/bindle/main/packaging/bindle-release.asc | gpg --import
-gpg --verify SHA256SUMS.sig SHA256SUMS      # Good signature, primary key 75C4 0FA1 … E02D 69FC
+gpg --verify SHA256SUMS.sig SHA256SUMS      # Good signature, primary key 75C4 0FA1 … or CCFF 34EE …
 sha256sum -c --ignore-missing SHA256SUMS    # install.sh: OK
 bash install.sh
 ```
 
-Compare the fingerprint gpg prints with the one above (also in
+Compare the fingerprint gpg prints with the ones above (also in
 [SECURITY.md](../SECURITY.md)), not just "Good signature". The `install.sh`
 on `main` is fetched over HTTPS but isn't signed; as with any `curl | bash`,
 you can download it and read it first.
