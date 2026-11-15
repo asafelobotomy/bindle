@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **Hardware Bindle now recognises** (it reads the maker and model, USB and PCI devices, monitors and the battery; each module applies only where found):
+  - Thunderbolt docks approved (bolt); brightness for external monitors (ddcutil); the webcam of 2021+ Intel laptops (libcamera); security keys and smartcard readers; a bigger console font on high-resolution screens; more game controllers (game-devices-udev) and Xbox controllers over Bluetooth (xpadneo); temperature sensors on desktops.
+  - ASUS ROG and TUF laptops (asusctl), 8th-generation ThinkPads' slow-down fix (throttled), Framework's light sensor and tools, Dell's settings tools; handheld gaming PCs (InputPlumber: ROG Ally, Legion Go, MSI Claw, Steam Deck); Huion and XP-Pen tablets (OpenTabletDriver); HP and Epson printer and scanner drivers.
+  - An opt-in charge limit at 80% where the battery supports one (not on Plasma or GNOME, which have their own).
+  - Hybrid NVIDIA laptops power the GPU off when idle (Turing) or get Dynamic Boost (Ampere and newer). The fingerprint module now needs a fingerprint reader, not just a laptop. VM disk images on Btrfs skip copy-on-write.
 - **Everyday defaults from the ArchWiki, CachyOS and other distros** (23 modules, most on by default, each one package or drop-in file; What's new offers them):
   - System: logs and crash dumps kept under 1 GB; drivers keep loading after a kernel update until you restart (kernel-modules-hook); a list of new .pacnew files after each update; 15-second stop timeouts instead of 90; writeback in small batches with 8 GB or more of memory (no frozen desktop copying to USB); NMI watchdog off; no audio clicks on desktops; Wi-Fi rules for your country (from the timezone); light kernel hardening that leaves debuggers, Flatpak and games alone.
   - Desktop: the GNOME keyring unlocked at login on greetd and ly (uQ, window managers); KDE Wallet on Plasma; ssh-agent for the session; hardware video decoding in Chromium, Brave, Chrome and Vivaldi on Intel and AMD; Flatpak apps follow your theme; qt6ct and one cursor on window managers, Qt following GTK on GNOME; CJK text in your language's shapes; bash suggests packages for unknown commands; screen locking on Sway and niri; a sign-in prompt for captive Wi-Fi on window managers.

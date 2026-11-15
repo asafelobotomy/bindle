@@ -3,6 +3,7 @@
 mod apps;
 pub mod drives;
 mod gpu;
+mod hardware;
 mod initramfs;
 mod locale;
 
@@ -16,10 +17,12 @@ use crate::detect::Facts;
 
 pub const KNOWN: &[&str] = &[
     "aur-helper",
+    "charge-limit",
     "cjk-fonts",
     "desktop",
     "everyday",
     "gpu",
+    "kernel-headers",
     "microcode",
     "nvidia-legacy",
     "regdom",
@@ -84,6 +87,8 @@ pub fn expand(name: &str, ctx: &Ctx) -> Expansion {
         "nvidia-legacy" => gpu::nvidia_legacy_extras(ctx),
         "spellcheck" => apps::spellcheck(ctx.facts),
         "regdom" => locale::regdom(ctx.facts),
+        "kernel-headers" => hardware::kernel_headers(ctx.facts),
+        "charge-limit" => hardware::charge_limit(ctx.facts),
         "cjk-fonts" => locale::cjk_fonts(ctx.facts),
         "zram" => zram(ctx.facts),
         other => match other.strip_prefix(drives::BUILTIN_PREFIX) {

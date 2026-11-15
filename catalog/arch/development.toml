@@ -228,4 +228,7 @@ risk = "moderate"
 packages = ["virt-manager", "qemu-desktop", "libvirt", "dnsmasq", "swtpm", "edk2-ovmf"]
 enable = ["libvirtd.socket"]
 groups = ["libvirt"]
+# On Btrfs, copy-on-write fragments disk images: off for the images folder
+# while it is still empty (it only applies to files made afterwards).
+root_commands = [{ argv = ["sh", "-c", 'd=/var/lib/libvirt/images; mkdir -p "$d"; [ -n "$(ls -A "$d")" ] || chattr +C "$d"'], when = ["fs:btrfs"] }]
 notes = ["If the default network isn't running, start it with `run0 virsh net-autostart default && run0 virsh net-start default`."]

@@ -20,6 +20,7 @@ const ARCH_FILES: &[(&str, &str)] = &[
     ("desktop-tools", include_str!("../../../catalog/arch/desktop-tools.toml")),
     ("system-defaults", include_str!("../../../catalog/arch/system-defaults.toml")),
     ("desktop-session", include_str!("../../../catalog/arch/desktop-session.toml")),
+    ("hardware-extras", include_str!("../../../catalog/arch/hardware-extras.toml")),
     ("internet", include_str!("../../../catalog/arch/internet.toml")),
     ("creative", include_str!("../../../catalog/arch/creative.toml")),
     ("development", include_str!("../../../catalog/arch/development.toml")),

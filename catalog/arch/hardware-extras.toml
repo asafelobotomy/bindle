@@ -1,0 +1,175 @@
+# More of Hardware: modules for devices Bindle finds (USB and PCI ids, the
+# maker and model, monitors, the battery). Each applies only where found.
+extends = "hardware"
+
+[[module]]
+id = "thunderbolt"
+group = "Peripherals"
+name = "Thunderbolt docks and drives"
+description = "Approve Thunderbolt docks, drives and graphics boxes when you plug them in (otherwise they stay blocked)."
+default = true
+when = ["thunderbolt"]
+packages = ["bolt"]
+
+[[module]]
+id = "monitor-brightness"
+group = "Graphics & sound"
+name = "Brightness for external monitors"
+description = "Change an external monitor's brightness from the desktop, like a laptop's own screen (DDC/CI)."
+default = true
+when = ["external-monitor", "desktop", "!virt"]
+packages = ["ddcutil"]
+files = [{ path = "/etc/modules-load.d/bindle-i2c-dev.conf", content = "# Managed by Bindle: ddcutil talks to monitors over I2C\ni2c-dev\n" }]
+
+[[module]]
+id = "mipi-camera"
+group = "Peripherals"
+name = "Webcam on newer Intel laptops"
+description = "The built-in camera of 2021+ Intel laptops (IPU6/IPU7) works only through libcamera; apps then see it through PipeWire."
+default = true
+when = ["ipu-camera"]
+risk = "moderate"
+packages = ["libcamera", "libcamera-ipa", "pipewire-libcamera"]
+notes = ["Picture quality depends on the camera's support in libcamera; some models are dark or grainy."]
+
+[[module]]
+id = "security-keys"
+group = "Peripherals"
+name = "Security keys and smartcards"
+description = "YubiKeys, Nitrokeys and smartcard readers for logins, SSH and signing (FIDO2, PIV, OpenPGP)."
+default = true
+when = ["security-key"]
+packages = ["pcsclite", "ccid", "libfido2", "yubikey-manager"]
+enable = ["pcscd.socket"]
+
+# The console's font, for the disk-unlock prompt and text consoles on a
+# high-resolution screen. vconsole.conf belongs to the system (it holds the
+# keyboard layout), so only its FONT line is set.
+[[module]]
+id = "console-font"
+group = "Graphics & sound"
+name = "Readable text before the desktop starts"
+description = "A bigger console font on a high-resolution screen, so the disk-unlock prompt and text consoles aren't tiny."
+default = true
+when = ["hidpi"]
+packages = ["terminus-font"]
+root_commands = [{ argv = ["sh", "-ec", '''
+f=/etc/vconsole.conf
+touch "$f"
+if grep -q '^FONT=' "$f"; then sed -i 's/^FONT=.*/FONT=ter-132b/' "$f"; else echo 'FONT=ter-132b' >>"$f"; fi
+if grep -Eq '^HOOKS=.*\b(consolefont|sd-vconsole)\b' /etc/mkinitcpio.conf; then mkinitcpio -P; fi
+'''], unless = [{ path = "/etc/vconsole.conf", contains = "FONT=ter-132b" }] }]
+
+[[module]]
+id = "controller-rules"
+group = "Peripherals"
+name = "More game controllers"
+description = "Recognises 8BitDo, Switch Pro, PlayStation-style and other controllers that Steam's own rules miss."
+profiles = ["gaming"]
+when = ["desktop"]
+requires = ["aur-helper"]
+aur = ["game-devices-udev"]
+
+[[module]]
+id = "xpadneo"
+group = "Peripherals"
+name = "Xbox controllers over Bluetooth (xpadneo)"
+description = "Rumble, the right button layout and battery level for Xbox controllers connected by Bluetooth."
+when = ["bluetooth"]
+risk = "moderate"
+requires = ["aur-helper"]
+aur = ["xpadneo-dkms"]
+builtin = "kernel-headers"
+
+[[module]]
+id = "charge-limit"
+group = "Laptop & power"
+name = "Stop charging at 80%"
+description = "The battery lasts more years if it isn't kept full. Plasma and GNOME have this in their power settings instead."
+when = ["charge-limit", "laptop", "!desktop:plasma", "!desktop:gnome", "!installed:tlp"]
+builtin = "charge-limit"
+
+[[module]]
+id = "asusctl"
+group = "Laptop & power"
+name = "ASUS ROG and TUF controls (asusctl)"
+description = "Fan curves, performance modes, the charge limit and keyboard lighting for ASUS gaming laptops, with a settings app."
+default = true
+when = ["asus-gaming"]
+packages = ["asusctl", "rog-control-center"]
+enable = ["asusd.service"]
+
+[[module]]
+id = "throttled"
+group = "Laptop & power"
+name = "Fix slow-downs on 8th-gen ThinkPads (throttled)"
+description = "Works around the firmware bug that holds these ThinkPads (T480, X1 Carbon 6th, X280 and others) at low speed."
+default = true
+when = ["thinkpad-throttle"]
+risk = "moderate"
+packages = ["throttled"]
+enable = ["throttled.service"]
+
+[[module]]
+id = "framework"
+group = "Laptop & power"
+name = "Framework laptop tools"
+description = "The ambient light sensor for automatic brightness, and framework_tool for the battery limit, fans and expansion cards."
+default = true
+when = ["vendor:framework"]
+packages = ["iio-sensor-proxy", "framework-system"]
+
+[[module]]
+id = "dell-smbios"
+group = "Laptop & power"
+name = "Dell settings tools (libsmbios)"
+description = "Change Dell BIOS settings such as keyboard backlight and thermal modes from Linux."
+when = ["vendor:dell"]
+packages = ["libsmbios"]
+
+[[module]]
+id = "handheld"
+group = "Peripherals"
+name = "Handheld gaming PC controls (InputPlumber)"
+description = "The built-in controller, back buttons and mode keys of ROG Ally, Legion Go, MSI Claw and Steam Deck work in every game."
+default = true
+when = ["handheld"]
+packages = ["inputplumber"]
+enable = ["inputplumber.service"]
+
+[[module]]
+id = "sensors"
+group = "Graphics & sound"
+name = "Temperature and fan sensors"
+description = "Read the CPU, board and drive temperatures and fan speeds (sensors, and your desktop's widgets)."
+default = true
+when = ["!laptop", "!virt", "desktop"]
+packages = ["lm_sensors"]
+notes = ["Some boards need a driver loaded first: run `run0 sensors-detect` once if `sensors` shows little."]
+
+[[module]]
+id = "pen-tablet"
+group = "Peripherals"
+name = "Huion and XP-Pen tablets (OpenTabletDriver)"
+description = "Pressure, buttons and area mapping for Huion and XP-Pen drawing tablets, with a settings app."
+when = ["pen-tablet"]
+requires = ["aur-helper"]
+aur = ["opentabletdriver"]
+user_commands = [{ argv = ["systemctl", "--user", "enable", "opentabletdriver.service"], unless = [{ path = "~/.config/systemd/user/default.target.wants/opentabletdriver.service" }] }]
+
+[[module]]
+id = "hp-devices"
+group = "Printing & scanning"
+name = "HP printer and scanner drivers (HPLIP)"
+description = "HP's own drivers and tools for printers and scanners the standard drivers don't cover."
+when = ["usb-hp"]
+packages = ["hplip"]
+
+[[module]]
+id = "epson-scan"
+group = "Printing & scanning"
+name = "Epson scanner app (Epson Scan 2)"
+description = "Epson's scanning app and driver for scanners the standard ones don't cover."
+when = ["usb-epson"]
+requires = ["aur-helper"]
+aur = ["epsonscan2"]

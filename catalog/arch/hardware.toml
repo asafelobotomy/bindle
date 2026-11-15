@@ -118,7 +118,7 @@ id = "fingerprint"
 group = "Laptop & power"
 name = "Fingerprint login (fprintd)"
 description = "Fingerprint reader support. Enrol with `fprintd-enroll`; GNOME and Plasma offer it in their settings."
-when = ["laptop", "!virt"]
+when = ["fingerprint-reader", "!virt"]
 packages = ["fprintd"]
 
 [[module]]

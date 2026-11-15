@@ -20,6 +20,19 @@ pub fn label(tag: &str) -> String {
             "hybrid-gpu" => "hybrid graphics",
             "bare-desktop" => "a desktop without its own everyday apps (uQ, a tiling window manager)",
             "wifi" => "Wi-Fi",
+            "thunderbolt" => "Thunderbolt",
+            "external-monitor" => "an external monitor",
+            "ipu-camera" => "an Intel MIPI camera",
+            "fingerprint-reader" => "a fingerprint reader",
+            "security-key" => "a smartcard reader or security key",
+            "hidpi" => "a high-resolution built-in screen",
+            "handheld" => "a handheld gaming PC",
+            "asus-gaming" => "an ASUS ROG or TUF laptop",
+            "thinkpad-throttle" => "an 8th-generation Intel ThinkPad",
+            "charge-limit" => "a battery with a charge limit",
+            "pen-tablet" => "a Huion or XP-Pen tablet",
+            "usb-epson" => "an Epson device",
+            "usb-hp" => "an HP device",
             "ram-8g" => "8 GB of memory or more",
             other => other,
         }
@@ -55,6 +68,19 @@ pub fn label(tag: &str) -> String {
             .and_then(|d| crate::desktops::by_id(&d, value).map(|d| d.name.clone()))
             .unwrap_or_else(|| value.into()),
         "installer" => format!("an {value} install"),
+        "vendor" => format!(
+            "a {} computer",
+            match value {
+                "asus" => "ASUS",
+                "lenovo" => "Lenovo",
+                "dell" => "Dell",
+                "hp" => "HP",
+                "framework" => "Framework",
+                "system76" => "System76",
+                "microsoft" => "Microsoft",
+                other => other,
+            }
+        ),
         "installed" => format!("{value} installed"),
         _ => tag.into(),
     }

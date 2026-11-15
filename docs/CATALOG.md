@@ -142,7 +142,11 @@ Pascal or Volta NVIDIA card: NVIDIA's own driver for it is the 580 branch),
 file manager, viewers or calculator of its own, e.g. uQ or a tiling window manager),
 plus `desktop:<id>`, `toolkit:<qt|gtk|other>`, `display:<wayland|xorg>` and
 `installer:<archinstall|pacstrap>`, and `installed:<package>` (the package is
-installed now). `mountable:<uuid>` (a detected drive that can be mounted at
+installed now). Hardware Bindle reads (`detect/devices.rs`, `detect/extras.rs`):
+`vendor:<asus|lenovo|dell|hp|framework|system76|microsoft|other>`, `wifi`,
+`ram-8g`, `thunderbolt`, `external-monitor`, `ipu-camera`, `fingerprint-reader`,
+`security-key`, `hidpi`, `handheld`, `asus-gaming`, `thinkpad-throttle`,
+`charge-limit`, `pen-tablet`, `usb-epson`, `usb-hp`. `mountable:<uuid>` (a detected drive that can be mounted at
 startup) is set only by the generated drive modules below, not in catalog files.
 Prefix with `!` to negate.
 
@@ -216,7 +220,7 @@ their own, recommended or not.
 | Category | Modules |
 |---|---|
 | System | pacman-qol, mirrors, multilib, build-tools, aur-helper, microcode, firmware-updates, fstrim, man-pages, log-limits, kernel-modules-hook, pacnew-notice, quick-shutdown |
-| Hardware | gpu-driver, nvidia-legacy, audio-firmware, audio-pipewire, bluetooth, power-profiles, tlp, tlp-rdw, thermald, fingerprint, printing, scanning-qt, scanning-gtk, solaar, piper, openrgb, android-tools, wifi-region |
+| Hardware | gpu-driver, nvidia-legacy, audio-firmware, audio-pipewire, bluetooth, power-profiles, tlp, tlp-rdw, thermald, fingerprint, printing, scanning-qt, scanning-gtk, solaar, piper, openrgb, android-tools, wifi-region, thunderbolt, monitor-brightness, mipi-camera, security-keys, console-font, controller-rules, xpadneo, charge-limit, asusctl, throttled, framework, dell-smbios, handheld, sensors, pen-tablet, hp-devices, epson-scan |
 | Performance | zram, xzram, oomd, earlyoom, io-schedulers, scdr, scdr-sched-ext, scdr-devbox, scx-schedulers, kernel-zen, makepkg-parallel, makepkg-native, writeback, nmi-watchdog-off, audio-no-powersave |
 | Desktop & apps | desktop-essentials, uq, noti-fi, crumbs, uq-dev, fonts, nerd-fonts, codecs, archives, user-dirs, everyday-apps, copyq, screenshots, spellcheck, disk-formats, appimage, bash-completion, vpn-plugins, flatpak, flatpak-bazaar, flatseal, warehouse, flatpak-discover, flatpak-gnome-software, media-players, spotify, libreoffice, obsidian, marknote, xournalpp, text-editor, kyko, yakuake, emobie, appofholding, keyring-at-login, kwallet-at-login, ssh-agent, browser-video-decoding, flatpak-theme, uniform-theme, qt-follows-gtk, cjk-fonts, bash-extras, idle-lock-sway, idle-lock-niri, captive-portal |
 | Internet | firefox, chromium, brave, brave-origin, vivaldi, zen-browser, google-chrome, thunderbird, signal, telegram, element, proton-mail, proton-mail-bridge, proton-pass, proton-pass-cli, proton-vpn, proton-authenticator, proton-drive-cli, syncthing, nextcloud-client, tailscale, scale_tail, qbittorrent, qbittorrent-enhanced, qbit-plugin-dl, hauler, av-morning-star |

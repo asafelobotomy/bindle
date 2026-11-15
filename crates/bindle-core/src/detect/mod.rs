@@ -4,6 +4,7 @@
 //! command line, `system` packages, services, users and config files.
 
 mod boot;
+mod devices;
 mod drives;
 pub mod extras;
 mod hw;
@@ -40,6 +41,8 @@ pub struct Facts {
     pub nvidia_devices: Vec<u16>,
     /// Wi-Fi, country, Intel GPU ids (`extras`).
     pub extras: extras::Extras,
+    /// Maker and model, USB/PCI devices, monitors, battery (`devices`).
+    pub devices: devices::Devices,
     /// Kernel driver of the Intel or AMD GPU (`i915`, `xe`, `amdgpu`), when one is bound.
     pub igpu_driver: Option<String>,
     /// mkinitcpio's HOOKS and MODULES; None on systems without mkinitcpio.
@@ -134,6 +137,7 @@ pub const VALUE_TAGS: &[(&str, Option<&[&str]>)] = &[
     ("toolkit", Some(&["qt", "gtk", "other"])),
     ("display", Some(&["wayland", "xorg"])),
     ("installer", Some(&["archinstall", "pacstrap"])),
+    ("vendor", Some(devices::VENDORS)),
     // `installed:<package>`: checked against `installed` directly, not listed by `tags`.
     ("installed", None),
 ];
@@ -176,6 +180,7 @@ impl Facts {
             gpus: gpu.vendors,
             nvidia_devices: gpu.nvidia_devices,
             extras: extras::Extras::detect(gpu.intel_devices),
+            devices: devices::Devices::detect(),
             igpu_driver: hw::igpu_driver(),
             mkinitcpio: crate::initramfs::Mkinitcpio::detect(),
             root_fs: root_fs(&mounts),
@@ -263,6 +268,7 @@ impl Facts {
             t.insert(format!("desktop:{d}"));
         }
         t.extend(self.desktop_tags.iter().cloned());
+        t.extend(self.devices.tags());
         if let Some(i) = &self.install.installer {
             t.insert(format!("installer:{}", i.split_whitespace().next().unwrap_or(i)));
         }
@@ -316,7 +322,7 @@ impl Facts {
 /// Whether `tag` (without `!`) is one `Facts::tags` can produce.
 pub fn known_tag(tag: &str) -> bool {
     match tag.split_once(':') {
-        None => FLAG_TAGS.contains(&tag),
+        None => FLAG_TAGS.contains(&tag) || devices::FLAGS.contains(&tag),
         Some((prefix, value)) => VALUE_TAGS
             .iter()
             .find(|(p, _)| *p == prefix)
