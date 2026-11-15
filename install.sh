@@ -26,9 +26,12 @@
 set -euo pipefail
 
 # Release signing keys: packaging/bindle-release.asc (see SECURITY.md). A
-# release signed by any of these fingerprints is accepted (two during a key
-# rotation).
-SIGNING_FPRS="75C40FA127FBF8D4FBF9E710FAC40EFFE02D69FC CCFF34EE4CC0AE7CC6865E927C230DE2DE41DF9C"
+# release signed by any of SIGNING_FPRS is accepted (two during a key
+# rotation). RETIRED_FPR signed releases up to RETIRED_UNTIL and is accepted
+# only for those, so `BINDLE_VERSION=v0.1.8` still installs.
+SIGNING_FPRS="CCFF34EE4CC0AE7CC6865E927C230DE2DE41DF9C"
+RETIRED_FPR=75C40FA127FBF8D4FBF9E710FAC40EFFE02D69FC
+RETIRED_UNTIL=v0.1.9
 SIGNING_KEY='-----BEGIN PGP PUBLIC KEY BLOCK-----
 
 mDMEavmesxYJKwYBBAHaRw8BAQdANqKQkVEzAI5BkMLuT0q0s0JCRFiJtmf58GzA
@@ -104,7 +107,7 @@ main() {
     "${curl[@]}" -sS -o "$dir/SHA256SUMS" "$base/SHA256SUMS"
     "${curl[@]}" -sS -o "$dir/SHA256SUMS.sig" "$base/SHA256SUMS.sig" \
         || die "This release has no signature (SHA256SUMS.sig); use a signed release."
-    verify "$dir" || die "Verification failed: this download is not the signed Bindle release. Nothing was run."
+    verify "$dir" "$version" || die "Verification failed: this download is not the signed Bindle release. Nothing was run."
     check_version "$dir" "$base" "$version" "$resolved"
     chmod 755 "$dir/bindle"
     # The desktop window, when this release has one: opened at first login
@@ -136,15 +139,19 @@ main() {
     exec "$dir/bindle" "$cmd" "$@"
 }
 
-# SHA256SUMS must carry a valid signature by one of SIGNING_FPRS, and list
-# the downloaded binary with a matching checksum.
+# SHA256SUMS must carry a valid signature by one of SIGNING_FPRS (or, for a
+# tag up to RETIRED_UNTIL, RETIRED_FPR), and list the downloaded binary with a
+# matching checksum. check_version then makes sure the signed VERSION is that tag.
 verify() {
-    local dir="$1"
+    local dir="$1" version="$2" trusted="$SIGNING_FPRS"
+    if [[ "$version" != latest && "$(printf '%s\n' "$RETIRED_UNTIL" "$version" | sort -V | tail -n1)" == "$RETIRED_UNTIL" ]]; then
+        trusted+=" $RETIRED_FPR"
+    fi
     mkdir -m 700 "$dir/gnupg"
     printf '%s\n' "$SIGNING_KEY" | GNUPGHOME="$dir/gnupg" gpg --batch --quiet --dearmor >"$dir/release.gpg" || return 1
     local status fpr ok=1
     status="$(GNUPGHOME="$dir/gnupg" gpgv --status-fd 1 --keyring "$dir/release.gpg" "$dir/SHA256SUMS.sig" "$dir/SHA256SUMS" 2>/dev/null)" || return 1
-    for fpr in $SIGNING_FPRS; do
+    for fpr in $trusted; do
         grep -q "^\[GNUPG:\] VALIDSIG $fpr " <<<"$status" && ok=0
     done
     [[ $ok == 0 ]] || return 1

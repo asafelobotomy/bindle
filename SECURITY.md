@@ -28,11 +28,12 @@ Every release carries `SHA256SUMS` and a detached GPG signature
     75C4 0FA1 27FB F8D4 FBF9  E710 FAC4 0EFF E02D 69FC   Bindle release signing (ed25519, expires 2028-11-07)
     CCFF 34EE 4CC0 AE7C C686  5E92 7C23 0DE2 DE41 DF9C   Bindle release signing (ed25519, expires 2029-11-14)
 
-The first signs releases up to v0.1.9; the second, added in v0.1.9, signs
-the ones after it (see "Key rotation"). The public keys are
-[packaging/bindle-release.asc](packaging/bindle-release.asc); `install.sh`
-embeds them and refuses anything neither signed, and Bindle's self-update
-(`bindleupgrade`) has them built in. See
+The first signed releases up to v0.1.9 and is retired; the second signs
+every release after it (see "Key rotation"). The public keys are
+[packaging/bindle-release.asc](packaging/bindle-release.asc). `install.sh`
+embeds them and accepts the first key only for tags up to v0.1.9 (so a pinned
+`BINDLE_VERSION` still installs); Bindle's self-update (`bindleupgrade`)
+trusts only the second, since it only updates to newer releases. See
 [docs/ISO.md](docs/ISO.md#trust) to verify by hand.
 
 From v0.1.9 every release also carries `VERSION`: exactly its tag and a
@@ -80,8 +81,9 @@ key's private half turned out to exist only as the GitHub secret. v0.1.9 was
 the last release signed by the first key; on 2026-11-15 `BINDLE_GPG_KEY`
 became an environment secret in `release` holding the new key, and the
 repository secret (the first key's only copy) was deleted. Releases after
-v0.1.9 are signed by the new key. The first fingerprint is dropped in a later
-release; it can no longer sign anything.
+v0.1.9 are signed by the new key. Self-update and the release workflow trust
+only the new fingerprint; `install.sh` keeps the first as `RETIRED_FPR`,
+accepted only for tags up to v0.1.9.
 
 The steps:
 

@@ -27,15 +27,15 @@ use serde::Serialize;
 use crate::system::vercmp;
 
 pub const REPO: &str = "asafelobotomy/bindle";
-/// The release key's fingerprint (as in install.sh and SECURITY.md).
-pub const SIGNING_FPR: &str = "75C40FA127FBF8D4FBF9E710FAC40EFFE02D69FC";
-/// The next release key (expires 2029-11-14), trusted from v0.1.9 on and
-/// used to sign once that release has been out (see SECURITY.md).
-pub const NEXT_SIGNING_FPR: &str = "CCFF34EE4CC0AE7CC6865E927C230DE2DE41DF9C";
+/// The release key's fingerprint (as in install.sh and SECURITY.md; expires
+/// 2029-11-14). It signs every release after v0.1.9; this Bindle only ever
+/// updates to a newer release, so the key that signed up to v0.1.9
+/// (75C40FA1…E02D69FC, retired) isn't trusted here.
+pub const SIGNING_FPR: &str = "CCFF34EE4CC0AE7CC6865E927C230DE2DE41DF9C";
 /// Every fingerprint a release may be signed by. To rotate the key, a release
 /// adds the next one here (and its public key to `bindle-release.asc`)
 /// before the current key is retired; see SECURITY.md.
-pub const SIGNING_FPRS: &[&str] = &[SIGNING_FPR, NEXT_SIGNING_FPR];
+pub const SIGNING_FPRS: &[&str] = &[SIGNING_FPR];
 const KEY: &str = include_str!("../../../packaging/bindle-release.asc");
 /// Set in the environment of the Bindle that just replaced itself.
 pub const UPDATED_ENV: &str = "BINDLE_UPGRADED";
@@ -356,6 +356,9 @@ mod tests {
         assert!(valid_signature(&status, SIGNING_FPRS));
         assert!(valid_signature(&status, &["0000", SIGNING_FPR]));
         assert!(!valid_signature("[GNUPG:] VALIDSIG 0000 2026", SIGNING_FPRS));
+        // The retired key (signed up to v0.1.9) can't sign an update.
+        let retired = "[GNUPG:] VALIDSIG 75C40FA127FBF8D4FBF9E710FAC40EFFE02D69FC 2026-11-15 1";
+        assert!(!valid_signature(retired, SIGNING_FPRS));
         assert!(!valid_signature(&status, &[]));
         assert!(KEY.starts_with("-----BEGIN PGP PUBLIC KEY BLOCK-----"));
     }

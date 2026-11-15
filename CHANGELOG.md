@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Self-update trusts only the new release key (`CCFF 34EE … DE41 DF9C`). `install.sh` still accepts the retired key `75C4 0FA1 … E02D 69FC`, but only for releases up to v0.1.9, so `BINDLE_VERSION=v0.1.8` still installs.
+
 ## 0.1.9 — 2026-11-15
 
 - **A second release signing key.** Bindle and `install.sh` now also trust `CCFF 34EE 4CC0 AE7C C686 5E92 7C23 0DE2 DE41 DF9C`, alongside `75C4 0FA1 … E02D 69FC`. This release is signed by the first key; releases after it are signed by the new one. Update to this release before the next one, or self-update will refuse it.

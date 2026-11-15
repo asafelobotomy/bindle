@@ -30,7 +30,7 @@ env:
   # also embedded in install.sh). The private half of the one that signs is
   # the BINDLE_GPG_KEY secret; it must be one of these. During a rotation
   # both keys are listed (see SECURITY.md, "Key rotation").
-  SIGNING_FPRS: 75C40FA127FBF8D4FBF9E710FAC40EFFE02D69FC CCFF34EE4CC0AE7CC6865E927C230DE2DE41DF9C
+  SIGNING_FPRS: CCFF34EE4CC0AE7CC6865E927C230DE2DE41DF9C
   TAG: ${{ inputs.tag || github.ref_name }}
 
 jobs:
