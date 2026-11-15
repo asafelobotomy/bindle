@@ -1,0 +1,56 @@
+# More of Base: small defaults most systems want, each one drop-in file or package.
+extends = "base"
+
+[[module]]
+id = "log-limits"
+group = "Firmware & upkeep"
+name = "Keep logs and crash dumps small"
+description = "The system journal and saved crash dumps each stay under 1 GB, so they never slowly fill the disk (Arch allows the journal 4 GB)."
+default = true
+files = [
+  { path = "/etc/systemd/journald.conf.d/50-bindle.conf", content = "# Managed by Bindle\n[Journal]\nSystemMaxUse=1G\n" },
+  { path = "/etc/systemd/coredump.conf.d/50-bindle.conf", content = "# Managed by Bindle\n[Coredump]\nMaxUse=1G\n" },
+]
+
+[[module]]
+id = "kernel-modules-hook"
+group = "Firmware & upkeep"
+name = "Keep drivers working after a kernel update"
+description = "After a kernel update, USB sticks, VPNs and other drivers still load until you restart (the running kernel's modules are kept, then cleaned up)."
+default = true
+packages = ["kernel-modules-hook"]
+enable = ["linux-modules-cleanup.service"]
+
+[[module]]
+id = "pacnew-notice"
+group = "Package manager"
+name = "Point out new config files after updates"
+description = "After each update, lists the .pacnew files it left (new versions of config files you changed), to merge with bindo pacnew."
+default = true
+packages = ["pacman-contrib"]
+files = [{ path = "/etc/pacman.d/hooks/zz-bindle-pacnew.hook", content = '''
+# Managed by Bindle
+[Trigger]
+Operation = Upgrade
+Type = Package
+Target = *
+
+[Action]
+Description = New config files to merge (bindo pacnew):
+When = PostTransaction
+Exec = /usr/bin/pacdiff --output
+Depends = pacman-contrib
+''' }]
+
+[[module]]
+id = "quick-shutdown"
+group = "Firmware & upkeep"
+name = "Shut down without long waits"
+description = "A service that won't stop gets 15 seconds instead of 90, so shutdown no longer hangs on \"A stop job is running\"."
+when = ["desktop"]
+profiles = ["desktop", "gaming", "developer"]
+risk = "moderate"
+files = [
+  { path = "/etc/systemd/system.conf.d/10-bindle-timeout.conf", content = "# Managed by Bindle\n[Manager]\nDefaultTimeoutStopSec=15s\n" },
+  { path = "/etc/systemd/user.conf.d/10-bindle-timeout.conf", content = "# Managed by Bindle\n[Manager]\nDefaultTimeoutStopSec=15s\n" },
+]

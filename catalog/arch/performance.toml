@@ -211,3 +211,34 @@ CFLAGS="${CFLAGS/-march=x86-64 -mtune=generic/-march=native}"
 CXXFLAGS="${CXXFLAGS/-march=x86-64 -mtune=generic/-march=native}"
 RUSTFLAGS="${RUSTFLAGS:+$RUSTFLAGS }-C target-cpu=native"
 '''
+
+# Writeback in bytes, not percent: with 16 GB the default lets gigabytes of
+# writes queue up, so copies to a USB stick stall the desktop and the
+# progress bar finishes long before the data is written.
+[[module]]
+id = "writeback"
+group = "Disks"
+name = "Smoother copies to slow drives"
+description = "Writes go out to the disk in small batches, so copying to a USB stick doesn't freeze the desktop and the progress bar tells the truth."
+when = ["ram-8g"]
+profiles = ["desktop", "gaming", "developer"]
+risk = "moderate"
+files = [{ path = "/etc/sysctl.d/90-bindle-writeback.conf", content = "# Managed by Bindle\nvm.dirty_bytes = 268435456\nvm.dirty_background_bytes = 67108864\n" }]
+
+[[module]]
+id = "nmi-watchdog-off"
+group = "CPU & kernel"
+name = "Turn off the NMI watchdog"
+description = "A kernel debugging aid desktops don't use: off saves a little power and frees a CPU counter for profilers."
+default = true
+when = ["!virt", "!installed:tlp"]
+files = [{ path = "/etc/sysctl.d/90-bindle-watchdog.conf", content = "# Managed by Bindle\nkernel.nmi_watchdog = 0\n" }]
+
+[[module]]
+id = "audio-no-powersave"
+group = "CPU & kernel"
+name = "No clicks when sound starts"
+description = "On desktops the sound chip stays powered, so there's no pop or click each time sound starts or stops."
+default = true
+when = ["!laptop", "!virt", "desktop"]
+files = [{ path = "/etc/modprobe.d/bindle-audio.conf", content = "# Managed by Bindle\noptions snd_hda_intel power_save=0\n" }]

@@ -19,6 +19,8 @@ pub fn label(tag: &str) -> String {
             "snapshots-mount" => "a separate /.snapshots mount",
             "hybrid-gpu" => "hybrid graphics",
             "bare-desktop" => "a desktop without its own everyday apps (uQ, a tiling window manager)",
+            "wifi" => "Wi-Fi",
+            "ram-8g" => "8 GB of memory or more",
             other => other,
         }
         .into();

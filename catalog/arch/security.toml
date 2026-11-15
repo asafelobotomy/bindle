@@ -221,3 +221,27 @@ group = "Backups"
 name = "Backups (Déjà Dup)"
 description = "Simple scheduled backups to a drive or the cloud."
 packages = ["deja-dup"]
+
+# Kernel settings that close small holes without touching anything a desktop
+# uses: no ptrace or user-namespace limits (debuggers, Flatpak, Steam and
+# browsers need those), no lockdown (hibernation, NVIDIA's modules).
+[[module]]
+id = "kernel-hardening"
+group = "Hardening & scans"
+name = "Light kernel hardening"
+description = "Hides kernel addresses, ignores network redirects and protects shared folders from file tricks, without breaking apps, games or Flatpaks."
+default = true
+files = [{ path = "/etc/sysctl.d/60-bindle-hardening.conf", content = '''
+# Managed by Bindle
+kernel.kptr_restrict = 1
+dev.tty.ldisc_autoload = 0
+fs.protected_regular = 2
+fs.protected_fifos = 2
+net.ipv4.tcp_rfc1337 = 1
+net.ipv4.conf.all.accept_redirects = 0
+net.ipv4.conf.default.accept_redirects = 0
+net.ipv6.conf.all.accept_redirects = 0
+net.ipv6.conf.default.accept_redirects = 0
+net.ipv4.conf.all.send_redirects = 0
+net.ipv4.conf.default.send_redirects = 0
+''' }]

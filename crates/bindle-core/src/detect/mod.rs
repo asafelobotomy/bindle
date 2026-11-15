@@ -5,6 +5,7 @@
 
 mod boot;
 mod drives;
+pub mod extras;
 mod hw;
 mod system;
 mod tags;
@@ -37,6 +38,8 @@ pub struct Facts {
     pub gpus: Vec<String>,
     /// PCI device ids of NVIDIA GPUs (decides nvidia-open vs. nouveau).
     pub nvidia_devices: Vec<u16>,
+    /// Wi-Fi, country, Intel GPU ids (`extras`).
+    pub extras: extras::Extras,
     /// Kernel driver of the Intel or AMD GPU (`i915`, `xe`, `amdgpu`), when one is bound.
     pub igpu_driver: Option<String>,
     /// mkinitcpio's HOOKS and MODULES; None on systems without mkinitcpio.
@@ -115,6 +118,8 @@ pub const FLAG_TAGS: &[&str] = &[
     "snapshots-mount",
     "hybrid-gpu",
     "bare-desktop",
+    "wifi",
+    "ram-8g",
 ];
 
 /// `prefix:value` tags; `None` means any value is accepted.
@@ -170,6 +175,7 @@ impl Facts {
             ram_mib: mem_total_mib(&read("/proc/meminfo")),
             gpus: gpu.vendors,
             nvidia_devices: gpu.nvidia_devices,
+            extras: extras::Extras::detect(gpu.intel_devices),
             igpu_driver: hw::igpu_driver(),
             mkinitcpio: crate::initramfs::Mkinitcpio::detect(),
             root_fs: root_fs(&mounts),
@@ -276,6 +282,8 @@ impl Facts {
             (self.snapshots_mount, "snapshots-mount"),
             (self.hybrid_gpu(), "hybrid-gpu"),
             (crate::builtins::nvidia_legacy(self), "nvidia-legacy"),
+            (self.extras.wifi, "wifi"),
+            (self.ram_mib >= 7_600, "ram-8g"),
         ] {
             if flag {
                 t.insert(name.into());

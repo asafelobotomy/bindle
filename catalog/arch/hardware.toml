@@ -62,7 +62,7 @@ group = "Laptop & power"
 name = "Power profiles (power-profiles-daemon)"
 description = "Balanced, performance and power-saver modes that desktops switch between."
 profiles = ["desktop", "gaming", "developer"]
-when = ["laptop"]
+when = ["!virt"]
 conflicts = ["tlp"]
 packages = ["power-profiles-daemon"]
 package_conflicts = ["tlp-pd", "tuned-ppd"]
@@ -196,3 +196,12 @@ group = "Peripherals"
 name = "Android tools"
 description = "adb and fastboot for phones and tablets."
 packages = ["android-tools"]
+
+[[module]]
+id = "wifi-region"
+group = "Peripherals"
+name = "Wi-Fi rules for your country"
+description = "Wi-Fi uses every channel and the power your country allows (set from the timezone); without it, 5 and 6 GHz channels are limited."
+default = true
+when = ["wifi"]
+builtin = "regdom"

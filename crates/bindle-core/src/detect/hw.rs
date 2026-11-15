@@ -44,6 +44,7 @@ pub const TURING_FIRST_DEVICE: u16 = 0x1e00;
 pub struct GpuInfo {
     pub vendors: Vec<String>,
     pub nvidia_devices: Vec<u16>,
+    pub intel_devices: Vec<u16>,
 }
 
 fn hex_id(s: &str) -> Option<u16> {
@@ -56,9 +57,16 @@ fn hex_id(s: &str) -> Option<u16> {
 pub fn classify_gpus(cards: &[(Option<String>, Option<String>)], virt: &str) -> GpuInfo {
     let mut vendors = BTreeSet::new();
     let mut nvidia_devices = Vec::new();
+    let mut intel_devices = Vec::new();
     for (vendor, device) in cards {
         let Some(vendor) = vendor.as_deref().filter(|v| !v.trim().is_empty()) else { continue };
         let name = pci_vendor_name(vendor);
+        if name == "intel"
+            && let Some(id) = device.as_deref().and_then(hex_id)
+            && !intel_devices.contains(&id)
+        {
+            intel_devices.push(id);
+        }
         if name == "nvidia"
             && let Some(id) = device.as_deref().and_then(hex_id)
             && !nvidia_devices.contains(&id)
@@ -70,7 +78,7 @@ pub fn classify_gpus(cards: &[(Option<String>, Option<String>)], virt: &str) -> 
     if virt != "none" && !virt.is_empty() && vendors.len() == 1 && vendors.contains("other") {
         vendors = BTreeSet::from(["virtual".to_string()]);
     }
-    GpuInfo { vendors: vendors.into_iter().collect(), nvidia_devices }
+    GpuInfo { vendors: vendors.into_iter().collect(), nvidia_devices, intel_devices }
 }
 
 pub(super) fn gpus(virt: &str) -> GpuInfo {

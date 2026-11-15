@@ -59,6 +59,9 @@ pub(super) fn nvidia_legacy_extras(ctx: &Ctx) -> Expansion {
         e.aur.push("lib32-nvidia-580xx-utils".into());
     }
     super::initramfs::nvidia(ctx.facts, true, &mut e);
+    // The 580 branch's closed modules keep video memory over suspend only
+    // through these services (595+'s open modules don't need them).
+    e.enable.extend(["nvidia-suspend.service", "nvidia-resume.service", "nvidia-hibernate.service"].map(String::from));
     if !ctx.facts.installed.contains("nvidia-580xx-dkms") {
         e.notes.push(
             "NVIDIA's 580 driver comes from the AUR; DKMS builds it for your kernel (a few minutes) and it \
@@ -84,7 +87,18 @@ pub(super) fn gpu(ctx: &Ctx) -> Expansion {
     for gpu in &f.gpus {
         match gpu.as_str() {
             "amd" => add(&mut e, &["mesa", "vulkan-radeon"], &["mesa", "vulkan-radeon"]),
-            "intel" => add(&mut e, &["mesa", "vulkan-intel", "intel-media-driver"], &["mesa", "vulkan-intel"]),
+            "intel" => {
+                add(&mut e, &["mesa", "vulkan-intel", "intel-media-driver"], &["mesa", "vulkan-intel"]);
+                // intel-media-driver starts at Broadwell; older GPUs decode
+                // video with i965. Quick Sync (oneVPL) runs on the newer ones.
+                let ids = &f.extras.intel_devices;
+                if ids.iter().any(|d| crate::detect::extras::intel_gen_old(*d)) {
+                    e.packages.push("libva-intel-driver".into());
+                }
+                if ids.iter().any(|d| !crate::detect::extras::intel_gen_old(*d)) {
+                    e.packages.push("vpl-gpu-rt".into());
+                }
+            }
             // Adding nvidia-open-dkms (or nouveau's Vulkan driver) next to an
             // installed NVIDIA kernel module conflicts, and under --noconfirm
             // that aborts the whole package transaction.
@@ -239,6 +253,25 @@ mod tests {
         assert_eq!(e.aur, ["lib32-nvidia-580xx-utils"]);
         assert!(expand("nvidia-legacy", &Ctx { facts: &f, multilib: false }).aur.is_empty());
         assert!(run(&f, false).notes.iter().any(|n| n.contains("NVIDIA driver for older cards")));
+    }
+
+    #[test]
+    fn intel_video_decoding_follows_the_generation() {
+        let intel = |ids: &[u16]| {
+            let mut f = Facts { distro_id: "arch".into(), gpus: vec!["intel".into()], ..Default::default() };
+            f.extras.intel_devices = ids.to_vec();
+            run(&f, false).packages
+        };
+        let haswell = intel(&[0x0416]);
+        assert!(haswell.contains(&"libva-intel-driver".to_string()) && !haswell.contains(&"vpl-gpu-rt".to_string()));
+        let tiger = intel(&[0x9a49]);
+        assert!(tiger.contains(&"vpl-gpu-rt".to_string()) && !tiger.contains(&"libva-intel-driver".to_string()));
+    }
+
+    #[test]
+    fn the_580_driver_keeps_video_memory_over_suspend() {
+        let e = expand("nvidia-legacy", &Ctx { facts: &nvidia(&[0x1b80]), multilib: false });
+        assert!(e.enable.contains(&"nvidia-suspend.service".to_string()) && e.enable.len() == 3);
     }
 
     #[test]

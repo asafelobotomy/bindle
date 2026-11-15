@@ -4,6 +4,7 @@ mod apps;
 pub mod drives;
 mod gpu;
 mod initramfs;
+mod locale;
 
 pub use gpu::{nvidia_legacy, nvidia_open_supported};
 
@@ -13,8 +14,18 @@ use crate::catalog::FileSpec;
 use crate::desktops;
 use crate::detect::Facts;
 
-pub const KNOWN: &[&str] =
-    &["aur-helper", "desktop", "everyday", "gpu", "microcode", "nvidia-legacy", "spellcheck", "zram"];
+pub const KNOWN: &[&str] = &[
+    "aur-helper",
+    "cjk-fonts",
+    "desktop",
+    "everyday",
+    "gpu",
+    "microcode",
+    "nvidia-legacy",
+    "regdom",
+    "spellcheck",
+    "zram",
+];
 
 /// AUR package bootstrapped by the `aur-helper` builtin.
 pub const AUR_HELPER: &str = "paru-bin";
@@ -27,7 +38,15 @@ pub const AUR_HELPER_PKGBUILD_SHA256: &str = "c148e2dfb9214cc6abefed9b34ffb47ebc
 
 /// Repo packages builtins can add outside desktops.toml, for
 /// scripts/check-packages.py (which parses these const lists).
-pub const PACKAGES: &[&str] = &["intel-ucode", "amd-ucode", "zram-generator"];
+pub const PACKAGES: &[&str] = &[
+    "intel-ucode",
+    "amd-ucode",
+    "zram-generator",
+    "wireless-regdb",
+    "noto-fonts-cjk",
+    "libva-intel-driver",
+    "vpl-gpu-rt",
+];
 pub use apps::PACKAGES as APP_PACKAGES;
 pub use gpu::PACKAGES as GPU_PACKAGES;
 
@@ -64,6 +83,8 @@ pub fn expand(name: &str, ctx: &Ctx) -> Expansion {
         "microcode" => microcode(ctx.facts),
         "nvidia-legacy" => gpu::nvidia_legacy_extras(ctx),
         "spellcheck" => apps::spellcheck(ctx.facts),
+        "regdom" => locale::regdom(ctx.facts),
+        "cjk-fonts" => locale::cjk_fonts(ctx.facts),
         "zram" => zram(ctx.facts),
         other => match other.strip_prefix(drives::BUILTIN_PREFIX) {
             Some(key) => drives::expand(key, ctx.facts),

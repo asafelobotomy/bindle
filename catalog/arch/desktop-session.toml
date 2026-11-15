@@ -1,0 +1,162 @@
+# More of the Desktop category: the session (login keyrings, keys, looks, lock).
+extends = "desktop"
+
+# SDDM's and GDM's PAM files unlock the GNOME keyring at login already;
+# greetd's and ly's don't, so apps ask for the keyring's password. PAM has
+# no drop-in folder: two marked lines go at the end of the file.
+[[module]]
+id = "keyring-at-login"
+group = "Desktop basics"
+name = "Unlock the keyring at login"
+description = "Saved passwords (Wi-Fi, browsers, apps) unlock with your login, instead of asking for the keyring's password later."
+default = true
+when = ["desktop", "installed:gnome-keyring", "!desktop:plasma", "!desktop:gnome"]
+root_commands = [{ argv = ["sh", "-ec", '''
+for f in /etc/pam.d/greetd /etc/pam.d/ly; do
+    [ -f "$f" ] || continue
+    grep -q 'pam_gnome_keyring.so' "$f" && continue
+    printf '%s\n' '# Managed by Bindle: unlock the GNOME keyring with the login password' \
+        'auth       optional     pam_gnome_keyring.so' \
+        'session    optional     pam_gnome_keyring.so auto_start' >>"$f"
+done
+'''] }]
+
+[[module]]
+id = "kwallet-at-login"
+group = "Desktop basics"
+name = "Unlock KDE Wallet at login"
+description = "Saved Wi-Fi and app passwords unlock with your login instead of asking for the wallet's password."
+default = true
+when = ["desktop:plasma"]
+packages = ["kwallet-pam"]
+
+[[module]]
+id = "ssh-agent"
+group = "Desktop basics"
+name = "Remember SSH keys for the session"
+description = "Type a key's passphrase once per login, not on every git push or ssh."
+profiles = ["desktop", "gaming", "developer"]
+when = ["desktop", "!installed:gcr-4"]
+user_commands = [{ argv = ["systemctl", "--user", "enable", "ssh-agent.socket"], unless = [{ path = "~/.config/systemd/user/sockets.target.wants/ssh-agent.socket" }] }]
+files = [{ path = "/etc/environment.d/50-bindle-ssh-agent.conf", content = "# Managed by Bindle\nSSH_AUTH_SOCK=${XDG_RUNTIME_DIR}/ssh-agent.socket\n" }]
+
+[[module]]
+id = "browser-video-decoding"
+group = "Media"
+name = "Hardware video in Chromium browsers"
+description = "Chromium, Brave, Chrome and Vivaldi decode video on Intel and AMD graphics: smoother video, less CPU and battery."
+default = true
+when = ["desktop"]
+user_commands = [{ argv = ["/usr/local/lib/bindle/chromium-vaapi"] }]
+files = [{ path = "/usr/local/lib/bindle/chromium-vaapi", source = "chromium-vaapi.sh", mode = 0o755 }]
+
+[[module]]
+id = "flatpak-theme"
+group = "App stores"
+name = "Flatpak apps follow your theme"
+description = "Flatpak apps read your GTK theme, icons and cursor (read-only), so they look like the rest of the desktop."
+default = true
+requires = ["flatpak"]
+when = ["desktop"]
+root_commands = [{ argv = ["flatpak", "override", "--system", "--filesystem=xdg-config/gtk-3.0:ro", "--filesystem=xdg-config/gtk-4.0:ro", "--filesystem=/usr/share/icons:ro", "--env=XCURSOR_PATH=/run/host/user-share/icons:/run/host/share/icons"], unless = [{ path = "/var/lib/flatpak/overrides/global", contains = "xdg-config/gtk-3.0:ro" }] }]
+
+[[module]]
+id = "uniform-theme"
+group = "Desktop basics"
+name = "One look for Qt and GTK apps"
+description = "Qt apps take the theme you pick in Qt Settings (qt6ct), and every app shows the same mouse pointer."
+default = true
+when = ["bare-desktop", "!desktop:uq", "!desktop:niri-dms"]
+packages = ["qt6ct", "adwaita-cursors"]
+files = [{ path = "/etc/environment.d/50-bindle-theme.conf", content = "# Managed by Bindle\nQT_QPA_PLATFORMTHEME=qt6ct\nXCURSOR_THEME=Adwaita\nXCURSOR_SIZE=24\n" }]
+
+[[module]]
+id = "qt-follows-gtk"
+group = "Desktop basics"
+name = "Qt apps follow GNOME's look"
+description = "Qt apps (VLC, KeePassXC…) use GNOME's theme and dialogs instead of their own plain style."
+default = true
+when = ["desktop:gnome"]
+files = [{ path = "/etc/environment.d/50-bindle-qt-gtk.conf", content = "# Managed by Bindle\nQT_QPA_PLATFORMTHEME=gtk3\n" }]
+
+[[module]]
+id = "cjk-fonts"
+group = "Desktop basics"
+name = "Chinese, Japanese and Korean in their own shapes"
+description = "Text shows in the character forms your language uses (e.g. Chinese not in Japanese forms). Set from the system language."
+default = true
+when = ["desktop"]
+builtin = "cjk-fonts"
+
+[[module]]
+id = "bash-extras"
+group = "Desktop basics"
+name = "A friendlier terminal shell"
+description = "Bash suggests the package for a command you don't have, and keeps a longer history shared between terminals."
+profiles = ["desktop", "gaming", "developer"]
+requires = ["man-pages"]
+user_commands = [{ argv = ["sh", "-c", '''
+f="$HOME/.bashrc"
+[ -f "$f" ] && grep -q 'BEGIN Bindle: bash' "$f" && exit 0
+cat >>"$f" <<'EOF'
+# BEGIN Bindle: bash
+[ -f /usr/share/doc/pkgfile/command-not-found.bash ] && . /usr/share/doc/pkgfile/command-not-found.bash
+HISTCONTROL=ignoreboth
+HISTSIZE=10000
+HISTFILESIZE=20000
+shopt -s histappend
+# END Bindle
+EOF
+'''], unless = [{ path = "~/.bashrc", contains = "BEGIN Bindle: bash" }] }]
+
+# Sway and niri never lock or blank the screen on their own. Sway reads
+# /etc/sway/config.d/ from its default config; niri starts its session's
+# user units. Skip this if your own config already runs an idle daemon.
+[[module]]
+id = "idle-lock-sway"
+group = "Desktop basics"
+name = "Lock the screen when idle (Sway)"
+description = "After 5 minutes idle the screen locks, after 10 it turns off, and it locks before sleep."
+default = true
+when = ["desktop:sway"]
+risk = "moderate"
+packages = ["swayidle", "swaylock"]
+files = [{ path = "/etc/sway/config.d/50-bindle-idle.conf", content = '''
+# Managed by Bindle
+exec swayidle -w timeout 300 'swaylock -f' timeout 600 'swaymsg "output * power off"' resume 'swaymsg "output * power on"' before-sleep 'swaylock -f'
+''' }]
+
+[[module]]
+id = "idle-lock-niri"
+group = "Desktop basics"
+name = "Lock the screen when idle (niri)"
+description = "After 5 minutes idle the screen locks, after 10 it turns off, and it locks before sleep."
+default = true
+when = ["desktop:niri"]
+risk = "moderate"
+packages = ["swayidle", "swaylock"]
+files = [{ path = "/etc/systemd/user/bindle-idle.service", content = '''
+# Managed by Bindle
+[Unit]
+Description=Lock the screen when idle (swayidle)
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+ExecStart=/usr/bin/swayidle -w timeout 300 'swaylock -f' timeout 600 'niri msg action power-off-monitors' before-sleep 'swaylock -f'
+Restart=on-failure
+
+[Install]
+WantedBy=graphical-session.target
+''' }]
+user_commands = [{ argv = ["systemctl", "--user", "enable", "bindle-idle.service"], unless = [{ path = "~/.config/systemd/user/graphical-session.target.wants/bindle-idle.service" }] }]
+
+[[module]]
+id = "captive-portal"
+group = "Desktop basics"
+name = "Sign-in prompt for hotel and café Wi-Fi"
+description = "When a network wants you to sign in first, a notification opens its sign-in page."
+default = true
+when = ["bare-desktop", "nm"]
+packages = ["libnotify", "xdg-utils"]
+files = [{ path = "/etc/NetworkManager/dispatcher.d/90-bindle-portal", source = "captive-portal.sh", mode = 0o755 }]

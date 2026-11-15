@@ -77,7 +77,8 @@ pub(super) fn collect(
             p.aur.extend(e.aur.into_iter().map(|x| (id.clone(), x)));
             p.files.extend(e.files.into_iter().map(|f| (id.clone(), f)));
             p.removed_files.extend(e.remove_files);
-            p.units.extend(e.enable);
+            // Units a late module's AUR packages bring come after them.
+            if late { &mut p.late_units } else { &mut p.units }.extend(e.enable);
             p.mounts.extend(e.mounts);
             p.bootstrap |= e.aur_bootstrap;
             p.initramfs |= e.rebuild_initramfs;

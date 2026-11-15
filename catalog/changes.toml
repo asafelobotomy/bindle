@@ -24,3 +24,8 @@ why = "Clipboard history is now CopyQ everywhere Bindle sets it up: a tray icon 
 version = "0.1.10"
 modules = ["flatpak-bazaar", "flatseal", "warehouse", "screenshots", "copyq"]
 why = "New in Bindle 0.1.10: Bazaar as the Flathub app store, Flatseal and Warehouse for your Flatpaks, screenshots of an area on Print, and clipboard history in the tray."
+
+[[added]]
+version = "0.1.11"
+modules = ["log-limits", "kernel-modules-hook", "pacnew-notice", "quick-shutdown", "writeback", "nmi-watchdog-off", "audio-no-powersave", "wifi-region", "kernel-hardening", "ntsync", "shader-cache", "keyring-at-login", "kwallet-at-login", "ssh-agent", "browser-video-decoding", "flatpak-theme", "uniform-theme", "qt-follows-gtk", "cjk-fonts", "bash-extras", "idle-lock-sway", "idle-lock-niri", "captive-portal"]
+why = "New in Bindle 0.1.11: everyday defaults from the ArchWiki and other distros: Wi-Fi rules for your country, smaller logs, drivers that keep working after a kernel update, smoother copies, light kernel hardening, keyrings unlocked at login, hardware video in Chromium browsers, one look for Qt, GTK and Flatpak apps, faster Windows games, and screen locking on Sway and niri."

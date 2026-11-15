@@ -189,3 +189,26 @@ tag = "v1.4.1"
 asset = "reshadelinux-1.4.1-x86_64.AppImage"
 sha256 = "974b66a99d9c3447161a111a61deca49381d587330494dedc627107e64ec0bae"
 name = "reshadelinux"
+
+[[module]]
+id = "ntsync"
+group = "Steam & Proton"
+name = "Faster Windows games (ntsync)"
+description = "Wine and Proton use the kernel's Windows-style sync for fewer stutters and less CPU load."
+profiles = ["gaming"]
+when = ["desktop"]
+packages = ["ntsync-autoload"]
+
+[[module]]
+id = "shader-cache"
+group = "Performance & overlays"
+name = "Bigger shader caches"
+description = "Games keep up to 10 GB of compiled shaders instead of 1 GB, so big games don't stutter compiling them again."
+profiles = ["gaming"]
+when = ["desktop"]
+files = [{ path = "/etc/environment.d/50-bindle-shadercache.conf", content = '''
+# Managed by Bindle
+MESA_SHADER_CACHE_MAX_SIZE=10G
+__GL_SHADER_DISK_CACHE_SIZE=10737418240
+__GL_SHADER_DISK_CACHE_SKIP_CLEANUP=1
+''' }]
