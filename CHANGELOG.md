@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **Recovery: Roll back, Rebase and Factory Restore.** A Recovery window (`bindle recovery`, `bindo recovery`) and terminal commands, each explaining what stays and what goes before anything runs. See docs/RECOVERY.md.
+  - `bindle rollback`: pick a snapper snapshot; it becomes the system from the next start, the current one kept aside (`bindo rollback-cleanup` deletes it later). The kernels on /boot follow the snapshot, so it starts with matching modules. Btrfs with snapper.
+  - `bindle rebase`: the system as installed again, Bindle's setup included: reinstalls those packages, puts back removed ones, resets their changed config files (your copies kept; `--undo-config` puts them back), applies Bindle's setup again. Your home, your own packages and the machine's own settings stay.
+  - `bindle restore`: Factory Restore. Downloads and checks the Arch ISO (or uses the one kept on the computer when offline), then restarts into Bindle's installer from it with this computer's disk picked; nothing is erased until the installer's last question. `--keep-image on` keeps a checked copy, which also adds "Roll back the system" to the boot menu for when the system won't start.
+
 ## 0.1.10 — 2026-11-15
 
 - **Bazaar is the Flathub app store.** With Flatpak, Bindle now installs Bazaar on every desktop and makes it open Flathub's Install buttons and `.flatpakref` files. Flatseal (what each Flatpak app may reach) and Warehouse (manage installed Flatpaks: batch remove, clear data, roll back) come with it. Discover and GNOME Software can be picked on any desktop too (before: only on Plasma and GNOME), no longer pre-selected.

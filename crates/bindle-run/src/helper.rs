@@ -26,6 +26,8 @@ const STAGING: &str = "/var/cache/bindle/pkg";
 /// The only directory `--log` may name a file in (opened as root).
 const LOG_DIR: &str = "/var/log/bindle/";
 
+pub mod recover;
+mod restore;
 mod stage;
 
 pub struct HelperOpts {
@@ -235,6 +237,12 @@ impl Helper {
                 let (root, fake) = (self.opts.root.clone(), self.opts.fake_commands);
                 crate::self_install::install(&root, &files, fake, &mut |l| self.output(l)).map(|()| None)
             }
+            req @ (Request::Snapshots
+            | Request::Rollback { .. }
+            | Request::ResetConfig { .. }
+            | Request::PrepareRestore { .. }
+            | Request::KeepImage { .. }
+            | Request::CancelRestore { .. }) => self.recover(req).map(|()| None),
             Request::Log { line } => {
                 // One line per request, whatever it contains.
                 self.log_line(&line.replace(['\n', '\r'], " "));

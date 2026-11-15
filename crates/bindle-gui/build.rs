@@ -33,11 +33,12 @@ fn main() {
         QmlFile::from("qml/HeaderBar.qml"),
         QmlFile::from("qml/ShotDriver.qml"),
         QmlFile::from("qml/LogView.qml"),
+        QmlFile::from("qml/RecoveryMain.qml"),
     ]))
     .qt_module("Gui")
     .qt_module("Quick")
     .qt_module("QuickControls2")
-    .files(["src/backend.rs", "src/upgrade_backend.rs", "src/app.rs"])
+    .files(["src/backend.rs", "src/upgrade_backend.rs", "src/recovery_backend.rs", "src/app.rs"])
     .cpp_file("cpp/app.cpp");
     // SAFETY: only adds a warning flag; GCC 16 warns about Qt's own headers.
     let builder = unsafe {

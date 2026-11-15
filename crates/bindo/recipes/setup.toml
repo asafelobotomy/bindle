@@ -32,6 +32,29 @@ requires = ["bindle"]
 run = 'exec bindle undo'
 
 [[recipe]]
+name = "recovery"
+category = "Setup"
+description = "Open Recovery: roll back, rebase, or erase and install from new"
+requires = ["bindle"]
+run = 'exec bindle recovery'
+
+[[recipe]]
+name = "factory-restore"
+category = "Setup"
+description = "Erase this computer and install it from new (asks you to type ERASE)"
+help = "Restarts into the Arch Linux installer with Bindle; nothing is erased until its last question."
+requires = ["bindle"]
+run = 'exec bindle restore'
+
+[[recipe]]
+name = "rebase"
+category = "Setup"
+description = "Put the system back to how it was installed, Bindle's setup included"
+help = "Reinstalls the packages installed at first and by Bindle, resets their changed config files (your copies are kept) and applies Bindle's setup again. Your home folder and the packages you added stay."
+requires = ["bindle"]
+run = 'exec bindle rebase'
+
+[[recipe]]
 name = "completions"
 category = "Setup"
 description = "Turn on tab completion of recipe names for your shell"

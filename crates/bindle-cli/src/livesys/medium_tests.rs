@@ -55,6 +55,21 @@ fn iso_file_on_another_disk() {
 }
 
 #[test]
+fn factory_restore_offers_the_disk_the_image_came_from() {
+    let sdb = r#"{"name":"vda","kname":"vda","path":"/dev/vda","uuid":null,"partuuid":null,"label":null,"type":"disk",
+        "children":[{"name":"vda2","kname":"vda2","path":"/dev/vda2","uuid":"root-uuid","partuuid":"p2","label":null,"type":"part"}]}"#;
+    let all = tree(sdb);
+    let cmdline = "archisobasedir=arch archisosearchuuid=2026-11-01 img_dev=/dev/disk/by-uuid/root-uuid img_loop=/@/x.iso copytoram=y bindle.restore=1";
+    assert!(restoring(cmdline) && !restoring("img_dev=/dev/vda2"));
+    // Not protected as the boot medium: the image is in memory.
+    assert!(!boot_specs(cmdline).contains(&Spec::Uuid("root-uuid".into())));
+    assert_eq!(medium_disks(&boot_specs(cmdline), &all), Vec::<String>::new());
+    // But known as this computer's disk, to start the Disk page on.
+    assert_eq!(medium_disks(&restore_specs(cmdline), &all), ["/dev/vda"]);
+    assert!(restore_specs("img_dev=/dev/disk/by-uuid/root-uuid").is_empty());
+}
+
+#[test]
 fn ventoy_device_mapper_source() {
     // Ventoy maps the ISO file on its exFAT partition to /dev/mapper/ventoy;
     // lsblk shows that mapping under the partition.

@@ -67,14 +67,32 @@ fn unescape(s: &str) -> String {
     s.replace("\\x20", " ")
 }
 
-/// Every place the kernel command line says the ISO came from.
+/// Started by Bindle's Factory Restore (`bindle.restore=1`): the ISO file
+/// came from this computer's own disk and was copied to memory, so that
+/// disk is the one to offer, not a boot medium to protect.
+pub fn restoring(cmdline: &str) -> bool {
+    cmdline.split_whitespace().any(|w| w == "bindle.restore=1")
+}
+
+/// Factory Restore: the disk the ISO file was on (`img_dev=`).
+pub fn restore_specs(cmdline: &str) -> Vec<Spec> {
+    if !restoring(cmdline) {
+        return Vec::new();
+    }
+    cmdline.split_whitespace().filter_map(|w| w.strip_prefix("img_dev=")).filter_map(spec).collect()
+}
+
+/// Every place the kernel command line says the ISO came from. Under
+/// Factory Restore, the image's disk isn't one (see `restoring`).
 pub fn boot_specs(cmdline: &str) -> Vec<Spec> {
+    let restore = restoring(cmdline);
     let mut out = Vec::new();
     for word in cmdline.split_whitespace() {
         let Some((key, value)) = word.split_once('=') else { continue };
         let s = match key {
             "archisosearchuuid" => Some(Spec::Uuid(value.to_string())),
             "archisolabel" => Some(Spec::Label(unescape(value))),
+            "img_dev" if restore => None,
             "archisodevice" | "img_dev" => spec(value),
             _ => None,
         };

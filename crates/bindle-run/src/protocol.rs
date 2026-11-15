@@ -39,6 +39,36 @@ pub enum Request {
         #[serde(default)]
         force: bool,
     },
+    /// snapper's snapshots of the root config, as JSON (one `Output` per line).
+    Snapshots,
+    /// Make a snapper snapshot the system from the next start (the helper
+    /// works out how from the mount table).
+    Rollback {
+        number: u32,
+    },
+    /// Rebase: put changed config files back to their package's version,
+    /// keeping each changed copy under /var/lib/bindle/rebase/<id>/.
+    ResetConfig {
+        id: String,
+        files: Vec<ConfigFile>,
+    },
+    /// Factory Restore: the next start, once, opens the Arch ISO at `iso`
+    /// (checked against `sig`) from this disk, with Bindle's installer.
+    PrepareRestore {
+        iso: String,
+        sig: String,
+    },
+    /// Keep a checked copy of the Arch ISO on this computer, for Factory
+    /// Restore without the network and (Btrfs with snapper) the boot menu's
+    /// "Roll back the system".
+    KeepImage {
+        iso: String,
+        sig: String,
+    },
+    /// Take Factory Restore's boot entry away (the image too, unless kept).
+    CancelRestore {
+        keep_image: bool,
+    },
     /// A line for the log from the user side: steps that run as the user
     /// (AUR builds, release downloads, user commands) and how they ended.
     Log {
@@ -49,6 +79,13 @@ pub enum Request {
         id: String,
     },
     Quit,
+}
+
+/// A package's config file, for `ResetConfig`.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ConfigFile {
+    pub package: String,
+    pub path: String,
 }
 
 /// A downloaded release file (owned by the user), where it goes, and the

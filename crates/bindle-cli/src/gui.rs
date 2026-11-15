@@ -78,6 +78,28 @@ pub fn upgrade(dry_run: bool, sandbox: Option<&Path>) -> Result<()> {
     }
 }
 
+/// `bindle recovery`: the Recovery window (`bindle-gui --recovery`).
+pub fn recovery(dry_run: bool, sandbox: Option<&Path>) -> Result<()> {
+    let Some(gui) = available() else {
+        anyhow::bail!(
+            "the Recovery window can't start here (it needs bindle-gui next to bindle, a desktop session and Kirigami); use bindle rollback, rebase or restore"
+        );
+    };
+    crate::polkit_agent::ensure();
+    let mut cmd = Command::new(gui);
+    cmd.arg("--recovery");
+    if dry_run {
+        cmd.arg("--dry-run");
+    }
+    if let Some(dir) = sandbox {
+        cmd.arg("--sandbox").arg(dir);
+    }
+    match wait(cmd) {
+        Ended::Failed => anyhow::bail!("the Recovery window couldn't start; use bindle rollback, rebase or restore"),
+        _ => Ok(()),
+    }
+}
+
 /// "What's new": the window's page when it can start, else the terminal's.
 pub fn whats_new() -> Result<()> {
     if let Some(gui) = available() {

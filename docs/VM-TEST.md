@@ -57,6 +57,7 @@ Scenario switches (env vars for `run.sh`):
 | `CLOSE_WELCOME=1` | boot | Alt+F4 via the QEMU monitor after the third screenshot |
 | `WIZARD=1` | install | `bindle install` instead of `bindle iso`: `guest/drive-install.py` runs `install.sh` with no arguments in a pseudo-terminal and drives the wizard key by key (Network, Desktop, Hardware, Disk, You, Apps, Review, then `y`), taking every default (the recommended desktop and profile, the preferred disk erased, no encryption, set up before the reboot), presses `q` on the last screen and passes only if Bindle says the system is ready. `DESKTOP`, `PROFILE`, `KEEP_WELCOME` and `SETUP_TARGET` don't apply; 3 GiB of RAM by default |
 | `SECOND_LOGIN=1` | boot | pre-sets `first-login-seen` for the test user, so login shows the reminder notification |
+| `RESTORE=1` | boot | after the checks, `bindle restore` (Factory Restore) from the ISO this test serves (`BINDLE_ISO_MIRROR`; the root helper still checks Arch's signature, fetched once into `.work/`), then the guest restarts into the installer from its own disk: screenshots `restore-*.png`, and `restore-disk.png` on the wizard's Disk page (the system's own disk should be offered and picked). Needs an install with systemd-boot (`WIZARD=1`'s default); 4 GiB of RAM by default |
 | `WITH="uq scdr crumbs noti-fi"` | boot | adds those modules to the check's `plan` and `apply` (`--with`); needs an install made with this switch's support |
 
 ## All desktops

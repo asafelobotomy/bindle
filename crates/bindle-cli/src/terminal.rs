@@ -107,3 +107,19 @@ pub fn spawn(argv: &[String]) -> Result<()> {
     }
     bail!("no terminal emulator found; run `bindle` from a terminal")
 }
+
+/// `bindle in-terminal …`: Bindle with `args` in a new terminal. On failure:
+/// try again, or a shell to fix the cause (a fresh desktop may have no other
+/// terminal), or close. Arguments travel as "$@", never through the script.
+pub fn retrying(args: Vec<String>) -> anyhow::Result<()> {
+    let exe = std::env::current_exe()?.to_string_lossy().into_owned();
+    let script = r#"until "$0" "$@"; do
+  printf '\nEnter: try again   s: open a shell (exit comes back)   q: close  > '
+  read -r a || exit 1
+  case "$a" in q|Q) exit 1 ;; s|S) "${SHELL:-/bin/bash}" ;; esac
+done
+echo; printf 'Press Enter to close. '; read -r _"#;
+    let mut argv = vec!["sh".to_string(), "-c".into(), script.into(), exe];
+    argv.extend(args);
+    spawn(&argv)
+}

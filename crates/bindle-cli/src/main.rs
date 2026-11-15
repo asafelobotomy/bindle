@@ -13,6 +13,7 @@ mod livesys;
 mod notify;
 mod polkit_agent;
 mod print;
+mod recover_cmd;
 
 mod session;
 mod status;
@@ -116,6 +117,8 @@ enum Cmd {
     /// Flatpak, firmware, Bindle's apps, then leftovers and reboot.
     #[command(visible_alias = "bindleupgrade")]
     Upgrade(upgrade_cmd::UpgradeArgs),
+    #[command(flatten)]
+    Recover(recover_cmd::RecoverCmd),
     /// Open Bindle automatically on each user's first login.
     FirstLogin {
         #[command(subcommand)]
@@ -265,21 +268,7 @@ fn main() -> Result<()> {
         Cmd::InstallTarget { root, user } => return install_target::run(&root, user.as_deref()),
         Cmd::Open { detach: false } => return gui::open(),
         Cmd::Open { detach: true } => return gui::open_detached(),
-        Cmd::InTerminal { args } => {
-            let exe = std::env::current_exe()?.to_string_lossy().into_owned();
-            // Arguments travel as "$@", never through the script text.
-            // On failure: try again, or a shell to fix the cause (a fresh
-            // desktop may have no other terminal), or close.
-            let script = r#"until "$0" "$@"; do
-  printf '\nEnter: try again   s: open a shell (exit comes back)   q: close  > '
-  read -r a || exit 1
-  case "$a" in q|Q) exit 1 ;; s|S) "${SHELL:-/bin/bash}" ;; esac
-done
-echo; printf 'Press Enter to close. '; read -r _"#;
-            let mut argv = vec!["sh".to_string(), "-c".into(), script.into(), exe];
-            argv.extend(args);
-            return terminal::spawn(&argv);
-        }
+        Cmd::InTerminal { args } => return terminal::retrying(args),
         Cmd::FirstLogin { action } if !matches!(action, FirstLoginCmd::Run { .. }) => {
             return firstlogin_cmd::dispatch(action);
         }
@@ -288,6 +277,7 @@ echo; printf 'Press Enter to close. '; read -r _"#;
         }
         Cmd::Bindo { args } => return bindo_cmd::main(args),
         Cmd::Upgrade(args) => return upgrade_cmd::main(args),
+        Cmd::Recover(cmd) => return recover_cmd::main(cmd),
         _ => {}
     }
 
@@ -387,6 +377,7 @@ echo; printf 'Press Enter to close. '; read -r _"#;
         | Cmd::Undo { .. }
         | Cmd::Bindo { .. }
         | Cmd::Upgrade(_)
+        | Cmd::Recover(_)
         | Cmd::FirstLogin { .. } => {
             unreachable!("handled above")
         }

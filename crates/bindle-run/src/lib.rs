@@ -14,6 +14,7 @@ pub mod record;
 pub mod release;
 pub mod selection;
 pub mod self_install;
+pub mod session;
 pub mod snapshot;
 pub mod sys;
 pub mod tty;

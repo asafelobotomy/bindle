@@ -8,7 +8,8 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-use bindle_run::client::{HelperClient, Launch};
+use bindle_run::client::Launch;
+use bindle_run::session::Session;
 use bindle_run::sys;
 
 use crate::plan::{StagePlan, Todo};
@@ -63,7 +64,8 @@ pub type Closing<'a> = dyn FnMut(&[String], Option<Vec<String>>) -> Vec<StagePla
 /// often root-only).
 pub fn run(plans: Vec<StagePlan>, after: &mut Closing, opts: &RunOpts, ui: &mut dyn Ui) -> Vec<StageResult> {
     let log = format!("/var/log/bindle/upgrade-{}.log", sys::now_id());
-    let mut ex = Exec { opts, ui, helper: None, refused: None, log, blocked: BTreeMap::new(), updated: vec![] };
+    let session = Session::new(log, opts.dry_run, opts.sandbox.clone(), &opts.launch);
+    let mut ex = Exec { opts, ui, session, blocked: BTreeMap::new(), updated: vec![] };
     let total = Stage::ALL.len();
     let mut results: Vec<StageResult> = vec![];
     let rehearsal = opts.dry_run || opts.sandbox.is_some();
@@ -77,9 +79,7 @@ pub fn run(plans: Vec<StagePlan>, after: &mut Closing, opts: &RunOpts, ui: &mut 
         results.push(ex.stage(plan, results.len(), total));
     }
     if relaunch(&results, rehearsal) {
-        if let Some(h) = ex.helper.take() {
-            h.quit();
-        }
+        ex.session.quit();
         return results;
     }
     let updated = ex.updated.clone();
@@ -87,9 +87,7 @@ pub fn run(plans: Vec<StagePlan>, after: &mut Closing, opts: &RunOpts, ui: &mut 
     for plan in after(&updated, boot) {
         results.push(ex.stage(plan, results.len(), total));
     }
-    if let Some(h) = ex.helper.take() {
-        h.quit();
-    }
+    ex.session.quit();
     results
 }
 
@@ -102,11 +100,8 @@ pub fn relaunch(results: &[StageResult], rehearsal: bool) -> bool {
 struct Exec<'a> {
     opts: &'a RunOpts,
     ui: &'a mut dyn Ui,
-    helper: Option<HelperClient>,
-    /// The helper couldn't start (password dismissed, no polkit agent):
-    /// later root steps fail with this instead of asking again.
-    refused: Option<String>,
-    log: String,
+    /// Root and user commands: one helper for the run.
+    session: Session<'a>,
     /// Stages that won't run, and why.
     blocked: BTreeMap<Stage, String>,
     /// Packages upgraded so far.

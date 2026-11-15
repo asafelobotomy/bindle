@@ -200,3 +200,29 @@ fn restore_of_an_unknown_snapshot_fails() {
     let (mut h, _, _) = helper("restore-unknown");
     assert!(h.handle(Request::Restore { id: "../etc".into(), force: false }).is_err());
 }
+
+#[test]
+fn recovery_requests_only_record_commands_in_fake_mode() {
+    let (mut h, sink, _) = helper("recover");
+    assert!(h.handle(Request::Snapshots).unwrap().is_none());
+    assert!(sink.lines().iter().any(|l| l.contains("would run: snapper --jsonout -c root list")));
+    // The running system is never a snapshot to roll back to.
+    assert!(h.handle(Request::Rollback { number: 0 }).unwrap_err().to_string().contains("running system"));
+}
+
+#[test]
+fn reset_config_refuses_files_a_rebase_keeps() {
+    use crate::protocol::ConfigFile;
+    let (mut h, sink, _) = helper("reset-config");
+    let file = |package: &str, path: &str| ConfigFile { package: package.into(), path: path.into() };
+    for bad in
+        [file("filesystem", "/etc/fstab"), file("x", "/usr/lib/x"), file("-x", "/etc/x"), file("x", "/etc/../root/x")]
+    {
+        let req = Request::ResetConfig { id: "20261115-1".into(), files: vec![bad.clone()] };
+        assert!(h.handle(req).is_err(), "{bad:?}");
+    }
+    assert!(h.handle(Request::ResetConfig { id: "../x".into(), files: vec![] }).is_err());
+    let ok = Request::ResetConfig { id: "20261115-1".into(), files: vec![file("pacman", "/etc/pacman.conf")] };
+    assert!(h.handle(ok).unwrap().is_none());
+    assert!(sink.lines().iter().any(|l| l.contains("would run: sh -ec") && l.contains("/etc/pacman.conf")));
+}

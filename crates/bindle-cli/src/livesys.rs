@@ -119,6 +119,8 @@ pub struct Disk {
     pub removable: bool,
     /// The boot medium couldn't be identified and this could be it.
     pub maybe_medium: bool,
+    /// Factory Restore: the disk this computer's system is on now.
+    pub current: bool,
 }
 
 impl Disk {
@@ -126,7 +128,11 @@ impl Disk {
     pub fn label(&self) -> String {
         let model = if self.model.is_empty() { String::new() } else { format!(" · {}", self.model) };
         let tran = if self.transport.is_empty() { String::new() } else { format!(" · {}", self.transport) };
-        let note = if self.maybe_medium { " · may be the install USB" } else { "" };
+        let note = match (self.maybe_medium, self.current) {
+            (true, _) => " · may be the install USB",
+            (_, true) => " · this computer's disk now",
+            _ => "",
+        };
         format!("{} · {:.0} GiB{model}{tran}{note}", self.path, self.bytes as f64 / (1u64 << 30) as f64)
     }
 
@@ -158,6 +164,7 @@ pub fn parse_disks(json: &str, boot: &Medium) -> Vec<Disk> {
                 transport: s(d, "tran"),
                 removable,
                 maybe_medium: removable && *boot == Medium::Unknown,
+                current: false,
             }
         })
         .filter(|d| !d.path.is_empty() && !boot.contains(&d.path))
@@ -175,7 +182,10 @@ pub fn preferred(disks: &[Disk]) -> usize {
             .max_by_key(|(i, d)| (d.bytes, std::cmp::Reverse(*i)))
             .map(|(i, _)| i)
     };
-    best(&|d| !d.removable && !d.maybe_medium).or_else(|| best(&|d| !d.maybe_medium)).unwrap_or(0)
+    best(&|d| d.current)
+        .or_else(|| best(&|d| !d.removable && !d.maybe_medium))
+        .or_else(|| best(&|d| !d.maybe_medium))
+        .unwrap_or(0)
 }
 
 fn run_text(prog: &str, args: &[&str]) -> String {
@@ -208,7 +218,16 @@ const DISK_COLUMNS: &str = "NAME,PATH,SIZE,MODEL,TYPE,RO,RM,TRAN";
 /// The disks to offer, and the boot medium left out of them.
 pub fn disks() -> (Vec<Disk>, Medium) {
     let boot = boot_medium();
-    (parse_disks(&run_text("lsblk", &["-J", "-b", "-d", "-o", DISK_COLUMNS]), &boot), boot)
+    let mut disks = parse_disks(&run_text("lsblk", &["-J", "-b", "-d", "-o", DISK_COLUMNS]), &boot);
+    // Factory Restore: mark the disk the system is on now (where the image was).
+    let cmdline = fs::read_to_string("/proc/cmdline").unwrap_or_default();
+    let restore = medium::restore_specs(&cmdline);
+    if !restore.is_empty() {
+        let tree = run_text("lsblk", &["-J", "-o", "NAME,KNAME,PATH,UUID,PARTUUID,LABEL,TYPE"]);
+        let current = medium::medium_disks(&restore, &tree);
+        disks.iter_mut().for_each(|d| d.current = current.contains(&d.path));
+    }
+    (disks, boot)
 }
 
 /// One disk as it is now (re-read just before it is erased).
@@ -357,6 +376,8 @@ mod tests {
         let unsure = [Disk { maybe_medium: true, ..d("/dev/sda", 64, true) }, d("/dev/sdb", 32, true)];
         assert_eq!(preferred(&unsure), 1);
         assert_eq!(preferred(&[]), 0);
+        let restoring = [d("/dev/sda", 512, false), Disk { current: true, ..d("/dev/nvme0n1", 256, false) }];
+        assert_eq!(preferred(&restoring), 1, "Factory Restore starts on the system's own disk");
         assert_eq!(keymap_name("de-latin1.map.gz"), Some("de-latin1"));
         assert_eq!(keymap_name("README"), None);
         let a = d("/dev/sdb", 250, false);

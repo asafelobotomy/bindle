@@ -3,7 +3,7 @@
 
 mod archinstall_log;
 pub mod hardware;
-mod pacman_log;
+pub mod pacman_log;
 pub mod preset;
 pub mod target;
 

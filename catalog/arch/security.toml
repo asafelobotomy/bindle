@@ -113,6 +113,36 @@ admin = true
 args = [{ name = "note", kind = "text", default = "bindo", help = "Description to find it by." }]
 run = 'snapper -c root create --cleanup-algorithm number --description "$1" --print-number'
 
+[[module.recipe]]
+name = "rollback"
+category = "System"
+description = "Roll the system back to one of its snapshots (from the next start)"
+help = "Lists the snapshots and asks which. Your home folder stays as it is; the system as it is now is kept aside (see rollback-cleanup)."
+requires = ["bindle"]
+run = 'exec bindle rollback'
+
+[[module.recipe]]
+name = "rollback-cleanup"
+category = "Maintenance"
+description = "Delete the systems kept aside by earlier rollbacks"
+help = "Once a rolled-back system works as it should, the one it replaced (kept as @.bindle-before-rollback-…) only takes space."
+admin = true
+confirm = "Delete the systems kept aside by earlier rollbacks? They can't be gone back to afterwards."
+run = '''
+dev=$(findmnt -no SOURCE / | sed 's/\[.*//')
+top=$(mktemp -d)
+mount -o subvolid=5 "$dev" "$top"
+trap 'umount "$top"; rmdir "$top"' EXIT
+found=0
+for s in "$top"/*.bindle-before-rollback-*; do
+    [ -d "$s" ] || continue
+    found=1
+    echo "Deleting ${s##*/}"
+    btrfs subvolume delete --recursive "$s"
+done
+[ "$found" = 1 ] || echo "No system kept aside by a rollback."
+'''
+
 [[module]]
 id = "grub-btrfs"
 group = "Snapshots"

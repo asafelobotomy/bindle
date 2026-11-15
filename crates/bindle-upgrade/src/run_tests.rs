@@ -126,9 +126,7 @@ fn a_failed_system_upgrade_holds_the_aur() {
     let mut ex = Exec {
         opts: &opts,
         ui: &mut ex_ui,
-        helper: None,
-        refused: None,
-        log: String::new(),
+        session: Session::new(String::new(), opts.dry_run, None, &opts.launch),
         blocked: BTreeMap::new(),
         updated: vec![],
     };
@@ -143,9 +141,8 @@ fn a_refused_password_isnt_asked_for_again() {
     let mut ex = Exec {
         opts: &opts,
         ui: &mut ui,
-        helper: None,
-        refused: Some("couldn't get administrator rights: dismissed".into()),
-        log: String::new(),
+        session: Session::new(String::new(), false, None, &opts.launch)
+            .refused("couldn't get administrator rights: dismissed"),
         blocked: BTreeMap::new(),
         updated: vec![],
     };

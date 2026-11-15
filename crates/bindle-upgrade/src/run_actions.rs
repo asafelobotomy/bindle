@@ -5,7 +5,6 @@ use std::process::Command;
 
 use anyhow::{Context, Result, bail};
 use bindle_core::Step;
-use bindle_run::client::HelperClient;
 use bindle_run::protocol::{BindleFile, Request};
 use bindle_run::{release, sys};
 
@@ -48,14 +47,14 @@ impl Exec<'_> {
 
     /// /boot's file names through the root helper, when this run started it.
     pub(super) fn boot_files(&mut self) -> Option<Vec<String>> {
-        let helper = self.helper.as_mut()?;
+        let helper = self.session.helper()?;
         let mut names = vec![];
         helper.request(&Request::BootFiles, &mut |l| names.push(l.to_string())).ok()?;
         Some(names)
     }
 
     fn rehearsal(&self) -> bool {
-        self.opts.dry_run || self.opts.sandbox.is_some()
+        self.session.rehearsal()
     }
 
     /// Download and verify the release, then replace this Bindle: the
@@ -123,53 +122,12 @@ impl Exec<'_> {
     }
 
     pub(super) fn root(&mut self, req: Request) -> Result<()> {
-        if self.opts.dry_run {
-            let shown = match &req {
-                Request::Run { step: Step::RunAsRoot { argv, .. } } => sys::shell_words(argv),
-                Request::Interactive { argv, .. } => format!("{} (on this terminal)", sys::shell_words(argv)),
-                other => format!("{other:?}"),
-            };
-            self.ui.line(&format!("would run as root: {shown}"));
-            return Ok(());
-        }
-        if let Some(why) = &self.refused {
-            bail!("{why}");
-        }
-        if self.helper.is_none() {
-            self.ui.line("Asking for administrator rights (once for this run).");
-            match HelperClient::launch(self.opts.sandbox.as_deref(), &self.log, &self.opts.launch) {
-                Ok(h) => self.helper = Some(h),
-                Err(e) => {
-                    let why = format!("couldn't get administrator rights: {e:#}");
-                    self.refused = Some(why.clone());
-                    bail!(why);
-                }
-            }
-        }
-        let helper = self.helper.as_mut().expect("started above");
         let ui = &mut *self.ui;
-        helper.request(&req, &mut |l| ui.line(l)).map(drop)
+        self.session.root(&req, &mut |l| ui.line(l))
     }
 
     pub(super) fn user(&mut self, argv: &[String]) -> Result<()> {
-        let shown = sys::shell_words(argv);
-        if self.rehearsal() {
-            self.ui.line(&format!("would run: {shown}"));
-            return Ok(());
-        }
-        if let Some(h) = self.helper.as_mut() {
-            let _ = h.request(&Request::Log { line: format!("(as the user) $ {shown}") }, &mut |_| {});
-        }
-        // Without a terminal (the window), the output is shown line by line.
-        if self.opts.tty.is_none() {
-            let ui = &mut *self.ui;
-            return sys::run_streaming(argv, &mut |l| ui.line(l));
-        }
-        let (prog, args) = argv.split_first().context("empty command")?;
-        let status = Command::new(prog).args(args).status().with_context(|| format!("start `{prog}`"))?;
-        if !status.success() {
-            bail!("`{shown}` failed ({status})");
-        }
-        Ok(())
+        let ui = &mut *self.ui;
+        self.session.user(argv, self.opts.tty.is_some(), &mut |l| ui.line(l))
     }
 }

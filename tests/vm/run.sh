@@ -17,6 +17,8 @@
 #                       KEEP_WELCOME and SETUP_TARGET don't apply
 #      SECOND_LOGIN=1   boot: pre-mark the wizard as seen, so login shows the reminder notification
 #      WITH="m1 m2"     boot: add these modules to plan and apply (bindle apply --with)
+#      RESTORE=1        boot: Factory Restore (bindle restore, the ISO served from here),
+#                       then screenshots of the restart into the installer and its Disk page
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
@@ -26,7 +28,8 @@ DESKTOP="${DESKTOP:-gnome}"
 PROFILE="${PROFILE:-desktop}"
 # The wizard sets the recommended desktop up before the reboot (AUR builds included).
 MEM_INSTALL="${MEM_INSTALL:-$([[ "${WIZARD:-0}" == 1 ]] && echo 3072 || echo 2048)}"
-MEM_BOOT="${MEM_BOOT:-2560}"
+# Factory Restore copies the installer into memory (copytoram).
+MEM_BOOT="${MEM_BOOT:-$([[ "${RESTORE:-0}" == 1 ]] && echo 4096 || echo 2560)}"
 CPUS="${CPUS:-2}"
 PORT=8765
 OVMF=/usr/share/edk2-ovmf/x64
@@ -120,7 +123,7 @@ install_phase() {
         -serial "file:$WORK/install-serial.log" -display none -no-reboot &
     local qemu=$!
     PIDS+=("$qemu")
-    if ! wait_for "$WORK/install-serial.log" "BINDLE-VM: INSTALL \(OK\|FAILED\)" 5400 "$qemu"; then
+    if ! wait_for "$WORK/install-serial.log" "BINDLE-VM: INSTALL \(OK\|FAILED\)" "${INSTALL_TIMEOUT:-$([[ "${WIZARD:-0}" == 1 ]] && echo 14400 || echo 5400)}" "$qemu"; then
         kill "$qemu" 2>/dev/null || true
         die "install did not finish (see install-serial.log)"
     fi
@@ -181,6 +184,15 @@ boot_phase() {
     [[ "${SECOND_LOGIN:-0}" == 1 ]] && touch "$WORK/serve/second-login"
     rm -f "$WORK/serve/with"
     [[ -n "${WITH:-}" ]] && printf '%s\n' "$WITH" >"$WORK/serve/with"
+    rm -f "$WORK/serve/restore" "$WORK/serve/archlinux-x86_64.iso" "$WORK/serve/archlinux-x86_64.iso.sig"
+    if [[ "${RESTORE:-0}" == 1 ]]; then
+        # Factory Restore from the ISO this test has, with Arch's signature for it.
+        [[ -f "$WORK/archlinux-x86_64.iso.sig" ]] \
+            || curl -fsSL -o "$WORK/archlinux-x86_64.iso.sig" https://geo.mirror.pkgbuild.com/iso/latest/archlinux-x86_64.iso.sig
+        ln -f "$ISO" "$WORK/serve/archlinux-x86_64.iso" 2>/dev/null || cp "$ISO" "$WORK/serve/archlinux-x86_64.iso"
+        cp "$WORK/archlinux-x86_64.iso.sig" "$WORK/serve/"
+        touch "$WORK/serve/restore"
+    fi
     start_servers
     mkdir -p "$WORK/shots" && rm -f "$WORK"/shots/*
     : >"$WORK/boot-serial.log"
@@ -197,6 +209,17 @@ boot_phase() {
     if grep -q "BINDLE-VM: CHECK FAILED" "$WORK/boot-serial.log"; then
         kill "$qemu" 2>/dev/null || true
         die "first-boot checks failed (see boot-serial.log)"
+    fi
+    if [[ "${RESTORE:-0}" == 1 ]]; then
+        # The guest restarts into the installer from its own disk.
+        say "Factory Restore armed; screenshots of the restart into the installer"
+        for i in 1 2 3 4 5 6; do sleep 20; shot "restore-$i"; done
+        # Network, Desktop, Hardware: Enter each, to the Disk page.
+        for i in 1 2 3; do monitor "sendkey ret"; sleep 3; done
+        shot restore-disk
+        kill "$qemu" 2>/dev/null || true
+        say "screenshots: $WORK/shots/"
+        return 0
     fi
     say "checks done; waiting for autologin and the first-login wizard"
     shot checks-done

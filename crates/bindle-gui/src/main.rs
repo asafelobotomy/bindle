@@ -4,7 +4,9 @@
 //!
 //! `bindle-gui --upgrade` is the system update window instead (what
 //! `bindleupgrade --gui` opens): the same look and parts over bindleupgrade's
-//! plan, from `UpgradeMain.qml` and `UpgradeBackend`.
+//! plan, from `UpgradeMain.qml` and `UpgradeBackend`. `bindle-gui
+//! --recovery` is the Recovery window (Roll back, Rebase, Factory Restore:
+//! `RecoveryMain.qml` over `RecoveryBackend`).
 //!
 //! `bindle-gui --screenshots <dir>` renders every screen offscreen into `dir`
 //! (with `BINDLE_UQ_TOKENS=<tokens.json>` to pick a uQ theme) and exits.
@@ -24,6 +26,8 @@ const EXIT_NO_WINDOW: i32 = 4;
 mod backend;
 mod glyph;
 mod model;
+mod recovery;
+mod recovery_backend;
 mod theme;
 mod upgrade;
 mod upgrade_backend;
@@ -61,7 +65,13 @@ fn main() {
     app::ffi::bindle_set_window_icon(include_bytes!("../../../branding/bindle.svg"));
     let mut engine = QQmlApplicationEngine::new();
     if let Some(engine) = engine.as_mut() {
-        let main = if flag("--upgrade") { "UpgradeMain" } else { "Main" };
+        let main = if flag("--upgrade") {
+            "UpgradeMain"
+        } else if flag("--recovery") {
+            "RecoveryMain"
+        } else {
+            "Main"
+        };
         engine.load(&QUrl::from(&format!("qrc:/qt/qml/org/bindle/wizard/qml/{main}.qml")));
     }
     if !app::ffi::bindle_has_window() {
@@ -74,6 +84,6 @@ fn main() {
     let applied = apply::APPLIED.load(std::sync::atomic::Ordering::SeqCst);
     // A screenshot run finishing is success, applied or not.
     // The update window reports its results itself; closing it is no error.
-    let shots = arg("--screenshots").is_some() || flag("--upgrade");
+    let shots = arg("--screenshots").is_some() || flag("--upgrade") || flag("--recovery");
     std::process::exit(if applied || shots { EXIT_APPLIED } else { EXIT_CLOSED });
 }

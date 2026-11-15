@@ -62,4 +62,15 @@ as_tester "bindle undo --list"
 echo "BINDLE-VM: second plan (should only contain non-idempotent leftovers):"
 as_tester "bindle plan --profile $profile$with"
 systemctl disable bindle-vm-check.service
+# RESTORE=1 on the host: Factory Restore from the ISO the host serves, then
+# restart into it (the host takes screenshots of the installer).
+if curl -fs --max-time 5 -o /dev/null http://10.0.2.2:8765/restore; then
+    as_tester "BINDLE_ISO_MIRROR=http://10.0.2.2:8765 bindle restore --erase-confirmed"
+    ls -la /boot/bindle-restore /boot/loader/entries
+    cat /boot/loader/entries/bindle-restore.conf
+    bootctl status 2>/dev/null | grep -i -A1 'oneshot\|Current Entry' || true
+    echo "BINDLE-VM: CHECK DONE"
+    systemctl reboot
+    exit 0
+fi
 echo "BINDLE-VM: CHECK DONE"
