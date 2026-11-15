@@ -1,0 +1,117 @@
+# bindo recipes: Security (encryption, Secure Boot, DNS, crash records).
+# Each checks the system first and refuses a setup it could leave unable to start.
+
+[[recipe]]
+name = "tpm-unlock"
+category = "Security"
+description = "Unlock the encrypted disk with the TPM at start-up, or check or undo it"
+help = "On: the TPM chip unlocks the disk while the firmware and Secure Boot state stay the same (PCR 7); the passphrase keeps working. Needs a systemd-based initramfs (sd-encrypt). Off: the TPM key is removed."
+admin = true
+args = [{ name = "state", choices = ["status", "on", "off"], default = "status" }]
+run = '''
+dev=$(lsblk -lnpo PATH,FSTYPE | awk '$2 == "crypto_LUKS" { print $1; exit }')
+[ -n "$dev" ] || { echo "No encrypted disk here."; exit 0; }
+sd=no
+for f in /etc/mkinitcpio.conf /etc/mkinitcpio.conf.d/*.conf; do
+    [ -f "$f" ] && grep -Eq '^HOOKS=.*\bsd-encrypt\b' "$f" && sd=yes
+done
+case "$1" in
+    status)
+        echo "Encrypted disk: $dev   systemd initramfs (sd-encrypt): $sd"
+        systemd-cryptenroll --tpm2-device=list 2>/dev/null || echo "No TPM 2.0 found."
+        systemd-cryptenroll "$dev" 2>/dev/null ;;
+    on)
+        [ "$sd" = yes ] || { echo "Refused: the initramfs needs the sd-encrypt hook (mkinitcpio.conf's HOOKS) to unlock with the TPM."; exit 1; }
+        systemd-cryptenroll --tpm2-device=list >/dev/null 2>&1 || { echo "Refused: no TPM 2.0 found."; exit 1; }
+        echo "Type the disk's passphrase to add the TPM as another key:"
+        systemd-cryptenroll --tpm2-device=auto --tpm2-pcrs=7 "$dev"
+        if ! grep -q 'tpm2-device=' /proc/cmdline /etc/crypttab.initramfs 2>/dev/null; then
+            echo "One more step: add rd.luks.options=tpm2-device=auto to the kernel command line (or tpm2-device=auto to /etc/crypttab.initramfs), then: bindo rebuild-boot"
+        fi ;;
+    off)
+        systemd-cryptenroll --wipe-slot=tpm2 "$dev"
+        echo "The TPM key is removed; the passphrase unlocks the disk." ;;
+esac
+'''
+
+[[recipe]]
+name = "secure-boot"
+category = "Security"
+description = "Show Secure Boot's state, or set it up with your own keys (sbctl)"
+help = "setup: the firmware must be in Setup Mode (clear its keys in the firmware settings: bindo bios). Creates your keys, enrolls them with Microsoft's (for graphics cards' own firmware), and signs the boot loader and kernels; sbctl re-signs them after updates. Then turn Secure Boot on in the firmware."
+admin = true
+args = [{ name = "action", choices = ["status", "setup"], default = "status" }]
+run = '''
+command -v sbctl >/dev/null || pacman -S --needed --noconfirm sbctl
+if [ "$1" = status ]; then
+    sbctl status
+    sbctl verify 2>/dev/null || true
+    exit 0
+fi
+if ! sbctl status 2>/dev/null | grep -Eq 'Setup Mode:.*(Enabled|✓)'; then
+    echo "Refused: the firmware isn't in Setup Mode. Clear its Secure Boot keys in the firmware settings (bindo bios), then run this again."
+    exit 1
+fi
+sbctl create-keys
+sbctl enroll-keys --microsoft
+sbctl verify 2>/dev/null | awk '/is not signed/ { print $2 }' | while read -r f; do
+    sbctl sign --save "$f"
+done
+sbctl verify
+echo "Done. Now turn Secure Boot on in the firmware settings (bindo bios)."
+'''
+
+[[recipe]]
+name = "encrypted-dns"
+category = "Security"
+description = "Look up names over encrypted DNS (Cloudflare, Quad9, Mullvad) or not"
+help = "Uses systemd-resolved with DNS over TLS for every lookup; turns systemd-resolved on (NetworkManager then uses it) if it isn't."
+admin = true
+confirm = "Change how this computer looks up names?"
+args = [{ name = "provider", choices = ["cloudflare", "quad9", "mullvad", "off", "status"] }]
+run = '''
+f=/etc/systemd/resolved.conf.d/50-bindle-dns.conf
+case "$1" in
+    status) resolvectl status 2>/dev/null | sed -n '1,12p' || echo "systemd-resolved isn't running."; exit 0 ;;
+    off) rm -f "$f"; systemctl try-restart systemd-resolved; echo "Encrypted DNS is off."; exit 0 ;;
+    cloudflare) dns="1.1.1.1#cloudflare-dns.com 1.0.0.1#cloudflare-dns.com 2606:4700:4700::1111#cloudflare-dns.com" ;;
+    quad9) dns="9.9.9.9#dns.quad9.net 149.112.112.112#dns.quad9.net 2620:fe::fe#dns.quad9.net" ;;
+    mullvad) dns="194.242.2.2#dns.mullvad.net 2a07:e340::2#dns.mullvad.net" ;;
+esac
+mkdir -p "$(dirname "$f")"
+printf '# Managed by Bindle\n[Resolve]\nDNS=%s\nDNSOverTLS=yes\nDomains=~.\n' "$dns" >"$f"
+systemctl enable --now systemd-resolved
+if [ "$(readlink /etc/resolv.conf)" != /run/systemd/resolve/stub-resolv.conf ]; then
+    [ -e /etc/resolv.conf ] && cp -a /etc/resolv.conf /etc/resolv.conf.bindle-before
+    ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
+    systemctl try-restart NetworkManager
+fi
+systemctl restart systemd-resolved
+sleep 2
+if getent hosts archlinux.org >/dev/null; then echo "Encrypted DNS ($1) works."; else echo "Names don't resolve: bindo encrypted-dns off puts it back."; exit 1; fi
+'''
+
+[[recipe]]
+name = "save-panics"
+category = "Security"
+description = "Keep the kernel's crash messages across a restart (or stop)"
+help = "When the system freezes and restarts, the kernel's last messages are saved through the firmware (pstore) to /var/lib/systemd/pstore, to read or share afterwards."
+admin = true
+args = [{ name = "state", choices = ["on", "off", "status"], default = "status" }]
+run = '''
+f=/etc/modules-load.d/bindle-pstore.conf
+case "$1" in
+    on)
+        printf '# Managed by Bindle\nefi_pstore\n' >"$f"
+        modprobe efi_pstore 2>/dev/null || true
+        systemctl enable systemd-pstore.service
+        echo "Crash messages are kept (backend: $(cat /sys/module/pstore/parameters/backend 2>/dev/null || echo none yet))." ;;
+    off)
+        rm -f "$f"
+        systemctl disable systemd-pstore.service
+        echo "Crash messages aren't kept any more." ;;
+    status)
+        echo "backend: $(cat /sys/module/pstore/parameters/backend 2>/dev/null || echo none)"
+        ls -la /var/lib/systemd/pstore 2>/dev/null || echo "No saved crash messages." ;;
+esac
+'''

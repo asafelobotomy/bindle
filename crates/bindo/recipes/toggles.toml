@@ -34,3 +34,161 @@ description = "Turn Wi-Fi on or off"
 requires = ["nmcli"]
 args = [{ name = "state", choices = ["on", "off"] }]
 run = 'nmcli radio wifi "$1"'
+
+[[recipe]]
+name = "autologin"
+category = "Toggles"
+description = "Log you in at startup without the password screen (SDDM, GDM, LightDM)"
+help = "Anyone who starts the computer gets your desktop: only where nobody else can reach it. Your keyring may still ask for the password."
+admin = true
+args = [{ name = "state", choices = ["on", "off"] }]
+confirm = "Change automatic login?"
+run = '''
+uid=${PKEXEC_UID:-${SUDO_UID:-}}
+user=$(id -nu "$uid" 2>/dev/null) || { echo "Couldn't tell who asked."; exit 1; }
+dm=$(basename "$(readlink /etc/systemd/system/display-manager.service 2>/dev/null)" .service)
+case "$dm" in
+    sddm)
+        f=/etc/sddm.conf.d/zz-bindle-autologin.conf
+        if [ "$1" = on ]; then
+            session=$(sed -n 's/^LastSession=//p' /var/lib/sddm/state.conf 2>/dev/null | xargs -r basename)
+            mkdir -p /etc/sddm.conf.d
+            printf '# Managed by Bindle\n[Autologin]\nUser=%s\nSession=%s\n' "$user" "$session" >"$f"
+        else
+            rm -f "$f"
+        fi ;;
+    lightdm)
+        f=/etc/lightdm/lightdm.conf.d/zz-bindle-autologin.conf
+        if [ "$1" = on ]; then
+            groupadd -rf autologin && gpasswd -a "$user" autologin >/dev/null
+            mkdir -p /etc/lightdm/lightdm.conf.d
+            printf '# Managed by Bindle\n[Seat:*]\nautologin-user=%s\n' "$user" >"$f"
+        else
+            rm -f "$f"
+        fi ;;
+    gdm)
+        f=/etc/gdm/custom.conf
+        [ -f "$f" ] || printf '[daemon]\n' >"$f"
+        sed -i '/^AutomaticLogin\(Enable\)\?=/d' "$f"
+        if [ "$1" = on ]; then
+            grep -q '^\[daemon\]' "$f" || printf '[daemon]\n' >>"$f"
+            sed -i "/^\[daemon\]/a AutomaticLoginEnable=True\nAutomaticLogin=$user" "$f"
+        fi ;;
+    *)
+        echo "Bindle can't set up automatic login for ${dm:-this login screen}."
+        exit 1 ;;
+esac
+echo "Automatic login is $1 for $user (from the next start)."
+'''
+
+[[recipe]]
+name = "hibernate"
+category = "Toggles"
+description = "Turn hibernation on or off (a swap file as big as memory), or check it"
+help = "On: a swap file the size of memory; systemd resumes from it by itself (UEFI and a systemd-based initramfs). Other setups are refused, with why. Off: the swap file goes."
+admin = true
+args = [{ name = "state", choices = ["status", "on", "off"], default = "status" }]
+run = '''
+swap=/swap/swapfile
+mem_kb=$(awk '/^MemTotal/ { print $2 }' /proc/meminfo)
+systemd_initramfs=no
+for f in /etc/mkinitcpio.conf /etc/mkinitcpio.conf.d/*.conf; do
+    [ -f "$f" ] && grep -Eq '^HOOKS=.*\bsystemd\b' "$f" && systemd_initramfs=yes
+done
+uefi=no; [ -d /sys/firmware/efi ] && uefi=yes
+case "$1" in
+    status)
+        echo "memory: $((mem_kb / 1024)) MiB"
+        swapon --show
+        echo "UEFI: $uefi   systemd-based initramfs: $systemd_initramfs"
+        [ -f "$swap" ] && echo "Bindle's swap file: $swap"
+        if [ "$uefi" = yes ] && [ "$systemd_initramfs" = yes ]; then
+            echo "Hibernation can be turned on here: bindo hibernate on"
+        else
+            echo "Bindle can't turn hibernation on here: it needs UEFI and the systemd hook in mkinitcpio.conf's HOOKS (resume then needs no kernel parameters)."
+        fi ;;
+    on)
+        if [ "$uefi" != yes ] || [ "$systemd_initramfs" != yes ]; then
+            echo "Refused: it needs UEFI and a systemd-based initramfs (see: bindo hibernate status)."
+            exit 1
+        fi
+        if [ -f "$swap" ]; then echo "Already on: $swap"; exit 0; fi
+        size=$(( (mem_kb / 1024 / 1024) + 1 ))G
+        if [ "$(findmnt -no FSTYPE /)" = btrfs ]; then
+            # Its own subvolume: snapshots of the system leave it out (and
+            # Btrfs can't snapshot a subvolume holding an active swap file).
+            [ -d /swap ] || btrfs subvolume create /swap
+            btrfs filesystem mkswapfile --size "$size" "$swap"
+        else
+            mkdir -p /swap
+            fallocate -l "$size" "$swap" && chmod 600 "$swap" && mkswap "$swap"
+        fi
+        swapon "$swap"
+        printf '%s none swap defaults,pri=-2 0 0 # Managed by Bindle (hibernate)\n' "$swap" >>/etc/fstab
+        echo "Hibernation is on: systemctl hibernate (or your desktop's menu)." ;;
+    off)
+        if [ ! -f "$swap" ]; then echo "Bindle's swap file isn't there: nothing to turn off."; exit 0; fi
+        swapoff "$swap" 2>/dev/null
+        sed -i '\|^/swap/swapfile .*# Managed by Bindle (hibernate)$|d' /etc/fstab
+        rm -f "$swap"
+        [ "$(findmnt -no FSTYPE /)" = btrfs ] && btrfs subvolume delete /swap >/dev/null 2>&1 || true
+        echo "Hibernation is off; the swap file is gone." ;;
+esac
+'''
+
+[[recipe]]
+name = "wake-on-lan"
+category = "Toggles"
+description = "Let another computer wake this one over the wired network (or stop it)"
+admin = true
+requires = ["nmcli"]
+args = [{ name = "state", choices = ["on", "off"] }]
+run = '''
+mode=magic; [ "$1" = off ] && mode=ignore
+found=0
+for con in $(nmcli -t -f NAME,TYPE connection show | awk -F: '$2 == "802-3-ethernet" { print $1 }'); do
+    nmcli connection modify "$con" 802-3-ethernet.wake-on-lan "$mode" && found=1 && echo "$con: wake-on-LAN $1"
+done
+[ "$found" = 1 ] || { echo "No wired connection to set."; exit 1; }
+if [ "$1" = on ]; then
+    echo "Wake it with its address:"
+    ip -brief link | awk '$1 ~ /^(en|eth)/ { print "  " $1 ": " $3 }'
+fi
+'''
+
+[[recipe]]
+name = "printer-sharing"
+category = "Toggles"
+description = "Share this computer's printers with others on the network (or stop)"
+admin = true
+requires = ["cupsctl"]
+args = [{ name = "state", choices = ["on", "off"] }]
+run = '''
+if [ "$1" = on ]; then
+    cupsctl --share-printers
+    command -v ufw >/dev/null && ufw allow 631/tcp comment 'CUPS printer sharing' >/dev/null && echo "Firewall: port 631 open."
+else
+    cupsctl --no-share-printers
+    command -v ufw >/dev/null && ufw delete allow 631/tcp >/dev/null 2>&1 || true
+fi
+echo "Printer sharing is $1. Each printer also needs Shared ticked in your printer settings."
+'''
+
+[[recipe]]
+name = "sysrq"
+category = "Toggles"
+description = "Turn on the keys for a safe restart when everything freezes (or off)"
+help = "On: hold Alt+SysRq (Print Screen) and press R E I S U B, slowly: it hands back the keyboard, ends programs, writes to disk and restarts, instead of cutting the power."
+admin = true
+args = [{ name = "state", choices = ["on", "off"] }]
+run = '''
+f=/etc/sysctl.d/90-bindle-sysrq.conf
+if [ "$1" = on ]; then
+    printf '# Managed by Bindle\nkernel.sysrq = 1\n' >"$f"
+    sysctl -q -w kernel.sysrq=1
+else
+    rm -f "$f"
+    sysctl -q --system >/dev/null 2>&1 || true
+fi
+echo "Emergency keys (SysRq): $1"
+'''

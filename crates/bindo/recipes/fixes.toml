@@ -1,0 +1,82 @@
+# bindo recipes: Fixes (quick repairs for common snags).
+
+[[recipe]]
+name = "restart-audio"
+category = "Fixes"
+description = "Restart the sound system when sound stops or a device goes missing"
+run = '''
+systemctl --user restart pipewire pipewire-pulse wireplumber
+sleep 1
+echo "Sound restarted. Outputs now:"
+wpctl status 2>/dev/null | sed -n '/Sinks:/,/Sources:/p' | sed '$d'
+'''
+
+[[recipe]]
+name = "bt-headset-fix"
+category = "Fixes"
+description = "Keep Bluetooth headphones in good sound when apps use the mic (or undo)"
+help = "On: WirePlumber no longer switches a headset to its call profile (mono, low quality) when an app opens the microphone. The headset's own mic then isn't used; pick it in the sound settings when you want it. Off: back to switching."
+admin = true
+args = [{ name = "state", choices = ["on", "off"] }]
+run = '''
+f=/etc/wireplumber/wireplumber.conf.d/51-bindle-bt-no-autoswitch.conf
+if [ "$1" = on ]; then
+    mkdir -p "$(dirname "$f")"
+    printf '# Managed by Bindle\nwireplumber.settings = {\n  bluetooth.autoswitch-to-headset-profile = false\n}\n' >"$f"
+else
+    rm -f "$f"
+fi
+echo "Done. It takes effect after: bindo restart-audio"
+'''
+
+[[recipe]]
+name = "restart-network"
+category = "Fixes"
+description = "Unblock and restart Wi-Fi, networking and Bluetooth when they stop"
+admin = true
+run = '''
+rfkill unblock all 2>/dev/null || true
+systemctl restart NetworkManager
+systemctl try-restart bluetooth.service 2>/dev/null || true
+sleep 3
+nmcli general status 2>/dev/null || true
+'''
+
+[[recipe]]
+name = "downgrade"
+category = "Fixes"
+description = "Put a package back to an earlier version from pacman's cache"
+help = "Lists the versions pacman still has and installs the one you pick. The next update upgrades it again; to keep it, add IgnorePkg = <package> to /etc/pacman.conf."
+admin = true
+args = [{ name = "package", help = "The package's name, e.g. mesa." }]
+run = '''
+pkg=$1
+now=$(pacman -Q "$pkg" 2>/dev/null | cut -d' ' -f2) || true
+list=$(mktemp)
+trap 'rm -f "$list"' EXIT
+for f in /var/cache/pacman/pkg/"$pkg"-*.pkg.tar.*; do
+    case "$f" in *.sig) continue ;; esac
+    [ -f "$f" ] || continue
+    # pacman's own name for the file (mesa-… also matches mesa-utils-…).
+    [ "$(bsdtar -xOf "$f" .PKGINFO 2>/dev/null | sed -n 's/^pkgname = //p')" = "$pkg" ] || continue
+    printf '%s\t%s\n' "$(bsdtar -xOf "$f" .PKGINFO | sed -n 's/^pkgver = //p')" "$f"
+done | sort -V >"$list"
+if [ ! -s "$list" ]; then
+    echo "pacman's cache has no other version of $pkg."
+    exit 1
+fi
+echo "Installed: ${now:-not installed}"
+i=0
+while IFS="$(printf '\t')" read -r ver _; do
+    i=$((i + 1))
+    mark=""; [ "$ver" = "$now" ] && mark="  (installed)"
+    echo "  $i) $ver$mark"
+done <"$list"
+printf 'Which version (number, Enter to cancel)? '
+read -r n
+[ -n "$n" ] || { echo "Nothing changed."; exit 0; }
+case "$n" in *[!0-9]*) echo "Type the number of a version."; exit 1 ;; esac
+file=$(sed -n "${n}p" "$list" | cut -f2)
+[ -n "$file" ] || { echo "No version $n."; exit 1; }
+pacman -U -- "$file"
+'''

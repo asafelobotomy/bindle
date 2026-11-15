@@ -1,0 +1,50 @@
+# bindo recipes: Apps (Flatpak and default apps).
+
+[[recipe]]
+name = "flatpak-repair"
+category = "Apps"
+description = "Repair Flatpak's installed apps and runtimes (missing or damaged files)"
+admin = true
+requires = ["flatpak"]
+run = '''
+flatpak repair
+echo "Apps installed for one user only: flatpak repair --user (as that user)."
+'''
+
+[[recipe]]
+name = "default-browser"
+category = "Apps"
+description = "Show the browser links open in, or set it (e.g. firefox, chromium)"
+args = [{ name = "browser", default = "show", help = "A browser's name, or part of it; `show` lists them." }]
+requires = ["xdg-settings"]
+run = '''
+dirs="${XDG_DATA_HOME:-$HOME/.local/share}/applications /var/lib/flatpak/exports/share/applications /usr/local/share/applications /usr/share/applications"
+browsers() {
+    for d in $dirs; do
+        [ -d "$d" ] && grep -l '^Categories=.*WebBrowser' "$d"/*.desktop 2>/dev/null || true
+    done | xargs -r -n1 basename | sort -u
+}
+if [ "$1" = show ]; then
+    echo "Now: $(xdg-settings get default-web-browser)"
+    echo "Installed:"; browsers | sed 's/^/  /'
+    exit 0
+fi
+pick=$(browsers | grep -i -- "$1" | head -n 1)
+[ -n "$pick" ] || { echo "No installed browser matches \"$1\" (bindo default-browser shows them)."; exit 1; }
+xdg-settings set default-web-browser "$pick"
+echo "Links now open in $pick."
+'''
+
+[[recipe]]
+name = "default-apps"
+category = "Apps"
+description = "Show which app opens each common kind of file and link"
+requires = ["xdg-mime"]
+run = '''
+for t in x-scheme-handler/https text/html x-scheme-handler/mailto inode/directory application/pdf \
+    image/png image/jpeg video/mp4 audio/mpeg text/plain application/zip; do
+    printf '%-28s %s\n' "$t" "$(xdg-mime query default "$t" 2>/dev/null || true)"
+done
+echo
+echo "To change one: xdg-mime default <app>.desktop <type> (or your desktop's Default Applications)."
+'''

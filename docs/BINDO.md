@@ -42,7 +42,7 @@ script it runs, so nothing runs unseen.
 ```toml
 [[recipe]]
 name = "clean-journal"            # lowercase, digits, `-`; up to 32
-category = "Maintenance"          # System, Maintenance, Setup, Toggles, or your own
+category = "Maintenance"          # System, Diagnose, Fixes, Maintenance, Setup, Apps, Security, Toggles, or your own
 description = "Shrink the system journal to a size"   # one line, ≤ 72 characters
 help = "Longer text for --help."  # optional
 admin = true                      # runs as root, after a polkit password prompt
@@ -113,16 +113,20 @@ AppImage works the same when linked or renamed to `bindo` (its runtime sets
 
 | Category | Recipes |
 |---|---|
-| System | `info`, `kernel`, `errors [lines]`, `failed`, `logs <unit> [lines]` |
-| Maintenance | `update [all\|check]`, `update-notify on\|off`, `upgrade-prefs`, `clean-pkg-cache [keep]` [admin], `clean-journal [size]` [admin], `clean-thumbnails`, `orphans` [admin], `pacnew` [admin], `mirrors` [admin], `fix-keyring` [admin] |
-| Setup | `setup`, `whats-new`, `add <module>`, `printer`, `undo`, `completions <shell>` |
-| Toggles | `bluetooth on\|off` [admin], `ssh on\|off` [admin], `wifi on\|off` |
+| System | `info`, `kernel`, `errors [lines]`, `failed`, `logs <unit> [lines]`, `firmware-update`, `bios`, `changed-configs [file]` |
+| Diagnose | `report` (one file to share when asking for help), `disk-usage`, `health` [admin] (SMART, temperatures, battery wear), `network` (with a verdict), `boot-time`, `gpu` (driver, Vulkan, VA-API) |
+| Fixes | `restart-audio`, `bt-headset-fix on\|off` [admin], `restart-network` [admin], `downgrade <package>` [admin] |
+| Maintenance | `update [all\|check]`, `update-notify on\|off`, `upgrade-prefs`, `clean-pkg-cache [keep]` [admin], `clean-journal [size]` [admin], `clean-thumbnails`, `clean-cache` (unused 90 days, AUR build folders), `clean-coredumps` [admin], `orphans` [admin], `pacnew` [admin], `mirrors` [admin], `fix-keyring` [admin], `trim` [admin], `scrub` [admin], `rebuild-boot` [admin], `dkms-rebuild` [admin], `unlock-pacman` [admin], `aur-rebuild` |
+| Setup | `setup`, `whats-new`, `add <module>`, `printer`, `undo`, `recovery`, `rebase`, `factory-restore`, `virtualization`, `distrobox [distro]`, `tailscale`, `input-group` [admin], `completions <shell>` |
+| Apps | `flatpak-repair` [admin], `default-browser [name\|show]`, `default-apps` |
+| Security | `tpm-unlock status\|on\|off` [admin] (sd-encrypt only), `secure-boot status\|setup` [admin] (sbctl, Setup Mode only), `encrypted-dns <provider>\|off\|status` [admin], `save-panics on\|off\|status` [admin] |
+| Toggles | `bluetooth on\|off` [admin], `ssh on\|off` [admin], `wifi on\|off`, `autologin on\|off` [admin] (SDDM, GDM, LightDM), `hibernate status\|on\|off` [admin] (UEFI and a systemd initramfs only), `wake-on-lan on\|off` [admin], `printer-sharing on\|off` [admin], `sysrq on\|off` [admin] |
 
 From catalog modules, when installed:
 
 | Module | Recipes |
 |---|---|
-| `snapper` | `snapshots` [admin], `snapshot [note]` [admin] |
+| `snapper` | `snapshots` [admin], `snapshot [note]` [admin], `rollback`, `rollback-cleanup` [admin] |
 | `ufw` | `firewall on\|off\|status` [admin] |
 | `power-profiles` | `power-profile <profile>` |
 | `printing` | `printers`, `printing-restart` [admin] |

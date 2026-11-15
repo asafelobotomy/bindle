@@ -17,10 +17,17 @@ pub const SHIPPED: &[(&str, &str)] = &[
     ("maintenance.toml", include_str!("../recipes/maintenance.toml")),
     ("setup.toml", include_str!("../recipes/setup.toml")),
     ("toggles.toml", include_str!("../recipes/toggles.toml")),
+    ("diagnose.toml", include_str!("../recipes/diagnose.toml")),
+    ("repair.toml", include_str!("../recipes/repair.toml")),
+    ("apps.toml", include_str!("../recipes/apps.toml")),
+    ("fixes.toml", include_str!("../recipes/fixes.toml")),
+    ("security.toml", include_str!("../recipes/security.toml")),
+    ("services.toml", include_str!("../recipes/services.toml")),
 ];
 
 /// Categories in the order the listing shows them; others follow by name.
-pub const CATEGORY_ORDER: &[&str] = &["System", "Maintenance", "Setup", "Toggles"];
+pub const CATEGORY_ORDER: &[&str] =
+    &["System", "Diagnose", "Fixes", "Maintenance", "Setup", "Apps", "Security", "Toggles"];
 
 /// Recipe directories after the shipped set, lowest priority first: what a
 /// distribution package adds, what the admin adds, what the user adds.

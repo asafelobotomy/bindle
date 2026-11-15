@@ -1,0 +1,135 @@
+# bindo recipes: Diagnose (look, change nothing).
+
+[[recipe]]
+name = "report"
+category = "Diagnose"
+description = "Write a report to share when asking for help (system, errors, updates)"
+help = "One text file in your home folder: the system and hardware, disk space, failed services, this boot's errors and the latest package changes. Read it before sharing: it names your hardware and packages."
+run = '''
+set +e # only looking: a check that finds nothing goes on to the next
+out="$HOME/bindle-report-$(date +%Y%m%d-%H%M%S).txt"
+{
+    echo "== Bindle report, $(date)"
+    sed -n 's/^PRETTY_NAME=//p' /etc/os-release | tr -d '"'
+    uname -srm
+    bindle --version 2>/dev/null
+    echo; echo "== Hardware"
+    grep -m1 'model name' /proc/cpuinfo | cut -d: -f2-
+    free -h
+    lspci -k 2>/dev/null | grep -A3 -E 'VGA|3D|Display'
+    lsblk -o NAME,SIZE,TYPE,FSTYPE,MOUNTPOINTS
+    echo; echo "== Disk space"
+    df -h -x tmpfs -x devtmpfs -x efivarfs -x overlay
+    echo; echo "== Failed services"
+    systemctl --failed --no-legend --no-pager
+    systemctl --user --failed --no-legend --no-pager
+    echo; echo "== Errors this boot (last 100)"
+    journalctl -b -p err --no-pager -q | tail -n 100
+    echo; echo "== Latest package changes"
+    grep -E '\[ALPM\] (upgraded|installed|removed|downgraded)' /var/log/pacman.log | tail -n 60
+} >"$out" 2>&1
+echo "Written: $out"
+echo "Read it before sharing: it names your hardware and packages."
+'''
+
+[[recipe]]
+name = "disk-usage"
+category = "Diagnose"
+description = "See what fills the disk: drives, your largest folders, caches"
+run = '''
+set +e # only looking: a check that finds nothing goes on to the next
+df -h -x tmpfs -x devtmpfs -x efivarfs -x overlay
+if [ "$(findmnt -no FSTYPE /)" = btrfs ]; then
+    echo; echo "Btrfs (counts snapshots and compression):"
+    btrfs filesystem df / 2>/dev/null
+fi
+echo; echo "Largest folders in your home:"
+du -xh --max-depth=1 "$HOME" 2>/dev/null | sort -rh | head -n 12
+echo; echo "Caches:"
+du -sh /var/cache/pacman/pkg "$HOME/.cache" 2>/dev/null
+journalctl --disk-usage 2>/dev/null
+echo; echo "To free space: bindo clean-pkg-cache, clean-cache, clean-journal, orphans, flatpak-clean."
+'''
+
+[[recipe]]
+name = "health"
+category = "Diagnose"
+description = "Check the drives' health, temperatures and the battery's wear"
+help = "Drives: SMART's overall verdict (smartmontools). Temperatures: lm_sensors. Battery: how much it holds now against new."
+admin = true
+run = '''
+set +e # only looking: a check that finds nothing goes on to the next
+echo "== Drives"
+if command -v smartctl >/dev/null; then
+    for d in $(lsblk -dno PATH,TYPE | awk '$2 == "disk" { print $1 }'); do
+        printf '%s: ' "$d"
+        smartctl -H "$d" 2>/dev/null | grep -E 'overall-health|SMART Health Status' | sed 's/.*: *//' | grep . || echo "no SMART data"
+    done
+else
+    echo "smartctl isn't installed: pacman -S smartmontools"
+fi
+echo; echo "== Temperatures"
+sensors 2>/dev/null | grep -E '°C' || echo "sensors isn't installed: pacman -S lm_sensors"
+echo; echo "== Battery"
+bat=$(upower -e 2>/dev/null | grep -m1 BAT)
+if [ -n "$bat" ]; then
+    upower -i "$bat" | grep -E 'state|percentage|capacity|energy-full'
+else
+    echo "no battery"
+fi
+'''
+
+[[recipe]]
+name = "network"
+category = "Diagnose"
+description = "Check the connection: addresses, router, DNS, and what doesn't work"
+run = '''
+set +e # only looking: a check that finds nothing goes on to the next
+echo "== Addresses"
+ip -brief address | grep -v '^lo '
+echo; echo "== Router"
+ip route show default
+echo; echo "== DNS"
+resolvectl dns 2>/dev/null | grep -v ': *$' || grep '^nameserver' /etc/resolv.conf
+echo; echo "== Checks"
+ping -c1 -W3 1.1.1.1 >/dev/null 2>&1 && net=yes || net=no
+getent hosts archlinux.org >/dev/null 2>&1 && dns=yes || dns=no
+curl -fsS -o /dev/null --max-time 8 https://archlinux.org >/dev/null 2>&1 && web=yes || web=no
+echo "internet: $net   names (DNS): $dns   websites: $web"
+if [ "$net" = no ]; then
+    echo "Not connected: check the cable or Wi-Fi (nmcli device wifi list)."
+elif [ "$dns" = no ]; then
+    echo "Connected, but names don't resolve: try systemctl restart NetworkManager, or another DNS server."
+elif [ "$web" = no ]; then
+    echo "Connected, but websites don't load: a proxy, captive portal or firewall may be in the way."
+else
+    echo "Everything works."
+fi
+'''
+
+[[recipe]]
+name = "boot-time"
+category = "Diagnose"
+description = "See what slows the computer's start-up"
+run = '''
+set +e # only looking: a check that finds nothing goes on to the next
+systemd-analyze
+echo; echo "Slowest to start:"
+systemd-analyze blame --no-pager | head -n 15
+echo; echo "What the desktop waited for:"
+systemd-analyze critical-chain --no-pager | head -n 20
+'''
+
+[[recipe]]
+name = "gpu"
+category = "Diagnose"
+description = "Show the graphics driver in use, and check Vulkan and video decoding"
+run = '''
+set +e # only looking: a check that finds nothing goes on to the next
+lspci -k 2>/dev/null | grep -A3 -E 'VGA|3D|Display'
+echo; echo "Session: ${XDG_SESSION_TYPE:-unknown}"
+echo; echo "== Vulkan"
+vulkaninfo --summary 2>/dev/null | grep -E 'deviceName|driverName' || echo "vulkaninfo isn't installed: pacman -S vulkan-tools"
+echo; echo "== Video decoding (VA-API)"
+vainfo 2>/dev/null | grep -E 'Driver version|VAProfile(H264|HEVC|VP9|AV1)' | head -n 8 || echo "vainfo isn't installed: pacman -S libva-utils"
+'''

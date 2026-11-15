@@ -1,0 +1,124 @@
+# bindo recipes: more Maintenance (fixing and freeing). maintenance.toml has the rest.
+
+[[recipe]]
+name = "trim"
+category = "Maintenance"
+description = "Tell the SSDs which blocks are free now (a weekly timer does it too)"
+admin = true
+run = 'fstrim -av'
+
+[[recipe]]
+name = "scrub"
+category = "Maintenance"
+description = "Check the Btrfs filesystem for damaged data (it takes a while)"
+admin = true
+run = '''
+if [ "$(findmnt -no FSTYPE /)" != btrfs ]; then
+    echo "The system isn't on Btrfs: nothing to scrub."
+    exit 0
+fi
+btrfs scrub start -Bd /
+'''
+
+[[recipe]]
+name = "clean-cache"
+category = "Maintenance"
+description = "Delete cached files you haven't used in 90 days, and AUR build leftovers"
+help = "Apps make their cache files again when they need them. AUR build folders are only needed while a package builds."
+confirm = "Delete cached files unused for 90 days and the AUR helpers' build folders?"
+run = '''
+cache="${XDG_CACHE_HOME:-$HOME/.cache}"
+before=$(du -sh "$cache" 2>/dev/null | cut -f1)
+find "$cache" -xdev -type f -atime +90 -delete 2>/dev/null || true
+find "$cache" -xdev -mindepth 1 -type d -empty -delete 2>/dev/null || true
+for d in "$cache/paru/clone" "$cache/yay"; do
+    [ -d "$d" ] && rm -rf -- "$d"
+done
+after=$(du -sh "$cache" 2>/dev/null | cut -f1)
+echo "Your cache: $before before, $after now."
+'''
+
+[[recipe]]
+name = "clean-coredumps"
+category = "Maintenance"
+description = "Delete saved crash dumps (the records of programs that crashed)"
+admin = true
+confirm = "Delete every saved crash dump?"
+run = '''
+dir=/var/lib/systemd/coredump
+du -sh "$dir" 2>/dev/null
+find "$dir" -mindepth 1 -type f -delete
+echo "Crash dumps deleted."
+'''
+
+[[recipe]]
+name = "rebuild-boot"
+category = "Maintenance"
+description = "Rebuild the boot images (initramfs), and GRUB's menu when it's used"
+help = "After a manual change to /etc/mkinitcpio.conf, or when the system says a module is missing at boot."
+admin = true
+run = '''
+mkinitcpio -P
+if [ -f /boot/grub/grub.cfg ]; then
+    grub-mkconfig -o /boot/grub/grub.cfg
+fi
+'''
+
+[[recipe]]
+name = "dkms-rebuild"
+category = "Maintenance"
+description = "Rebuild the kernel modules DKMS builds (e.g. NVIDIA's) for every kernel"
+admin = true
+requires = ["dkms"]
+run = '''
+for k in /usr/lib/modules/*/; do
+    v=$(basename "$k")
+    [ -d "$k/build" ] || continue
+    echo "== $v"
+    dkms autoinstall -k "$v"
+done
+dkms status
+'''
+
+[[recipe]]
+name = "unlock-pacman"
+category = "Maintenance"
+description = "Remove pacman's lock file left by an interrupted update"
+help = "Only when no pacman (or AUR helper, or software centre) is running: otherwise the lock is real."
+admin = true
+run = '''
+lock=/var/lib/pacman/db.lck
+if [ ! -e "$lock" ]; then
+    echo "pacman isn't locked."
+elif pgrep -x 'pacman|paru|yay|pamac|packagekitd' >/dev/null; then
+    echo "pacman is in use right now (by $(pgrep -lx 'pacman|paru|yay|pamac|packagekitd' | awk '{print $2}' | sort -u | tr '\n' ' ')): wait for it to finish."
+    exit 1
+else
+    rm -f -- "$lock"
+    echo "Lock removed."
+fi
+'''
+
+[[recipe]]
+name = "aur-rebuild"
+category = "Maintenance"
+description = "Rebuild AUR packages a library update broke"
+requires = ["checkrebuild"]
+run = '''
+pkgs=$(checkrebuild 2>/dev/null | awk '$1 == "foreign" { print $2 }')
+if [ -z "$pkgs" ]; then
+    echo "No AUR package needs a rebuild."
+    exit 0
+fi
+echo "To rebuild: $pkgs"
+if command -v paru >/dev/null; then
+    # shellcheck disable=SC2086
+    paru -S --rebuild $pkgs
+elif command -v yay >/dev/null; then
+    # shellcheck disable=SC2086
+    yay -S --rebuildtree $pkgs
+else
+    echo "No AUR helper (paru or yay) to rebuild them with."
+    exit 1
+fi
+'''

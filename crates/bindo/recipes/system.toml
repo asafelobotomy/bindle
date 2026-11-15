@@ -67,3 +67,52 @@ args = [
     { name = "lines", kind = "number", default = "100", help = "How many of the latest to show." },
 ]
 run = 'journalctl -b -u "$1" --no-pager -n "$2"'
+
+[[recipe]]
+name = "firmware-update"
+category = "System"
+description = "Update the firmware (BIOS, drives, docks) where makers publish it"
+help = "From the Linux Vendor Firmware Service (fwupd). Some updates install at the next restart; keep the computer plugged in."
+requires = ["fwupdmgr"]
+run = '''
+fwupdmgr refresh --force >/dev/null 2>&1 || true
+if ! fwupdmgr get-updates; then
+    echo "No firmware updates."
+    exit 0
+fi
+fwupdmgr update
+'''
+
+[[recipe]]
+name = "bios"
+category = "System"
+description = "Restart straight into the firmware setup (BIOS/UEFI settings)"
+confirm = "Restart into the firmware setup now? Save your work first."
+run = 'systemctl reboot --firmware-setup'
+
+[[recipe]]
+name = "changed-configs"
+category = "System"
+description = "List the system's config files changed from their package's version"
+help = "With a file, shows exactly what changed (a diff against the package's own copy in pacman's cache)."
+args = [{ name = "file", kind = "text", default = "list", help = "One of the files listed, to see its changes; `list` lists them." }]
+run = '''
+if [ "$1" = list ]; then
+    pacman -Qii 2>/dev/null | awk '/^Name/ { pkg = $3 } / \[modified\]$/ { printf "%-45s %s\n", $(NF - 1), pkg }'
+    echo
+    echo "See what changed in one: bindo changed-configs /etc/<file>"
+    exit 0
+fi
+owner=$(pacman -Qqo -- "$1" 2>/dev/null) || { echo "$1 isn't a package's file."; exit 1; }
+ver=$(pacman -Q "$owner" | cut -d' ' -f2)
+pkgfile=""
+for f in /var/cache/pacman/pkg/"$owner-$ver"-*.pkg.tar.*; do
+    case "$f" in *.sig) ;; *) [ -f "$f" ] && pkgfile=$f ;; esac
+done
+[ -n "$pkgfile" ] || { echo "$owner $ver isn't in pacman's cache to compare with."; exit 1; }
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+rel=${1#/}
+bsdtar -xf "$pkgfile" -C "$work" "$rel"
+diff -u --label "$1 ($owner's)" --label "$1 (now)" "$work/$rel" "$1" || true
+'''

@@ -1,0 +1,61 @@
+# bindo recipes: more Setup (apps and services Bindle's modules install, made ready to use).
+
+[[recipe]]
+name = "virtualization"
+category = "Setup"
+description = "Set up virtual machines (virt-manager), with you allowed to run them"
+requires = ["bindle"]
+run = '''
+command -v virt-manager >/dev/null || bindle apply --with virt-manager
+if ! id -nG | grep -qw libvirt; then
+    pkexec gpasswd -a "$(id -un)" libvirt
+    echo "Log out and back in to use virt-manager without a password."
+fi
+echo "Ready: open Virtual Machine Manager."
+'''
+
+[[recipe]]
+name = "distrobox"
+category = "Setup"
+description = "Make a container of another Linux (Ubuntu, Fedora…) to run its apps"
+help = "Its apps can be added to your menu from inside it (distrobox-export). Remove it with: distrobox rm <name>."
+requires = ["bindle"]
+args = [{ name = "distro", choices = ["ubuntu", "fedora", "debian", "arch", "opensuse"], default = "ubuntu" }]
+run = '''
+command -v distrobox >/dev/null || bindle apply --with distrobox
+case "$1" in
+    ubuntu) image=quay.io/toolbx/ubuntu-toolbox:latest ;;
+    fedora) image=registry.fedoraproject.org/fedora-toolbox:latest ;;
+    debian) image=quay.io/toolbx-images/debian-toolbox:latest ;;
+    arch) image=quay.io/toolbx/arch-toolbox:latest ;;
+    opensuse) image=registry.opensuse.org/opensuse/distrobox:latest ;;
+esac
+distrobox create --yes --name "$1" --image "$image"
+echo "Enter it with: distrobox enter $1"
+'''
+
+[[recipe]]
+name = "tailscale"
+category = "Setup"
+description = "Join your Tailscale network (a private network of your devices)"
+requires = ["bindle"]
+run = '''
+command -v tailscale >/dev/null || bindle apply --with tailscale
+pkexec systemctl enable --now tailscaled
+pkexec tailscale up --operator="$(id -un)"
+tailscale status
+'''
+
+[[recipe]]
+name = "input-group"
+category = "Setup"
+description = "Let game controllers and key-remapping tools read your input devices"
+help = "Adds you to the input group. Any program you run can then read the keyboard: only for tools that need it."
+admin = true
+confirm = "Add yourself to the input group?"
+run = '''
+uid=${PKEXEC_UID:-${SUDO_UID:-}}
+user=$(id -nu "$uid" 2>/dev/null) || { echo "Couldn't tell who asked."; exit 1; }
+gpasswd -a "$user" input
+echo "Done: log out and back in."
+'''
