@@ -6,12 +6,14 @@ use std::fs;
 
 use serde::Serialize;
 
-#[derive(Debug, Clone, Default, Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, Serialize, PartialEq)]
 pub struct Extras {
     /// A Wi-Fi device (`/sys/class/ieee80211/*`).
     pub wifi: bool,
     /// ISO country code from the timezone (`zone.tab`), e.g. "GB".
     pub country: Option<String>,
+    /// The timezone's city as (latitude, longitude), for night light.
+    pub location: Option<(f64, f64)>,
     /// PCI device ids of Intel GPUs.
     pub intel_devices: Vec<u16>,
 }
@@ -25,6 +27,24 @@ pub fn country(zone: &str, zone_tab: &str) -> Option<String> {
     })
 }
 
+/// A timezone's city as (latitude, longitude) from zone.tab's coordinates
+/// (`+DDMM+DDDMM` or `+DDMMSS+DDDMMSS`).
+pub fn location(zone: &str, zone_tab: &str) -> Option<(f64, f64)> {
+    let coords = zone_tab.lines().filter(|l| !l.starts_with('#')).find_map(|l| {
+        let f: Vec<&str> = l.split('\t').collect();
+        (f.get(2) == Some(&zone)).then(|| f.get(1).map(|c| c.to_string())).flatten()
+    })?;
+    let split = coords[1..].find(['+', '-'])? + 1;
+    let part = |s: &str, deg: usize| -> Option<f64> {
+        let sign = if s.starts_with('-') { -1.0 } else { 1.0 };
+        let d = &s[1..];
+        let num = |r: std::ops::Range<usize>| d.get(r).and_then(|x| x.parse::<f64>().ok());
+        let value = num(0..deg)? + num(deg..deg + 2)? / 60.0 + num(deg + 2..deg + 4).unwrap_or(0.0) / 3600.0;
+        Some(sign * value)
+    };
+    Some((part(&coords[..split], 2)?, part(&coords[split..], 3)?))
+}
+
 /// The zone /etc/localtime points at ("Europe/London").
 fn zone() -> Option<String> {
     let target = fs::read_link("/etc/localtime").ok()?;
@@ -36,8 +56,10 @@ impl Extras {
     pub fn detect(intel_devices: Vec<u16>) -> Self {
         let wifi = fs::read_dir("/sys/class/ieee80211").is_ok_and(|mut d| d.next().is_some());
         let zone_tab = fs::read_to_string("/usr/share/zoneinfo/zone.tab").unwrap_or_default();
-        let country = zone().and_then(|z| country(&z, &zone_tab));
-        Self { wifi, country, intel_devices }
+        let zone = zone();
+        let country = zone.as_deref().and_then(|z| country(z, &zone_tab));
+        let location = zone.as_deref().and_then(|z| location(z, &zone_tab));
+        Self { wifi, country, location, intel_devices }
     }
 }
 
@@ -59,6 +81,10 @@ mod tests {
         assert_eq!(country("Europe/London", tab).as_deref(), Some("GB"));
         assert_eq!(country("Europe/Berlin", tab).as_deref(), Some("DE"));
         assert_eq!(country("UTC", tab), None);
+        let (lat, lon) = location("Europe/London", tab).unwrap();
+        assert!((lat - 51.508).abs() < 0.01 && (lon + 0.125).abs() < 0.01, "{lat} {lon}");
+        let (lat, lon) = location("Europe/Berlin", tab).unwrap();
+        assert!((lat - 52.5).abs() < 0.01 && (lon - 13.367).abs() < 0.01, "{lat} {lon}");
     }
 
     #[test]

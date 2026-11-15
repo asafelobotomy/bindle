@@ -160,3 +160,40 @@ default = true
 when = ["bare-desktop", "nm"]
 packages = ["libnotify", "xdg-utils"]
 files = [{ path = "/etc/NetworkManager/dispatcher.d/90-bindle-portal", source = "captive-portal.sh", mode = 0o755 }]
+
+[[module]]
+id = "night-light"
+group = "Desktop basics"
+name = "Night light"
+description = "Warmer colours after sunset, at your timezone's location (no location service asked)."
+when = ["bare-desktop", "!desktop:uq", "!desktop:niri-dms"]
+builtin = "night-light"
+user_commands = [{ argv = ["systemctl", "--user", "enable", "bindle-night-light.service"], unless = [{ path = "~/.config/systemd/user/graphical-session.target.wants/bindle-night-light.service" }] }]
+
+[[module]]
+id = "firefox-privacy"
+group = "Desktop basics"
+name = "Firefox without telemetry"
+description = "Firefox stops sending usage data and joining studies (a system policy; it shows as \"managed by your organisation\")."
+requires = ["firefox"]
+files = [{ path = "/etc/firefox/policies/policies.json", content = '''
+{
+  "policies": {
+    "DisableTelemetry": true,
+    "DisableFirefoxStudies": true,
+    "DisablePocket": true
+  }
+}
+''' }]
+
+[[module]]
+id = "gpg-pinentry"
+group = "Desktop basics"
+name = "GnuPG passphrase in a window"
+description = "GnuPG (signing commits, encrypted files) asks for its passphrase in a window, so it works from apps as well as terminals."
+when = ["desktop", "installed:gnupg"]
+packages = ["pinentry"]
+user_commands = [
+  { argv = ["sh", "-c", 'mkdir -p -m 700 ~/.gnupg && echo "pinentry-program /usr/bin/pinentry-qt" >>~/.gnupg/gpg-agent.conf && gpgconf --kill gpg-agent'], when = ["toolkit:qt"], unless = [{ path = "~/.gnupg/gpg-agent.conf", contains = "pinentry-program" }] },
+  { argv = ["sh", "-c", 'mkdir -p -m 700 ~/.gnupg && echo "pinentry-program /usr/bin/pinentry-gnome3" >>~/.gnupg/gpg-agent.conf && gpgconf --kill gpg-agent'], when = ["!toolkit:qt"], unless = [{ path = "~/.gnupg/gpg-agent.conf", contains = "pinentry-program" }] },
+]

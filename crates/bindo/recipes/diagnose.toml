@@ -71,6 +71,12 @@ fi
 echo; echo "== Temperatures"
 sensors 2>/dev/null | grep -E '°C' || echo "sensors isn't installed: pacman -S lm_sensors"
 echo; echo "== Battery"
+if grep -q AuthenticAMD /proc/cpuinfo; then
+    echo; echo "== CPU power driver"
+    drv=$(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_driver 2>/dev/null)
+    echo "$drv"
+    [ "$drv" = acpi-cpufreq ] && echo "AMD's CPPC is off in the firmware: turn it on in the BIOS (bindo bios) for amd-pstate's better power and speed."
+fi
 bat=$(upower -e 2>/dev/null | grep -m1 BAT)
 if [ -n "$bat" ]; then
     upower -i "$bat" | grep -E 'state|percentage|capacity|energy-full'
@@ -132,4 +138,25 @@ echo; echo "== Vulkan"
 vulkaninfo --summary 2>/dev/null | grep -E 'deviceName|driverName' || echo "vulkaninfo isn't installed: pacman -S vulkan-tools"
 echo; echo "== Video decoding (VA-API)"
 vainfo 2>/dev/null | grep -E 'Driver version|VAProfile(H264|HEVC|VP9|AV1)' | head -n 8 || echo "vainfo isn't installed: pacman -S libva-utils"
+'''
+
+[[recipe]]
+name = "sleep-check"
+category = "Diagnose"
+description = "Check how the computer sleeps: the sleep mode, and what can wake it"
+help = "s2idle is the modern standby; deep is the older suspend to RAM, which drains less on some laptops. AMD laptops also get AMD's own s2idle check, when Python is there."
+run = '''
+set +e # only looking
+echo "Sleep modes (the one in [brackets] is used): $(cat /sys/power/mem_sleep 2>/dev/null)"
+echo
+echo "Devices that can wake it:"
+awk 'NR > 1 && $3 ~ /enabled/ { printf "  %s (%s)\n", $1, $4 }' /proc/acpi/wakeup 2>/dev/null
+echo
+echo "Last sleeps:"
+journalctl -b -o short --no-pager -q -g 'PM: suspend (entry|exit)' 2>/dev/null | tail -n 6
+if grep -q 'AuthenticAMD' /proc/cpuinfo && [ "$(cat /sys/class/dmi/id/chassis_type 2>/dev/null)" -ge 8 ] 2>/dev/null; then
+    echo
+    echo "AMD laptop: AMD's s2idle checker explains battery drain while asleep:"
+    echo "  curl -O https://gitlab.freedesktop.org/drm/amd/-/raw/master/scripts/amd_s2idle.py && run0 python amd_s2idle.py"
+fi
 '''

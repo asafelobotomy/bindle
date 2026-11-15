@@ -115,3 +115,27 @@ case "$1" in
         ls -la /var/lib/systemd/pstore 2>/dev/null || echo "No saved crash messages." ;;
 esac
 '''
+
+[[recipe]]
+name = "usbguard"
+category = "Security"
+description = "Block USB devices you haven't allowed (those in now are allowed)"
+help = "On: a rule list from the devices connected now; any other USB device is blocked until you allow it (usbguard list-devices, usbguard allow-device <n>). A new keyboard or dock is blocked too: plug those in before turning this on."
+admin = true
+args = [{ name = "state", choices = ["on", "off", "status"], default = "status" }]
+confirm = "Change which USB devices this computer accepts?"
+run = '''
+command -v usbguard >/dev/null || pacman -S --needed --noconfirm usbguard
+case "$1" in
+    on)
+        usbguard generate-policy >/etc/usbguard/rules.conf
+        chmod 600 /etc/usbguard/rules.conf
+        systemctl enable --now usbguard.service
+        echo "Only the USB devices connected now are allowed ($(grep -c '^allow' /etc/usbguard/rules.conf) of them)." ;;
+    off)
+        systemctl disable --now usbguard.service
+        echo "Every USB device is accepted again." ;;
+    status)
+        systemctl is-active usbguard.service >/dev/null 2>&1 && usbguard list-devices || echo "usbguard is off." ;;
+esac
+'''

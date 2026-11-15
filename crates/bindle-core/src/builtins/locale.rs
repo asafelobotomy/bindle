@@ -8,6 +8,30 @@ use crate::detect::Facts;
 
 pub const REGDOM_FILE: &str = "/etc/modprobe.d/bindle-regdom.conf";
 pub const CJK_FILE: &str = "/etc/fonts/conf.d/56-bindle-cjk.conf";
+pub const NIGHT_LIGHT_UNIT: &str = "/etc/systemd/user/bindle-night-light.service";
+
+/// Warmer colours after sunset (gammastep), for the timezone's city, so no
+/// location service is asked; without one, GeoClue finds it.
+pub(super) fn night_light(f: &Facts) -> Expansion {
+    let mut packages = vec!["gammastep".to_string()];
+    let place = match f.extras.location {
+        Some((lat, lon)) => format!("{lat:.1}:{lon:.1}"),
+        None => {
+            packages.push("geoclue".into());
+            "geoclue2".into()
+        }
+    };
+    let content = format!(
+        "# Managed by Bindle\n[Unit]\nDescription=Night light (gammastep)\nPartOf=graphical-session.target\n\
+         After=graphical-session.target\n\n[Service]\nExecStart=/usr/bin/gammastep -l {place}\nRestart=on-failure\n\n\
+         [Install]\nWantedBy=graphical-session.target\n"
+    );
+    Expansion {
+        packages,
+        files: vec![FileSpec { path: NIGHT_LIGHT_UNIT.into(), content, mode: 0o644 }],
+        ..Default::default()
+    }
+}
 
 /// Wi-Fi's regulatory domain: without a country the radio keeps to the
 /// "world" rules (fewer 5 and 6 GHz channels, lower power).
@@ -69,6 +93,17 @@ mod tests {
         f.extras.country = None;
         let e = regdom(&f);
         assert!(e.files.is_empty() && !e.notes.is_empty() && e.packages == ["wireless-regdb"]);
+    }
+
+    #[test]
+    fn night_light_where_the_timezone_is() {
+        let mut f = Facts::default();
+        f.extras.location = Some((51.508, -0.125));
+        let e = night_light(&f);
+        assert!(e.files[0].content.contains("ExecStart=/usr/bin/gammastep -l 51.5:-0.1\n"));
+        f.extras.location = None;
+        let e = night_light(&f);
+        assert!(e.files[0].content.contains("-l geoclue2") && e.packages.contains(&"geoclue".to_string()));
     }
 
     #[test]

@@ -242,3 +242,32 @@ description = "On desktops the sound chip stays powered, so there's no pop or cl
 default = true
 when = ["!laptop", "!virt", "desktop"]
 files = [{ path = "/etc/modprobe.d/bindle-audio.conf", content = "# Managed by Bindle\noptions snd_hda_intel power_save=0\n" }]
+
+# Multi-gen LRU's thrashing protection: when memory runs out, the kernel's
+# out-of-memory killer ends the biggest program within a second instead of
+# the whole desktop freezing while it swaps (ChromeOS does this).
+[[module]]
+id = "thrash-guard"
+group = "Memory & swap"
+name = "Don't freeze when memory runs out"
+description = "When memory is full, one program is closed at once instead of the whole desktop freezing for minutes."
+when = ["!virt"]
+risk = "moderate"
+files = [{ path = "/etc/tmpfiles.d/bindle-mglru.conf", content = "# Managed by Bindle\nw- /sys/kernel/mm/lru_gen/min_ttl_ms - - - - 1000\n" }]
+
+# noatime: reading a file no longer writes its access time, so snapshots
+# don't grow from files only read. The root's fstab line gets it.
+[[module]]
+id = "btrfs-noatime"
+group = "Disks"
+name = "Don't record when files are read (Btrfs)"
+description = "Reading a file stops writing to the disk: snapshots stay smaller and the SSD sees fewer writes."
+when = ["fs:btrfs"]
+risk = "moderate"
+root_commands = [{ argv = ["sh", "-ec", '''
+f=/etc/fstab
+awk 'BEGIN { OFS = "\t" } !/^[[:space:]]*#/ && $3 == "btrfs" && $4 !~ /(^|,)noatime(,|$)/ { gsub(/(^|,)(relatime|strictatime|atime)/, "", $4); sub(/^,/, "", $4); $4 = $4 (length($4) ? "," : "") "noatime" } { print }' "$f" >"$f.bindle"
+mv "$f.bindle" "$f"
+systemctl daemon-reload
+mount -o remount,noatime /
+'''], unless = [{ path = "/etc/fstab", contains = "noatime" }] }]

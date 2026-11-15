@@ -245,3 +245,42 @@ net.ipv6.conf.default.accept_redirects = 0
 net.ipv4.conf.all.send_redirects = 0
 net.ipv4.conf.default.send_redirects = 0
 ''' }]
+
+[[module]]
+id = "gentle-lockout"
+group = "Hardening & scans"
+name = "Gentler lockout after wrong passwords"
+description = "5 wrong passwords lock the account for 2 minutes, instead of 3 locking it for 10 (a common lock-screen annoyance)."
+risk = "moderate"
+root_commands = [{ argv = ["sh", "-ec", '''
+f=/etc/security/faillock.conf
+sed -i -E 's/^#? *deny *=.*/deny = 5/; s/^#? *unlock_time *=.*/unlock_time = 120/' "$f"
+grep -q '^deny = 5' "$f" || echo 'deny = 5' >>"$f"
+grep -q '^unlock_time = 120' "$f" || echo 'unlock_time = 120' >>"$f"
+'''], unless = [{ path = "/etc/security/faillock.conf", contains = "unlock_time = 120" }] }]
+
+[[module]]
+id = "wifi-mac-privacy"
+group = "Hardening & scans"
+name = "Hide your Wi-Fi address from networks"
+description = "Scans use random addresses and each Wi-Fi network sees its own fixed one, so you can't be tracked between networks."
+when = ["nm", "wifi"]
+risk = "moderate"
+files = [{ path = "/etc/NetworkManager/conf.d/50-bindle-mac.conf", content = "# Managed by Bindle\n[device]\nwifi.scan-rand-mac-address=yes\n\n[connection]\nwifi.cloned-mac-address=stable\n" }]
+notes = ["Networks that know your device by its address (a home router's reservations, some captive portals) will see a new one."]
+
+[[module]]
+id = "firejail"
+group = "Hardening & scans"
+name = "App sandboxing (firejail)"
+description = "Run an untrusted program in a sandbox: firejail <program>. Your app launchers stay as they are."
+risk = "moderate"
+packages = ["firejail"]
+
+[[module]]
+id = "auditd"
+group = "Hardening & scans"
+name = "Security audit log (auditd)"
+description = "Records security events (logins, permission changes, rule hits) in /var/log/audit, for servers and compliance."
+packages = ["audit"]
+enable = ["auditd.service"]

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Opt-in choices** (offered, never ticked by default): don't freeze when memory runs out (MGLRU thrashing protection); `noatime` on Btrfs; night light on window managers (gammastep at the timezone's location, no location service); Firefox without telemetry or studies (a system policy); GnuPG's passphrase in a window; a gentler lockout after wrong passwords (5 tries, 2 minutes); Wi-Fi address privacy (random while scanning, stable per network); firejail; auditd; real-time audio for music apps.
+- New bindo recipes: `sleep-check` (sleep mode, wake devices, recent sleeps, AMD's s2idle checker) and `usbguard` (allow only the USB devices plugged in now); `health` says when an AMD CPU runs without CPPC.
 - **Hardware Bindle now recognises** (it reads the maker and model, USB and PCI devices, monitors and the battery; each module applies only where found):
   - Thunderbolt docks approved (bolt); brightness for external monitors (ddcutil); the webcam of 2021+ Intel laptops (libcamera); security keys and smartcard readers; a bigger console font on high-resolution screens; more game controllers (game-devices-udev) and Xbox controllers over Bluetooth (xpadneo); temperature sensors on desktops.
   - ASUS ROG and TUF laptops (asusctl), 8th-generation ThinkPads' slow-down fix (throttled), Framework's light sensor and tools, Dell's settings tools; handheld gaming PCs (InputPlumber: ROG Ally, Legion Go, MSI Claw, Steam Deck); Huion and XP-Pen tablets (OpenTabletDriver); HP and Epson printer and scanner drivers.

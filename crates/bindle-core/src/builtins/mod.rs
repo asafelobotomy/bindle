@@ -24,6 +24,7 @@ pub const KNOWN: &[&str] = &[
     "gpu",
     "kernel-headers",
     "microcode",
+    "night-light",
     "nvidia-legacy",
     "regdom",
     "spellcheck",
@@ -49,6 +50,8 @@ pub const PACKAGES: &[&str] = &[
     "noto-fonts-cjk",
     "libva-intel-driver",
     "vpl-gpu-rt",
+    "gammastep",
+    "geoclue",
 ];
 pub use apps::PACKAGES as APP_PACKAGES;
 pub use gpu::PACKAGES as GPU_PACKAGES;
@@ -90,6 +93,7 @@ pub fn expand(name: &str, ctx: &Ctx) -> Expansion {
         "kernel-headers" => hardware::kernel_headers(ctx.facts),
         "charge-limit" => hardware::charge_limit(ctx.facts),
         "cjk-fonts" => locale::cjk_fonts(ctx.facts),
+        "night-light" => locale::night_light(ctx.facts),
         "zram" => zram(ctx.facts),
         other => match other.strip_prefix(drives::BUILTIN_PREFIX) {
             Some(key) => drives::expand(key, ctx.facts),
