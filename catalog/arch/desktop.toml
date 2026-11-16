@@ -191,6 +191,21 @@ when = ["everyday:qt"]
 user_commands = [{ argv = ["sh", "-c", 'command -v balooctl6 >/dev/null || exit 0; balooctl6 config set contentIndexing no'], unless = [{ path = "~/.config/baloofilerc", contains = "only basic indexing=true" }] }]
 notes = ["To search inside files again: `balooctl6 config set contentIndexing yes`."]
 
+# Dolphin writes its preview-plugin list to dolphinrc the first time previews
+# are configured, and only names the thumbnailers installed at that moment.
+# A thumbnailer installed later (video: ffmpegthumbs) is then never asked.
+# Dropping the list makes Dolphin use every installed thumbnailer again.
+[[module]]
+id = "dolphin-video-thumbnails"
+group = "Desktop basics"
+name = "Video thumbnails in Dolphin"
+description = "Dolphin shows thumbnails for videos, RAW photos, PDFs and Blender files, as it does on Plasma."
+default = true
+when = ["everyday:qt"]
+packages = ["ffmpegthumbs", "kdegraphics-thumbnailers"]
+user_commands = [{ argv = ["sh", "-c", 'command -v kwriteconfig6 >/dev/null || exit 0; kwriteconfig6 --file dolphinrc --group PreviewSettings --key Plugins --delete'], unless = [{ path = "~/.config/dolphinrc", contains = "ffmpegthumbs" }] }]
+notes = ["Close Dolphin before applying: it rewrites its settings when it quits.", "Preview sizes for remote and network folders stay as set in Dolphin's Configure > General > Previews."]
+
 [[module]]
 id = "spellcheck"
 group = "Desktop basics"
