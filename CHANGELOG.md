@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.1.11 — 2026-11-16
+
 - **`bindleupgrade` is now bindleUP, and the command is `bindleup`** (`bindle upgrade` still works). Nothing else about it changes. The old `/usr/local/bin/bindleupgrade` link is no longer installed or recognised; a daily-check timer made by `bindo update-notify on` points at the old path, so run `bindo update-notify on` again to rewrite it. The window is titled "bindleUP · System update".
 - **appOFholding 0.8.1** (was 0.5.0): updating apps from local files, dropped AppImages moved into the library by default, and readable radio buttons and check boxes in the Gruvbox themes.
 - **kyko is no longer offered** until it has a stable release: Bindle now pins only stable, CI-green tagged releases, and kyko has had previews only. What's new lists it as a clean-up; a kyko you already have stays installed.
