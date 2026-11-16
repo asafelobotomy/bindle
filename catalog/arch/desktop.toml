@@ -385,9 +385,9 @@ description = "Compact emoji palette with a global hotkey, favourites and text m
 packages = ["fuse2"]
 [[module.release]]
 repo = "asafelobotomy/emobie"
-tag = "v0.8.2"
-asset = "emobie_0.8.2_amd64.AppImage"
-sha256 = "3d36a1040d005545204bfe8475cf953292ced9389317950dac1e1892deab66c8"
+tag = "v0.9.1"
+asset = "emobie_0.9.1_amd64.AppImage"
+sha256 = "e7ac5db1a06f7e1953d8b67898f453c7ef60064c122a1e67fa361545ef4a332a"
 name = "emobie"
 
 [[module]]
@@ -398,7 +398,7 @@ description = "Adds AppImages to your application menu, keeps them up to date fr
 notes = ["Once it is in use, crumBS leaves the AppImages in ~/Applications to it."]
 [[module.release]]
 repo = "asafelobotomy/appofholding"
-tag = "v0.10.0"
-asset = "appofholding-0.10.0-1-x86_64.pkg.tar.zst"
-sha256 = "68a974b4f87872706cfbafff6fad50eae4fd35991e5a6fe6f25e1c8481dfce9a"
+tag = "v0.11.0"
+asset = "appofholding-0.11.0-1-x86_64.pkg.tar.zst"
+sha256 = "5312a900194382fceec9a34d98757e7818ac7899e8710d5cb68481891410faf9"
 name = "appofholding"

@@ -238,7 +238,7 @@ fn release_assets_are_planned_until_installed() {
     f.installed.insert("hauler".into());
     let entry = |path: &str| {
         (path == "/home/tester/.local/share/applications/bindle-emobie.desktop")
-            .then(|| "X-Bindle-Asset=emobie_0.8.2_amd64.AppImage\n".to_string())
+            .then(|| "X-Bindle-Asset=emobie_0.9.1_amd64.AppImage\n".to_string())
     };
     let p = resolve(&Catalog::arch().unwrap(), &f, &sel, &entry).unwrap();
     assert!(assets(&p).is_empty(), "{:?}", p.steps);
