@@ -1,4 +1,4 @@
-.PHONY: check test lint fmt run appimage appdir check-packages gui gui-test gui-shots
+.PHONY: check test lint fmt run appimage appdir check-packages check-pins gui gui-test gui-shots
 
 # The default workspace members: core, run, cli, bindo, upgrade. No Qt needed.
 check:
@@ -25,6 +25,10 @@ appimage:
 
 check-packages:
 	python3 scripts/check-packages.py
+
+# Pinned GitHub releases are stable and CI-green; lists newer ones (online).
+check-pins:
+	python3 scripts/check-pins.py
 
 # The desktop wizard: needs qt6-base, qt6-declarative and kirigami.
 gui:
