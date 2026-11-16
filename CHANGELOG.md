@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.10 — 2026-11-16
 
 - **Opt-in choices** (offered, never ticked by default): don't freeze when memory runs out (MGLRU thrashing protection); `noatime` on Btrfs; night light on window managers (gammastep at the timezone's location, no location service); Firefox without telemetry or studies (a system policy); hardware video decoding in Firefox on NVIDIA desktops (libva-nvidia-driver; it turns off Firefox's media sandbox); GnuPG's passphrase in a window; a gentler lockout after wrong passwords (5 tries, 2 minutes); Wi-Fi address privacy (random while scanning, stable per network); firejail; auditd; real-time audio for music apps.
 - New bindo recipes: `sleep-check` (sleep mode, wake devices, recent sleeps, AMD's s2idle checker) and `usbguard` (allow only the USB devices plugged in now); `health` says when an AMD CPU runs without CPPC.
@@ -19,8 +19,6 @@
   - `bindle rollback`: pick a snapper snapshot; it becomes the system from the next start, the current one kept aside (`bindo rollback-cleanup` deletes it later). The kernels on /boot follow the snapshot, so it starts with matching modules. Btrfs with snapper.
   - `bindle rebase`: the system as installed again, Bindle's setup included: reinstalls those packages, puts back removed ones, resets their changed config files (your copies kept; `--undo-config` puts them back), applies Bindle's setup again. Your home, your own packages and the machine's own settings stay.
   - `bindle restore`: Factory Restore. Downloads and checks the Arch ISO (or uses the one kept on the computer when offline), then restarts into Bindle's installer from it with this computer's disk picked; nothing is erased until the installer's last question. `--keep-image on` keeps a checked copy, which also adds "Roll back the system" to the boot menu for when the system won't start.
-
-## 0.1.10 — 2026-11-15
 
 - **Bazaar is the Flathub app store.** With Flatpak, Bindle now installs Bazaar on every desktop and makes it open Flathub's Install buttons and `.flatpakref` files. Flatseal (what each Flatpak app may reach) and Warehouse (manage installed Flatpaks: batch remove, clear data, roll back) come with it. Discover and GNOME Software can be picked on any desktop too (before: only on Plasma and GNOME), no longer pre-selected.
 - **Screenshots of an area on Print.** On Hyprland, Sway, niri, labwc, i3, bspwm, awesome and qtile, Print now lets you select part of the screen and opens it in satty to mark up: Enter saves it to Pictures/Screenshots, the copy button puts it on the clipboard too (`bindle-screenshot`: grim and slurp on Wayland, maim on X11). Bindle adds the binding to the window manager's own config between `BEGIN Bindle` and `END Bindle` lines, starting from the window manager's default config when there's none; on Hyprland it waits for the config Hyprland writes at its first start. `bindo screenshot-key-remove` takes it out again. Flameshot is no longer installed with i3, bspwm, awesome and qtile.
