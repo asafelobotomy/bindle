@@ -19,6 +19,11 @@ label = "Pick apps again"
 keywords = ["bindle", "install", "apps", "setup"]
 
 [[setting]]
+id = "open-bindaru"
+label = "Open bindaru (software store)"
+keywords = ["bindaru", "software", "store", "packages", "aur", "pacman", "install", "remove", "repositories"]
+
+[[setting]]
 id = "missing"
 label = "Check for missing pieces"
 keywords = ["bindle", "check", "repair"]

@@ -84,6 +84,17 @@ SettingsPage {
         page.loadWhatsNew();
     }
 
+    /// Opens another app of the family the way uQ's launcher does (no command runs), answering in
+    /// the row `key` if it isn't installed.
+    function openApp(key, desktopId, okText) {
+        if (!page.ctx)
+            return;
+        page.notes = Logic.withNote(page.notes, key, null);
+        page.ctx.openApp(desktopId, result => {
+            page.notes = Logic.withNote(page.notes, key, result && result.error !== undefined ? { message: "That app isn't installed yet. Add bindaru from Pick apps again.", failed: true } : { message: okText, failed: false });
+        });
+    }
+
     /// Runs one action (a command that changes something) for the row `key`, then `done(result)`
     /// unless the person cancelled. `okText` is shown when it worked and said nothing itself.
     function write(key, command, args, okText, done) {

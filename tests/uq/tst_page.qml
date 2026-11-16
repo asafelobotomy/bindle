@@ -163,6 +163,13 @@ Item {
             compare(ran("open").length, 1);
         }
 
+        function test_more_software_opens_bindaru_through_uq() {
+            root.find(root, i => i.objectName === "open-bindaru").clicked();
+            wait(100);
+            compare(fake.calls.filter(c => c[0] === "openApp").map(c => c[1]), ["io.github.asafelobotomy.bindaru.desktop"]);
+            hasText("bindaru is opening in its own window.");
+        }
+
         function test_an_unreadable_status_is_an_error_card_not_a_blank_page() {
             fake.commands = Object.assign({}, root.base, { status: { error: "exit 1: boom" } });
             loader.item.loadSetup();
