@@ -135,6 +135,8 @@ pub const VALUE_TAGS: &[(&str, Option<&[&str]>)] = &[
     ("session", Some(&["wayland", "x11", "tty"])),
     ("desktop", None),
     ("toolkit", Some(&["qt", "gtk", "other"])),
+    // `everyday:<set>`: which everyday apps a bare desktop gets (Dolphin's or Nautilus's).
+    ("everyday", Some(&["qt", "gtk"])),
     ("display", Some(&["wayland", "xorg"])),
     ("installer", Some(&["archinstall", "pacstrap"])),
     ("vendor", Some(devices::VENDORS)),
@@ -157,8 +159,9 @@ impl Facts {
             if d.essentials.iter().any(|p| p == "kdeconnect") {
                 desktop_tags.insert("kdeconnect".into());
             }
-            if d.everyday.is_some() {
+            if let Some(set) = &d.everyday {
                 desktop_tags.insert("bare-desktop".into());
+                desktop_tags.insert(format!("everyday:{set}"));
             }
         }
         let virt = hw::virt();

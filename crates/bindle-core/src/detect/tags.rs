@@ -63,6 +63,8 @@ pub fn label(tag: &str) -> String {
             "gtk" => "a GTK desktop (e.g. GNOME)".into(),
             _ => "a desktop that is neither Qt nor GTK".into(),
         },
+        "everyday" if value == "qt" => "KDE's everyday apps (uQ, Hyprland)".into(),
+        "everyday" => "GNOME's everyday apps (Sway, niri and other window managers)".into(),
         "desktop" => crate::desktops::all()
             .ok()
             .and_then(|d| crate::desktops::by_id(&d, value).map(|d| d.name.clone()))

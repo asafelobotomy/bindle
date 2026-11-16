@@ -30,6 +30,31 @@ default = true
 when = ["desktop:plasma"]
 packages = ["kwallet-pam"]
 
+# KDE apps (Dolphin's network folders, Kate) keep passwords in KDE Wallet.
+# pam_kwallet5 hands it the login password (the wallet is created from it on
+# first login). SDDM's PAM file already calls it, and uQ's login screen has
+# its own file (/etc/pam.d/uq-greetd, uQ's to change); greetd and ly get two
+# lines, force_run because greetd hasn't marked the session graphical yet.
+# Optional lines: a failure never blocks the login.
+[[module]]
+id = "kwallet-at-login-wm"
+group = "Desktop basics"
+name = "Unlock KDE Wallet at login (uQ, Hyprland)"
+description = "Passwords Dolphin saves for network folders unlock with your login, instead of KDE Wallet asking for its own."
+default = true
+when = ["everyday:qt", "!desktop:plasma"]
+risk = "moderate"
+packages = ["kwallet-pam"]
+root_commands = [{ argv = ["sh", "-ec", '''
+for f in /etc/pam.d/greetd /etc/pam.d/ly; do
+    [ -f "$f" ] || continue
+    grep -q 'pam_kwallet5.so' "$f" && continue
+    printf '%s\n' '# Managed by Bindle: unlock KDE Wallet with the login password' \
+        'auth       optional     pam_kwallet5.so' \
+        'session    optional     pam_kwallet5.so auto_start force_run' >>"$f"
+done
+'''] }]
+
 [[module]]
 id = "ssh-agent"
 group = "Desktop basics"

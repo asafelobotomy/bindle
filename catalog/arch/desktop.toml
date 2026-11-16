@@ -165,6 +165,32 @@ when = ["bare-desktop"]
 profiles = ["desktop", "gaming", "developer"]
 builtin = "everyday"
 
+# Window managers name no file manager, so whichever app last claimed
+# folders opens them (kitty, an editor). Skipped once you've chosen one.
+[[module]]
+id = "default-file-manager"
+group = "Desktop basics"
+name = "Folders open in the file manager"
+description = "Opening a folder from an app or a download shows it in Dolphin (or Files), not in whichever app claimed folders last."
+default = true
+when = ["bare-desktop"]
+user_commands = [
+  { argv = ["sh", "-c", '[ ! -f /usr/share/applications/org.kde.dolphin.desktop ] || xdg-mime default org.kde.dolphin.desktop inode/directory'], when = ["everyday:qt"], unless = [{ path = "~/.config/mimeapps.list", contains = "inode/directory=" }] },
+  { argv = ["sh", "-c", '[ ! -f /usr/share/applications/org.gnome.Nautilus.desktop ] || xdg-mime default org.gnome.Nautilus.desktop inode/directory'], when = ["everyday:gtk"], unless = [{ path = "~/.config/mimeapps.list", contains = "inode/directory=" }] },
+]
+
+# Baloo reads every file's text outside Plasma too, where no settings page
+# controls it. Plasma keeps full indexing.
+[[module]]
+id = "file-search-names"
+group = "Desktop basics"
+name = "File search by name only"
+description = "Dolphin's search finds files by name without reading every file's contents in the background (less disk and battery)."
+default = true
+when = ["everyday:qt"]
+user_commands = [{ argv = ["sh", "-c", 'command -v balooctl6 >/dev/null || exit 0; balooctl6 config set contentIndexing no'], unless = [{ path = "~/.config/baloofilerc", contains = "only basic indexing=true" }] }]
+notes = ["To search inside files again: `balooctl6 config set contentIndexing yes`."]
+
 [[module]]
 id = "spellcheck"
 group = "Desktop basics"

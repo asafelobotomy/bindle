@@ -15,6 +15,11 @@ pub const PACKAGES: &[&str] = &[
     "partitionmanager",
     "kdegraphics-thumbnailers",
     "ffmpegthumbs",
+    "kio-admin",
+    "kde-cli-tools",
+    "kimageformats",
+    "libappimage",
+    "usbmuxd",
     "nautilus",
     "file-roller",
     "loupe",
@@ -44,8 +49,24 @@ pub const PACKAGES: &[&str] = &[
 
 /// File manager, archives, image and PDF viewers, calculator and a disk tool,
 /// in the desktop's toolkit. KDE has no light system monitor, so Qt has none.
-const QT: &[&str] =
-    &["dolphin", "ark", "gwenview", "okular", "kcalc", "partitionmanager", "kdegraphics-thumbnailers", "ffmpegthumbs"];
+/// Dolphin's extras that Plasma would bring: "Open as administrator"
+/// (kio-admin), the file type editor (kde-cli-tools), AVIF/HEIF/JPEG XL and
+/// AppImage thumbnails, and iPhones (usbmuxd).
+const QT: &[&str] = &[
+    "dolphin",
+    "ark",
+    "gwenview",
+    "okular",
+    "kcalc",
+    "partitionmanager",
+    "kdegraphics-thumbnailers",
+    "ffmpegthumbs",
+    "kio-admin",
+    "kde-cli-tools",
+    "kimageformats",
+    "libappimage",
+    "usbmuxd",
+];
 const GTK: &[&str] = &[
     "nautilus",
     "file-roller",
