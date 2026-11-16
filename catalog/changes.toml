@@ -34,3 +34,53 @@ why = "Also new in Bindle 0.1.10: everyday defaults from the ArchWiki and other 
 id = "kyko"
 version = "0.1.11"
 why = "Bindle now installs only stable releases, and kyko has had preview releases only so far. It comes back once it has a stable one. A kyko you already have stays installed."
+
+[[retired]]
+id = "photocraft"
+version = "0.1.11"
+why = "Bindle now offers only stable releases, and the ArtCraft apps are still in alpha. They come back once they leave it. A copy you already have stays installed."
+
+[[retired]]
+id = "lightcraft"
+version = "0.1.11"
+why = "Bindle now offers only stable releases, and the ArtCraft apps are still in alpha. They come back once they leave it. A copy you already have stays installed."
+
+[[retired]]
+id = "filmcraft"
+version = "0.1.11"
+why = "Bindle now offers only stable releases, and the ArtCraft apps are still in alpha. They come back once they leave it. A copy you already have stays installed."
+
+[[retired]]
+id = "vectorcraft"
+version = "0.1.11"
+why = "Bindle now offers only stable releases, and the ArtCraft apps are still in alpha. They come back once they leave it. A copy you already have stays installed."
+
+[[retired]]
+id = "effectcraft"
+version = "0.1.11"
+why = "Bindle now offers only stable releases, and the ArtCraft apps are still in alpha. They come back once they leave it. A copy you already have stays installed."
+
+[[retired]]
+id = "designcraft"
+version = "0.1.11"
+why = "Bindle now offers only stable releases, and the ArtCraft apps are still in alpha. They come back once they leave it. A copy you already have stays installed."
+
+[[retired]]
+id = "pdfcraft"
+version = "0.1.11"
+why = "Bindle now offers only stable releases, and the ArtCraft apps are still in alpha. They come back once they leave it. A copy you already have stays installed."
+
+[[retired]]
+id = "wordcraft"
+version = "0.1.11"
+why = "Bindle now offers only stable releases, and the ArtCraft apps are still in alpha. They come back once they leave it. A copy you already have stays installed."
+
+[[retired]]
+id = "deckcraft"
+version = "0.1.11"
+why = "Bindle now offers only stable releases, and the ArtCraft apps are still in alpha. They come back once they leave it. A copy you already have stays installed."
+
+[[retired]]
+id = "gridcraft"
+version = "0.1.11"
+why = "Bindle now offers only stable releases, and the ArtCraft apps are still in alpha. They come back once they leave it. A copy you already have stays installed."

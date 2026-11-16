@@ -110,7 +110,8 @@ pre-release (beta, alpha, rc, dev), and only a tag whose commit passed every
 check. `make check-pins` (online, CI runs it) fails a pin that breaks this or
 whose asset digest differs from `sha256`, and lists newer releases that keep it;
 `python3 scripts/check-pins.py --bump` rewrites those pins in place. An app with
-no stable release yet stays out of the catalog until it has one.
+no stable release yet, or one that calls itself alpha, beta or a preview, stays
+out of the catalog until that changes.
 
 ## Command guards
 
@@ -231,7 +232,7 @@ their own, recommended or not.
 | Performance | zram, xzram, oomd, earlyoom, io-schedulers, scdr, scdr-sched-ext, scdr-devbox, scx-schedulers, kernel-zen, makepkg-parallel, makepkg-native, writeback, nmi-watchdog-off, audio-no-powersave, thrash-guard, btrfs-noatime |
 | Desktop & apps | desktop-essentials, uq, noti-fi, crumbs, uq-dev, fonts, nerd-fonts, codecs, archives, user-dirs, everyday-apps, default-file-manager, file-search-names, dolphin-video-thumbnails, copyq, screenshots, spellcheck, disk-formats, appimage, bash-completion, vpn-plugins, flatpak, flatpak-bazaar, flatseal, warehouse, flatpak-discover, flatpak-gnome-software, media-players, spotify, libreoffice, obsidian, marknote, xournalpp, text-editor, yakuake, emobie, appofholding, keyring-at-login, kwallet-at-login, kwallet-at-login-wm, ssh-agent, browser-video-decoding, flatpak-theme, uniform-theme, qt-follows-gtk, cjk-fonts, bash-extras, idle-lock-sway, idle-lock-niri, captive-portal, night-light, firefox-privacy, firefox-nvidia, gpg-pinentry |
 | Internet | firefox, chromium, brave, brave-origin, vivaldi, zen-browser, google-chrome, thunderbird, signal, telegram, element, proton-mail, proton-mail-bridge, proton-pass, proton-pass-cli, proton-vpn, proton-authenticator, proton-drive-cli, syncthing, nextcloud-client, tailscale, scale_tail, qbittorrent, qbittorrent-enhanced, qbit-plugin-dl, hauler, av-morning-star |
-| Creative | gimp, krita, inkscape, darktable, rawtherapee, digikam, kdenlive, handbrake, obs-studio, audacity, blender, photocraft, lightcraft, filmcraft, vectorcraft, effectcraft, designcraft, pdfcraft, wordcraft, deckcraft, gridcraft, realtime-audio |
+| Creative | gimp, krita, inkscape, darktable, rawtherapee, digikam, kdenlive, handbrake, obs-studio, audacity, blender, realtime-audio |
 | Development | rustup, python, nodejs, js-runtimes, go, c-cpp, java, dotnet, zig, mise, git-tools, jujutsu, cli-tools, neovim, helix, code-oss, vscodium, vscode, zed, ghostty, kitty, alacritty, fish, zsh, docker, podman, distrobox, virt-manager |
 | AI tools | claude-code, codex, gemini-cli, grok-build, copilot-cli, opencode, claude-desktop, cursor, ollama, ollama-cuda, ollama-rocm, lmstudio |
 | Gaming | steam, gamemode, mangohud, goverlay, gamescope, wine, protontricks, protonup-qt, lutris, heroic, bottles, discord, vesktop, lact, emulators, pcsx2, azahar, moonlight, prismlauncher, romforge, reshadelinux, ntsync, shader-cache |
