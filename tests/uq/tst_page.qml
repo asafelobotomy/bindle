@@ -23,7 +23,7 @@ Item {
         })
 
     readonly property var base: ({
-            status: { code: 0, output: { selection: "/home/u/.config/bindle/selection.toml", profile: "desktop", with: ["fstrim"], without: ["cups"], last_applied: 1760000000, missing: ["install package zram-generator"], error: null } },
+            status: { code: 0, output: { selection: "/home/u/.config/bindle/selection.toml", profile: "desktop", with: ["fstrim"], without: ["cups"], last_applied: 1760000000, missing: ["install package zram-generator", "sh -ec for f in /etc/pam.d/greetd; do\n  grep -q x $f\ndone"], groups: [{ kind: "packages", label: "Install 1 package", items: ["zram-generator"] }, { kind: "commands", label: "Run 1 setup command", items: ["Unlock KDE Wallet at login"] }], error: null } },
             "whats-new": { code: 0, output: { version: "0.1.12", since: "0.1.11", recorded: true, items: [
                         { id: "zram", name: "zram swap", kind: "updated", why: "changed since it was set up", ticked: true, changes: [{ text: "~ changes /etc/systemd/zram-generator.conf" }] },
                         { id: "kyko", name: "kyko", kind: "optional", why: "new", ticked: false, changes: [] }
@@ -144,8 +144,16 @@ Item {
             hasText("Profile: desktop");
             hasText("Added to the profile: fstrim");
             hasText("Taken out of the profile: cups");
-            hasText("1 step would run again");
+            hasText("2 steps would run again");
+            hasText("Install 1 package");
+            hasText("zram-generator");
+            hasText("Run 1 setup command");
+            hasText("Unlock KDE Wallet at login");
+            // The raw steps stay out of sight until asked for, and a script shows as its first line.
+            lacksText("• install package zram-generator");
+            root.button("Show every step").clicked();
             hasText("• install package zram-generator");
+            hasText("• sh -ec for f in /etc/pam.d/greetd; do …");
         }
 
         function test_pick_apps_opens_the_window() {

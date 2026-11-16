@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **The Bindle page's Setup tab sums up what is missing** instead of listing every step: "Install 82 packages", "Write 23 settings files", "Turn on 10 services and timers", "Run 16 setup commands", each with the names under it. "Show every step" opens the full list, and a script shows as its first line. `bindle status --json` gained a `groups` list for it.
+
 ## 0.1.12 — 2026-11-16
 
 - **uQ Settings' Bindle page is rebuilt** (needs uQ 0.3.0 or later; `sudo bindle first-login install` writes the new files): five tabs. **Setup** (the profile and what is missing, Pick apps again), **Updates** (bindleUP: what each stage would do, Update now with progress and a preview first, or one stage alone), **What's new** (apply what Bindle ticks, with a preview), **History** (what Bindle changed, Undo with a preview) and **Preferences** (every bindleUP setting, the daily check, per-app update sources).

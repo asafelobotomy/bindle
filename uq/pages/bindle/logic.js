@@ -114,12 +114,29 @@ function when(secs) {
     return new Date(secs * 1000).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
 }
 
-/// `bindle status --json` as {has, profile, lastApplied, with, without, missing, error, problem}.
+/// A step that runs a script reads as its first line; the rest is the script's body.
+function firstLine(text) {
+    const lines = text.split("\n");
+    return lines.length > 1 ? lines[0].replace(/[\s;\\]+$/, "") + " …" : text;
+}
+
+/// What the missing steps amount to: [{kind, label, detail}], `detail` the first names of its items.
+function groupsOf(v) {
+    if (!Array.isArray(v))
+        return [];
+    return v.slice(0, 12).filter(g => g && typeof g === "object" && typeof g.label === "string").map(g => {
+        const items = Array.isArray(g.items) ? g.items.filter(x => typeof x === "string") : [];
+        const shown = items.slice(0, 8).join(", ");
+        return { kind: str(g.kind, "other"), label: cut(g.label, 80), detail: items.length > 8 ? shown + " and " + (items.length - 8) + " more" : shown };
+    });
+}
+
+/// `bindle status --json` as {has, profile, lastApplied, with, without, missing, groups, error, problem}.
 function setupView(result) {
     const p = problemOf(result, "this system's setup");
     if (p === null)
         return null;
-    const none = { has: false, profile: "", lastApplied: 0, with: [], without: [], missing: [], error: "", problem: p };
+    const none = { has: false, profile: "", lastApplied: 0, with: [], without: [], missing: [], groups: [], error: "", problem: p };
     const o = result && result.output;
     if (p !== "" || !o || typeof o !== "object")
         return p !== "" ? none : Object.assign(none, { problem: "bindle gave a status this page doesn't understand." });
@@ -130,7 +147,8 @@ function setupView(result) {
         lastApplied: num(o.last_applied, 0),
         with: list(o.with),
         without: list(o.without),
-        missing: list(o.missing),
+        missing: list(o.missing).map(firstLine),
+        groups: groupsOf(o.groups),
         error: str(o.error, "", MESSAGE_LIMIT),
         problem: ""
     };
