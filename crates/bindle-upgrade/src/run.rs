@@ -168,7 +168,7 @@ impl Exec<'_> {
         match stage {
             Stage::Pacman => {
                 if self.opts.tty.is_none() || self.opts.yes {
-                    self.ui.line("pacman may have needed an answer: run bindleupgrade in a terminal, without --yes.");
+                    self.ui.line("pacman may have needed an answer: run bindleup in a terminal, without --yes.");
                 }
                 self.block(&[Stage::Aur, Stage::Releases], "the system upgrade failed; fix that first")
             }

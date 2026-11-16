@@ -39,7 +39,7 @@ pub fn conf(text: &str) -> Result<()> {
     }
 }
 
-/// The names of the files in /boot (no contents), for bindleupgrade's check
+/// The names of the files in /boot (no contents), for bindleup's check
 /// that every kernel has its boot images.
 pub fn boot_files(root: &Path) -> Result<Vec<String>> {
     let mut names: Vec<String> =

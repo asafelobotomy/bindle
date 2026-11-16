@@ -1,19 +1,19 @@
-# bindleupgrade: update everything in one run
+# bindleUP: update everything in one run
 
 ```bash
-bindleupgrade                 # guided: shows each stage, asks before the big ones
-bindleupgrade --check         # report what is available; change nothing, no password
-bindleupgrade --check --json  # the same plan as JSON
-bindleupgrade --yes           # unattended
-bindleupgrade --skip aur,flatpak
-bindleupgrade --only pacman
-bindleupgrade -n              # print every command, run none
-bindleupgrade --prefs         # the preferences in effect, as a file to save
+bindleup                 # guided: shows each stage, asks before the big ones
+bindleup --check         # report what is available; change nothing, no password
+bindleup --check --json  # the same plan as JSON
+bindleup --yes           # unattended
+bindleup --skip aur,flatpak
+bindleup --only pacman
+bindleup -n              # print every command, run none
+bindleup --prefs         # the preferences in effect, as a file to save
 bindo upgrade-prefs           # edit ~/.config/bindle/upgrade.toml
 bindo update                  # the same, from bindo
 ```
 
-Also `bindle upgrade`. `bindleupgrade` is a link to the `bindle` binary
+Also `bindle upgrade`. `bindleup` is a link to the `bindle` binary
 (see [BINDO.md](BINDO.md#one-binary-three-names)).
 
 ## Stages
@@ -48,7 +48,7 @@ held or failed. Exit status 1 when a stage failed.
 
 `/etc/bindle/upgrade.toml` (the system's), then `~/.config/bindle/upgrade.toml`
 (yours); each value comes from the last file that sets it. A broken file is
-skipped with a warning. `bindleupgrade --prefs` prints the values in effect
+skipped with a warning. `bindleup --prefs` prints the values in effect
 as a file; `bindo upgrade-prefs` writes yours from that and opens it.
 
 ```toml
@@ -89,11 +89,11 @@ the others are listed as kept, with the line that would switch them. With
 
 ## Checks in the background
 
-`bindo update-notify on` installs a user timer (`~/.config/systemd/user/bindle-update-check.timer`: daily and 15 minutes after login) that runs `bindleupgrade --check --notify`. When there is work, a notification (through the desktop's notification server: on uQ, noti-fi) lists it with Update and Later; Update opens `bindleupgrade --gui`, or bindleupgrade in a terminal where the window can't start. `bindo update-notify off` removes the timer.
+`bindo update-notify on` installs a user timer (`~/.config/systemd/user/bindle-update-check.timer`: daily and 15 minutes after login) that runs `bindleup --check --notify`. When there is work, a notification (through the desktop's notification server: on uQ, noti-fi) lists it with Update and Later; Update opens `bindleup --gui`, or bindleup in a terminal where the window can't start. `bindo update-notify off` removes the timer.
 
 ## The window
 
-`bindleupgrade --gui` opens the same run in Bindle's desktop look
+`bindleup --gui` opens the same run in Bindle's desktop look
 (`bindle-gui --upgrade`, see [GUI.md](GUI.md#the-update-window)): a Check page
 with a switch per stage, then the run and a result table with Restart, the
 AUR in a terminal, and the log. `-n` and `--sandbox` work there too.
@@ -102,7 +102,7 @@ AUR in a terminal, and the log. `-n` and `--sandbox` work there too.
 
 ### Its own command, built like `bindle apply`
 
-`bindleupgrade` is a `bindle` subcommand with its own name, not a bindo
+`bindleup` is a `bindle` subcommand with its own name, not a bindo
 recipe: it needs a pure plan, typed stages, a result table and the root
 helper, which a shell recipe can't give cleanly. bindo's `update` recipe
 calls it.

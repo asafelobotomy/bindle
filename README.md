@@ -31,7 +31,7 @@ The AppImage, for an existing install, is on the
 
 **Status:** 0.1.10, hardening (Phase 1.5). The live-ISO installer, detection,
 planning, apply (with snapshots and undo), first-login autostart, the desktop
-window, bindo, bindleupgrade and What's new work. Installs and applies are
+window, bindo, bindleup and What's new work. Installs and applies are
 verified in VMs for every archinstall desktop through `bindle iso`
 ([docs/VM-TEST.md](docs/VM-TEST.md)); not yet on physical hardware. Arch Linux
 and derivatives only. See [docs/ROADMAP.md](docs/ROADMAP.md).
@@ -47,7 +47,7 @@ cargo run -p bindle-cli -- undo --list
 cargo run -p bindle-cli -- status     # what Bindle last set up here, and what is missing
 cargo run -p bindle-cli -- whats-new --list   # what this Bindle adds or changes since the last apply
 cargo run -p bindle-cli -- bindo      # recipes: named system tasks (also `bindo`)
-cargo run -p bindle-cli -- upgrade --check    # update everything (also `bindleupgrade`)
+cargo run -p bindle-cli -- upgrade --check    # update everything (also `bindleup`)
 cargo run -p bindle-cli -- install --dry-run  # the live-ISO installer (on the ISO: `bindle install`)
 run0 ./target/debug/bindle first-login install         # open on each user's first login
 make gui                                               # bindle-gui, the desktop window (needs Qt 6 and Kirigami)
@@ -75,7 +75,7 @@ without it, run `./Bindle-*.AppImage --appimage-extract-and-run`.
 - [Applying changes, snapshots and undo](docs/APPLY.md)
 - [The desktop window](docs/GUI.md)
 - [bindo: recipes](docs/BINDO.md)
-- [bindleupgrade: updating everything](docs/UPGRADE.md)
+- [bindleup: updating everything](docs/UPGRADE.md)
 - [What's new after upgrading Bindle](docs/UPGRADE-PATH.md)
 - [End-to-end VM test](docs/VM-TEST.md)
 - [Catalog format](docs/CATALOG.md)

@@ -1,4 +1,4 @@
-//! What bindleupgrade prints: the `--check` report and the closing table.
+//! What bindleup prints: the `--check` report and the closing table.
 
 use crate::plan::{StagePlan, Todo};
 use crate::run::{Outcome, StageResult};
@@ -44,7 +44,7 @@ pub fn check(plans: &[StagePlan]) -> Vec<String> {
     out.push(String::new());
     out.push(match todo {
         0 => "Nothing to update.".into(),
-        n => format!("{n} stage(s) have work to do. Run `bindleupgrade` to do it."),
+        n => format!("{n} stage(s) have work to do. Run `bindleup` to do it."),
     });
     out
 }
@@ -87,7 +87,7 @@ mod tests {
         let lines = check(&plan(&p, &Options::default()));
         assert!(lines.iter().any(|l| l.starts_with("→ Packages") && l.ends_with("20 packages to upgrade")));
         assert!(lines.contains(&"    … and 8 more".to_string()));
-        assert_eq!(lines.last().unwrap(), "1 stage(s) have work to do. Run `bindleupgrade` to do it.");
+        assert_eq!(lines.last().unwrap(), "1 stage(s) have work to do. Run `bindleup` to do it.");
         assert_eq!(lines.iter().filter(|l| !l.starts_with("    ") && !l.is_empty()).count(), Stage::ALL.len() + 1);
     }
 
