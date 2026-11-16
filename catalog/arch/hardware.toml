@@ -121,6 +121,27 @@ description = "Fingerprint reader support. Enrol with `fprintd-enroll`; GNOME an
 when = ["fingerprint-reader", "!virt"]
 packages = ["fprintd"]
 
+# pam_fprintd before the password in sudo's and polkit's PAM files (polkit's
+# copied from /usr/lib/pam.d first, as /etc/pam.d overrides it). It gives up
+# after 10 seconds or two misses, and skips remote (SSH) logins.
+[[module]]
+id = "fingerprint-sudo"
+group = "Laptop & power"
+name = "Fingerprint for sudo and admin prompts"
+description = "Touch the reader instead of typing your password for sudo, run0 and admin windows; the password still works."
+when = ["fingerprint-reader", "!virt"]
+risk = "moderate"
+requires = ["fingerprint"]
+root_commands = [{ argv = ["sh", "-ec", '''
+if [ ! -f /etc/pam.d/polkit-1 ] && [ -f /usr/lib/pam.d/polkit-1 ]; then cp /usr/lib/pam.d/polkit-1 /etc/pam.d/polkit-1; fi
+for f in /etc/pam.d/sudo /etc/pam.d/polkit-1; do
+    [ -f "$f" ] || continue
+    grep -q 'pam_fprintd.so' "$f" && continue
+    sed -i '0,/^auth/s//# Managed by Bindle: fingerprint first, then the password\nauth       sufficient   pam_fprintd.so max-tries=2 timeout=10\n&/' "$f"
+done
+'''], unless = [{ path = "/etc/pam.d/sudo", contains = "pam_fprintd.so" }] }]
+notes = ["Enrol a finger first (`fprintd-enroll`, or your desktop's settings). /etc/pam.d/polkit-1 is now a copy, so it no longer follows polkit's updates."]
+
 [[module]]
 id = "printing"
 group = "Printing & scanning"

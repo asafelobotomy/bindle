@@ -12,6 +12,16 @@ when = ["thunderbolt"]
 packages = ["bolt"]
 
 [[module]]
+id = "thunderbolt-plasma"
+group = "Peripherals"
+name = "Thunderbolt in Plasma's settings"
+description = "Approve and forget Thunderbolt devices from Plasma's System Settings."
+default = true
+when = ["thunderbolt", "desktop:plasma"]
+requires = ["thunderbolt"]
+packages = ["plasma-thunderbolt"]
+
+[[module]]
 id = "monitor-brightness"
 group = "Graphics & sound"
 name = "Brightness for external monitors"
@@ -118,6 +128,7 @@ description = "The ambient light sensor for automatic brightness, and framework_
 default = true
 when = ["vendor:framework"]
 packages = ["iio-sensor-proxy", "framework-system"]
+notes = ["On AMD models, if the screen flickers: add `amdgpu.dcdebugmask=0x10` to the kernel parameters (turns off panel self-refresh)."]
 
 [[module]]
 id = "dell-smbios"
@@ -146,6 +157,18 @@ default = true
 when = ["!laptop", "!virt", "desktop"]
 packages = ["lm_sensors"]
 notes = ["Some boards need a driver loaded first: run `run0 sensors-detect` once if `sensors` shows little."]
+
+[[module]]
+id = "coolercontrol"
+group = "Graphics & sound"
+name = "Fan control (CoolerControl)"
+description = "Set fan curves for the CPU, case and graphics card from temperatures, in a settings app."
+when = ["!laptop", "!virt", "desktop"]
+risk = "moderate"
+requires = ["sensors"]
+packages = ["coolercontrol"]
+enable = ["coolercontrold.service"]
+notes = ["Fans the motherboard's driver doesn't expose can't be controlled; `run0 sensors-detect` may find more."]
 
 [[module]]
 id = "pen-tablet"
