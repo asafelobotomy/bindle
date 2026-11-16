@@ -60,7 +60,9 @@ pub fn group_steps(catalog: &Catalog, steps: &[Step]) -> Vec<Group> {
     };
     for step in steps {
         match step {
-            Step::InstallPackages { packages: p } | Step::InstallAur { packages: p } => packages.extend(p.iter().cloned()),
+            Step::InstallPackages { packages: p } | Step::InstallAur { packages: p } => {
+                packages.extend(p.iter().cloned())
+            }
             Step::BootstrapAurHelper { package } => packages.push(package.clone()),
             Step::InstallReleases { assets } => packages.extend(assets.iter().map(|a| a.name.clone())),
             Step::WriteFile { module: m, .. } => {
@@ -93,16 +95,32 @@ pub fn group_steps(catalog: &Catalog, steps: &[Step]) -> Vec<Group> {
     packages.dedup();
     let mut out = vec![];
     if !packages.is_empty() {
-        out.push(Group { kind: "packages", label: format!("Install {}", plural(packages.len(), "package", "packages")), items: packages });
+        out.push(Group {
+            kind: "packages",
+            label: format!("Install {}", plural(packages.len(), "package", "packages")),
+            items: packages,
+        });
     }
     if file_count > 0 {
-        out.push(Group { kind: "files", label: format!("Write {}", plural(file_count, "settings file", "settings files")), items: files });
+        out.push(Group {
+            kind: "files",
+            label: format!("Write {}", plural(file_count, "settings file", "settings files")),
+            items: files,
+        });
     }
     if unit_count > 0 {
-        out.push(Group { kind: "services", label: format!("Turn on {}", plural(unit_count, "service or timer", "services and timers")), items: units });
+        out.push(Group {
+            kind: "services",
+            label: format!("Turn on {}", plural(unit_count, "service or timer", "services and timers")),
+            items: units,
+        });
     }
     if command_count > 0 {
-        out.push(Group { kind: "commands", label: format!("Run {}", plural(command_count, "setup command", "setup commands")), items: commands });
+        out.push(Group {
+            kind: "commands",
+            label: format!("Run {}", plural(command_count, "setup command", "setup commands")),
+            items: commands,
+        });
     }
     if other_count > 0 {
         out.push(Group { kind: "other", label: plural(other_count, "other change", "other changes"), items: other });
