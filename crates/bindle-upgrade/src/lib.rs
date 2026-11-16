@@ -18,6 +18,8 @@ pub mod news;
 pub mod parse;
 pub mod plan;
 pub mod prefs;
+pub mod prefs_cfg;
+pub mod preview;
 pub mod probe;
 pub mod releases;
 pub mod report;

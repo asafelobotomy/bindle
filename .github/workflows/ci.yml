@@ -57,6 +57,41 @@ jobs:
           test -f dist/shots/applied/6-applied.png
           test -f dist/shots/applied/6b-applied-details.png
 
+  uq:
+    # uQ Settings' Bindle page (uq/): its QML tests with a fake uQ context, its Node tests, and
+    # uqctl's own check of the uq/ folder.
+    runs-on: ubuntu-24.04
+    env:
+      # The uQ release whose `uqctl` and settings page test kit this repo follows (uq_api 3).
+      UQ_TAG: v0.3.0
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install Qt Quick and qmltestrunner
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qt6-declarative-dev-tools qml6-module-qtquick \
+            qml6-module-qtquick-layouts qml6-module-qtquick-controls qml6-module-qttest qml6-module-qtqml-workerscript \
+            qml6-module-qtquick-window qml6-module-qtquick-templates
+      - name: Settings page
+        run: QT_QPA_PLATFORM=offscreen /usr/lib/qt6/bin/qmltestrunner -import tests/uq/stub -input tests/uq/tst_page.qml
+      - name: Page logic and manifest
+        run: node --test 'tests/uq/*.test.mjs'
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: stable
+      - name: Cache uqctl
+        id: uqctl
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.uq
+          key: uqctl-${{ env.UQ_TAG }}
+      - name: Build uqctl
+        if: steps.uqctl.outputs.cache-hit != 'true'
+        run: cargo install --locked --git https://github.com/asafelobotomy/uq --tag "$UQ_TAG" uqctl --root "$HOME/.uq"
+      # `--no-programs` skips only the "program exists" check: bindle isn't installed here.
+      - name: uQ integration check
+        run: ~/.uq/bin/uqctl integrations check --no-programs uq/
+
   msrv:
     # rust-version in Cargo.toml is a promise; build with exactly that toolchain.
     runs-on: ubuntu-latest

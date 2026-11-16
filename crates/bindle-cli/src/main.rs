@@ -2,6 +2,7 @@ mod apply;
 mod archinstall_version;
 mod bindo_cmd;
 mod carry_network;
+mod config_cmd;
 mod firstlogin;
 mod firstlogin_cmd;
 mod gui;
@@ -15,11 +16,14 @@ mod polkit_agent;
 mod print;
 mod recover_cmd;
 
+mod sel_args;
 mod session;
 mod status;
 mod terminal;
 mod tui;
+mod undo_json;
 mod upgrade_cmd;
+mod upgrade_stream;
 mod uq_handoff;
 mod welcome;
 mod whatsnew_cmd;
@@ -30,8 +34,9 @@ use std::path::PathBuf;
 use anyhow::{Result, bail};
 use bindle_core::{Catalog, Facts, Selection, plan};
 use bindle_run::selection;
-use clap::{Args, Parser, Subcommand};
+use clap::{Parser, Subcommand};
 use firstlogin_cmd::FirstLoginCmd;
+use sel_args::SelArgs;
 
 #[derive(Parser)]
 #[command(name = "bindle", version, about = "Pack your fresh Linux install for the road.")]
@@ -102,6 +107,12 @@ enum Cmd {
         /// Also put back files changed since Bindle wrote them.
         #[arg(long)]
         force: bool,
+        /// JSON: the snapshots (--list), or the plan of an undo (--dry-run).
+        #[arg(long)]
+        json: bool,
+        /// With --json: what undoing would do; change nothing.
+        #[arg(long, short = 'n')]
+        dry_run: bool,
         #[arg(long, hide = true)]
         sandbox: Option<PathBuf>,
     },
@@ -117,6 +128,11 @@ enum Cmd {
     /// Flatpak, firmware, Bindle's apps, then leftovers and reboot.
     #[command(visible_alias = "bindleup")]
     Upgrade(upgrade_cmd::UpgradeArgs),
+    /// bindleup's preferences and daily update check.
+    Config {
+        #[command(subcommand)]
+        cmd: config_cmd::ConfigCmd,
+    },
     #[command(flatten)]
     Recover(recover_cmd::RecoverCmd),
     /// Open Bindle automatically on each user's first login.
@@ -217,40 +233,6 @@ enum Cmd {
     },
 }
 
-#[derive(Args)]
-struct SelArgs {
-    /// Start from a profile: minimal, desktop, gaming, developer.
-    #[arg(long, short)]
-    profile: Option<String>,
-    /// Add a module (repeatable).
-    #[arg(long = "with", value_name = "MODULE")]
-    include: Vec<String>,
-    /// Remove a module (repeatable).
-    #[arg(long = "without", value_name = "MODULE")]
-    exclude: Vec<String>,
-    /// Start from a saved selection file (see ~/.config/bindle/selection.toml).
-    #[arg(long, value_name = "FILE")]
-    from: Option<PathBuf>,
-    /// Remove installed packages a chosen module conflicts with (e.g. rust for
-    /// rustup). Interactive runs do this after you confirm; with --yes,
-    /// conflicting modules are skipped unless this is given.
-    #[arg(long)]
-    replace_conflicts: bool,
-}
-
-impl SelArgs {
-    fn resolve(self) -> Result<Selection> {
-        let cli =
-            Selection { profile: self.profile, include: self.include, exclude: self.exclude, ..Default::default() };
-        let mut sel = match self.from {
-            Some(path) => selection::merge(selection::load(&path)?, cli),
-            None => cli,
-        };
-        sel.replace_conflicts = self.replace_conflicts;
-        Ok(sel)
-    }
-}
-
 pub(crate) use apply::wizard;
 use apply::{SYSTEM_SELECTION, apply_selection, read_current};
 
@@ -272,11 +254,12 @@ fn main() -> Result<()> {
         Cmd::FirstLogin { action } if !matches!(action, FirstLoginCmd::Run { .. }) => {
             return firstlogin_cmd::dispatch(action);
         }
-        Cmd::Undo { id, list, yes, force, sandbox } => {
-            return apply::undo(id, list, force, &apply::Options { yes, sandbox, ..Default::default() });
+        Cmd::Undo { id, list, yes, force, json, dry_run, sandbox } => {
+            return undo_json::cmd(id, list, yes, force, json, dry_run, sandbox);
         }
         Cmd::Bindo { args } => return bindo_cmd::main(args),
         Cmd::Upgrade(args) => return upgrade_cmd::main(args),
+        Cmd::Config { cmd } => return config_cmd::main(cmd),
         Cmd::Recover(cmd) => return recover_cmd::main(cmd),
         _ => {}
     }
@@ -377,6 +360,7 @@ fn main() -> Result<()> {
         | Cmd::Undo { .. }
         | Cmd::Bindo { .. }
         | Cmd::Upgrade(_)
+        | Cmd::Config { .. }
         | Cmd::Recover(_)
         | Cmd::FirstLogin { .. } => {
             unreachable!("handled above")

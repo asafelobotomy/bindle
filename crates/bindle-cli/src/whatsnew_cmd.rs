@@ -18,9 +18,13 @@ use crate::tui;
 
 #[derive(Args, Debug, Default)]
 pub struct WhatsNewArgs {
-    /// Print what's new as JSON; change nothing.
+    /// Print what's new as JSON; change nothing. With --dry-run: what
+    /// applying the ticked items would do, as one plan document.
     #[arg(long)]
     json: bool,
+    /// With --json: the plan of applying the ticked items (uQ Settings' confirmation sheet).
+    #[arg(long, short = 'n', requires = "json")]
+    dry_run: bool,
     /// Apply the ticked items (new and updated modules) without asking.
     #[arg(long, short)]
     yes: bool,
@@ -63,12 +67,48 @@ pub fn lines(wn: &WhatsNew) -> Vec<String> {
     out
 }
 
+/// What applying the ticked items would do, one change per item and per
+/// thing it changes. Clean-ups of retired modules can't be put back.
+fn plan_document(wn: &WhatsNew) -> bindle_core::preview::PlanDoc {
+    let mut d = bindle_core::preview::PlanDoc::default();
+    for i in wn.items.iter().filter(|i| i.ticked) {
+        let group = tui::whatsnew::GROUPS.iter().find(|(k, _)| *k == i.kind).map_or("Changes", |(_, t)| t);
+        let rev = if matches!(i.kind, Kind::Retired | Kind::Removed) { Some(false) } else { Some(true) };
+        if i.changes.is_empty() {
+            d.change(group, i.name.clone(), i.why.clone(), rev);
+        }
+        for c in &i.changes {
+            d.change(group, format!("{}: {}", i.name, c.text), i.why.clone(), rev);
+        }
+    }
+    d.summary = match d.changes.len() {
+        0 => "Nothing ticked".to_string(),
+        n => format!("{n} change(s), with a snapshot first (bindle undo reverts them)"),
+    };
+    if d.changes.is_empty() {
+        return d.refuse("Nothing in What's new is ticked.");
+    }
+    d
+}
+
 pub fn run(catalog: &Catalog, facts: &Facts, a: WhatsNewArgs) -> Result<()> {
     let root = a.sandbox.clone().unwrap_or_else(|| PathBuf::from("/"));
     let Some((wn, full)) = whatsnew::look(catalog, facts, &root, a.all)? else {
+        if a.json {
+            let none = WhatsNew { version: whatsnew::VERSION.to_string(), ..Default::default() };
+            println!(
+                "{}",
+                if a.dry_run { plan_document(&none).to_json() } else { serde_json::to_string_pretty(&none)? }
+            );
+            return Ok(());
+        }
         println!("Bindle hasn't set anything up here yet: run `bindle` to start.");
         return Ok(());
     };
+    if a.json && a.dry_run {
+        println!("{}", plan_document(&wn).to_json());
+        return Ok(());
+    }
     if a.json {
         println!("{}", serde_json::to_string_pretty(&wn)?);
         return Ok(());
@@ -181,6 +221,28 @@ pub fn first_run(catalog: &Catalog, facts: &Facts, sandbox: Option<PathBuf>) {
 mod tests {
     use super::*;
     use bindle_core::whatsnew::{Change, Item};
+
+    #[test]
+    fn the_plan_document_lists_only_ticked_items() {
+        let item = |id: &str, ticked, kind| Item {
+            id: id.into(),
+            name: id.into(),
+            kind,
+            why: "w".into(),
+            ticked,
+            changes: vec![Change::note("+ package x")],
+        };
+        let wn = WhatsNew {
+            version: "1".into(),
+            since: None,
+            recorded: true,
+            items: vec![item("a", true, Kind::New), item("b", false, Kind::Optional), item("c", true, Kind::Retired)],
+        };
+        let d = plan_document(&wn);
+        assert_eq!(d.changes.len(), 2);
+        assert_eq!(d.changes[1].reversible, Some(false));
+        assert!(plan_document(&WhatsNew { items: vec![], ..wn }).would_refuse);
+    }
 
     #[test]
     fn the_report_lists_groups_changes_and_diffs() {
