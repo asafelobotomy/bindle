@@ -370,20 +370,6 @@ when = ["desktop"]
 packages = ["kate"]
 
 [[module]]
-id = "kyko"
-group = "Utilities"
-name = "kyko (drop-down terminal)"
-description = "Drop-down terminal for uQ and other Wayland desktops, in the manner of Yakuake: one key slides it down, sessions keep running. By asafelobotomy."
-notes = ["Early preview (0.0.2): this installs kykod, which keeps the shells running, but the drop-down window isn't finished yet."]
-when = ["desktop"]
-[[module.release]]
-repo = "asafelobotomy/kyko"
-tag = "v0.0.2"
-asset = "kyko-0.0.2-1-x86_64.pkg.tar.zst"
-sha256 = "892d9bc1770266c3cd207aae94d9b54b28c007492fe7da623ac19cf0686e44f7"
-name = "kyko"
-
-[[module]]
 id = "yakuake"
 group = "Utilities"
 name = "Yakuake"
@@ -412,7 +398,7 @@ description = "Adds AppImages to your application menu, keeps them up to date fr
 notes = ["Once it is in use, crumBS leaves the AppImages in ~/Applications to it."]
 [[module.release]]
 repo = "asafelobotomy/appofholding"
-tag = "v0.5.0"
-asset = "appofholding-0.5.0-1-x86_64.pkg.tar.zst"
-sha256 = "5b6c6df53a98a25d5ce76aa0415c8e1b8c6a2a06c9066e0fc5a7c23355469a88"
+tag = "v0.8.1"
+asset = "appofholding-0.8.1-1-x86_64.pkg.tar.zst"
+sha256 = "6e3ef6ae5533dd05e029b2ed00e46749dbed882abb89cd7ae43cbfd6440494cc"
 name = "appofholding"

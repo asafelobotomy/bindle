@@ -29,3 +29,58 @@ why = "New in Bindle 0.1.10: Bazaar as the Flathub app store, Flatseal and Wareh
 version = "0.1.10"
 modules = ["thrash-guard", "btrfs-noatime", "gentle-lockout", "wifi-mac-privacy", "firejail", "auditd", "night-light", "firefox-privacy", "firefox-nvidia", "gpg-pinentry", "realtime-audio", "thunderbolt", "thunderbolt-plasma", "fingerprint-sudo", "coolercontrol", "monitor-brightness", "mipi-camera", "security-keys", "console-font", "controller-rules", "xpadneo", "charge-limit", "asusctl", "throttled", "framework", "dell-smbios", "handheld", "sensors", "pen-tablet", "hp-devices", "epson-scan", "log-limits", "kernel-modules-hook", "pacnew-notice", "quick-shutdown", "writeback", "nmi-watchdog-off", "audio-no-powersave", "wifi-region", "kernel-hardening", "ntsync", "shader-cache", "keyring-at-login", "kwallet-at-login", "kwallet-at-login-wm", "default-file-manager", "file-search-names", "dolphin-video-thumbnails", "ssh-agent", "browser-video-decoding", "flatpak-theme", "uniform-theme", "qt-follows-gtk", "cjk-fonts", "bash-extras", "idle-lock-sway", "idle-lock-niri", "captive-portal"]
 why = "Also new in Bindle 0.1.10: everyday defaults from the ArchWiki and other distros: Wi-Fi rules for your country, smaller logs, drivers that keep working after a kernel update, smoother copies, light kernel hardening, keyrings unlocked at login, folders opening in the file manager, file search by name outside Plasma, hardware video in Chromium browsers, one look for Qt, GTK and Flatpak apps, faster Windows games, and screen locking on Sway and niri. And hardware Bindle now recognises: Thunderbolt docks, external monitor brightness, fan control, fingerprint for sudo, newer Intel laptop webcams, security keys, a bigger console font on high-resolution screens, ASUS ROG/TUF, ThinkPad, Framework and Dell tools, handheld gaming PCs, tablets and scanners. Plus opt-in choices: no freezing when memory runs out, night light, Firefox without telemetry, hardware video in Firefox on NVIDIA, a gentler password lockout, Wi-Fi address privacy, sandboxing and real-time audio."
+
+[[retired]]
+id = "kyko"
+version = "0.1.11"
+why = "Bindle now installs only stable releases, and kyko has had preview releases only so far. It comes back once it has a stable one. A kyko you already have stays installed."
+
+[[retired]]
+id = "photocraft"
+version = "0.1.11"
+why = "Bindle now offers only stable releases, and the ArtCraft apps are still in alpha. They come back once they leave it. A copy you already have stays installed."
+
+[[retired]]
+id = "lightcraft"
+version = "0.1.11"
+why = "Bindle now offers only stable releases, and the ArtCraft apps are still in alpha. They come back once they leave it. A copy you already have stays installed."
+
+[[retired]]
+id = "filmcraft"
+version = "0.1.11"
+why = "Bindle now offers only stable releases, and the ArtCraft apps are still in alpha. They come back once they leave it. A copy you already have stays installed."
+
+[[retired]]
+id = "vectorcraft"
+version = "0.1.11"
+why = "Bindle now offers only stable releases, and the ArtCraft apps are still in alpha. They come back once they leave it. A copy you already have stays installed."
+
+[[retired]]
+id = "effectcraft"
+version = "0.1.11"
+why = "Bindle now offers only stable releases, and the ArtCraft apps are still in alpha. They come back once they leave it. A copy you already have stays installed."
+
+[[retired]]
+id = "designcraft"
+version = "0.1.11"
+why = "Bindle now offers only stable releases, and the ArtCraft apps are still in alpha. They come back once they leave it. A copy you already have stays installed."
+
+[[retired]]
+id = "pdfcraft"
+version = "0.1.11"
+why = "Bindle now offers only stable releases, and the ArtCraft apps are still in alpha. They come back once they leave it. A copy you already have stays installed."
+
+[[retired]]
+id = "wordcraft"
+version = "0.1.11"
+why = "Bindle now offers only stable releases, and the ArtCraft apps are still in alpha. They come back once they leave it. A copy you already have stays installed."
+
+[[retired]]
+id = "deckcraft"
+version = "0.1.11"
+why = "Bindle now offers only stable releases, and the ArtCraft apps are still in alpha. They come back once they leave it. A copy you already have stays installed."
+
+[[retired]]
+id = "gridcraft"
+version = "0.1.11"
+why = "Bindle now offers only stable releases, and the ArtCraft apps are still in alpha. They come back once they leave it. A copy you already have stays installed."

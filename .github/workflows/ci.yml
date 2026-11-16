@@ -28,6 +28,10 @@ jobs:
         run: cargo build --release --locked -p bindle-cli --target x86_64-unknown-linux-musl
       - run: bash -n install.sh && python -m py_compile packaging/archinstall/bindle_plugin.py
       - run: pacman -Fy --noconfirm && python scripts/check-packages.py --aur
+      - name: Pinned releases are stable and CI-green
+        run: python scripts/check-pins.py
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
 
   gui:
     # The desktop wizard (Qt 6 + Kirigami): clippy, tests, and every screen

@@ -3,6 +3,10 @@
 ## Unreleased
 
 - **`bindleupgrade` is now bindleUP, and the command is `bindleup`** (`bindle upgrade` still works). Nothing else about it changes. The old `/usr/local/bin/bindleupgrade` link is no longer installed or recognised; a daily-check timer made by `bindo update-notify on` points at the old path, so run `bindo update-notify on` again to rewrite it. The window is titled "bindleUP · System update".
+- **appOFholding 0.8.1** (was 0.5.0): updating apps from local files, dropped AppImages moved into the library by default, and readable radio buttons and check boxes in the Gruvbox themes.
+- **kyko is no longer offered** until it has a stable release: Bindle now pins only stable, CI-green tagged releases, and kyko has had previews only. What's new lists it as a clean-up; a kyko you already have stays installed.
+- **The ArtCraft suite is no longer offered** (PhotoCraft, LightCraft, FilmCraft, VectorCraft, EffectCraft, DesignCraft, PdfCraft, WordCraft, DeckCraft, GridCraft): they are still in alpha, and Bindle now offers only stable apps. What's new lists them as a clean-up; copies you have stay installed. They come back once they leave alpha.
+- **`make check-pins`** (and CI): fails a pinned release that is a draft, a pre-release or not CI-green, or whose asset changed, and lists newer stable releases, or for a failing pin the last good one; `scripts/check-pins.py --bump` moves the pins there.
 
 ## 0.1.10 — 2026-11-16
 
