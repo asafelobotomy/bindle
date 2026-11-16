@@ -398,7 +398,7 @@ description = "Adds AppImages to your application menu, keeps them up to date fr
 notes = ["Once it is in use, crumBS leaves the AppImages in ~/Applications to it."]
 [[module.release]]
 repo = "asafelobotomy/appofholding"
-tag = "v0.8.1"
-asset = "appofholding-0.8.1-1-x86_64.pkg.tar.zst"
-sha256 = "6e3ef6ae5533dd05e029b2ed00e46749dbed882abb89cd7ae43cbfd6440494cc"
+tag = "v0.10.0"
+asset = "appofholding-0.10.0-1-x86_64.pkg.tar.zst"
+sha256 = "68a974b4f87872706cfbafff6fad50eae4fd35991e5a6fe6f25e1c8481dfce9a"
 name = "appofholding"

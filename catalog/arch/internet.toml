@@ -178,9 +178,9 @@ requires = ["tailscale"]
 packages = ["fuse2"]
 [[module.release]]
 repo = "asafelobotomy/scale_tail"
-tag = "v0.6.0"
-asset = "scale_tail-0.6.0-x86_64.AppImage"
-sha256 = "edb335b9283154568d3e71ff4760b2ad8eac5d0f25839817bdcc0c9b551bc057"
+tag = "v0.7.0"
+asset = "scale_tail-0.7.0-x86_64.AppImage"
+sha256 = "ce225bf8f241b05a08ca8528dd2b3cf5737da73c3ee7ba91c7aebd3b34640dd0"
 name = "scale_tail"
 
 [[module]]
@@ -226,9 +226,9 @@ name = "hauler (download manager)"
 description = "Fast, resumable downloads over parallel connections; CLI, daemon and Kirigami app. By asafelobotomy."
 [[module.release]]
 repo = "asafelobotomy/hauler"
-tag = "v0.1.2"
-asset = "hauler-0.1.2-1-x86_64.pkg.tar.zst"
-sha256 = "c464fcf42aceaf2a61c65cedbe58358829f9366df7eddeeb59466d081abe5a1b"
+tag = "v0.2.0"
+asset = "hauler-0.2.0-1-x86_64.pkg.tar.zst"
+sha256 = "5e19eb8fb5dbeddd71d8f04239332d7ada153db080fc3c4c9e3b9ac2637f1443"
 name = "hauler"
 
 [[module]]
