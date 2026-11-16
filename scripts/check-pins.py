@@ -6,8 +6,9 @@ Bindle pins only stable, CI-green tagged releases. For every pin this fails when
 - a check on the tag's commit failed, or the commit has no checks at all;
 - the asset is missing from the release, or its digest is not the pinned sha256.
 
-It also reports a newer release that passes the same rules. With `--bump` it
-rewrites those pins in place (tag, asset name and sha256 from the release's
+It also reports a newer release that passes the same rules and, for a failing pin,
+the newest release that does (older or newer). With `--bump` it rewrites those
+pins in place (tag, asset name and sha256 from the release's
 asset digest); review the diff, then add a CHANGELOG line.
 
 Online: reads the GitHub API. Set GITHUB_TOKEN to avoid its low anonymous limit.
@@ -81,29 +82,35 @@ def main() -> int:
                     problem = f"asset {asset} has sha256 {d}, the catalog pins {sha}"
             if problem:
                 failures.append(f"{where}: {problem}")
-            # The newest release newer than the pin that passes the same rules.
-            for cand in sorted(get(f"/repos/{repo}/releases?per_page=30") or [], key=lambda r: version(r["tag_name"]), reverse=True):
-                if version(cand["tag_name"]) <= version(tag):
-                    break
+            # The newest release that passes the same rules: newer than the pin when the pin
+            # is fine, else the one to go back (or on) to.
+            for cand in sorted(get(f"/repos/{repo}/releases?per_page=50") or [], key=lambda r: version(r["tag_name"]), reverse=True):
+                if cand["tag_name"] == tag or (not problem and version(cand["tag_name"]) <= version(tag)):
+                    if not problem:
+                        break
+                    continue
                 if release_problem(cand) or ci_problem(repo, cand["tag_name"]):
                     continue
                 old_v, new_v = tag.lstrip("v"), cand["tag_name"].lstrip("v")
                 new_asset = asset.replace(old_v, new_v)
                 d = digest(cand, new_asset)
                 if d in (None, "unknown"):
-                    newer.append(f"{where} -> {cand['tag_name']}: no asset named {new_asset} with a digest; bump it by hand")
-                    break
-                newer.append(f"{where} -> {cand['tag_name']} ({new_asset})")
+                    continue
+                verb = "newer stable release" if version(cand["tag_name"]) > version(tag) else "last good release"
+                newer.append(f"{verb}: {where} -> {cand['tag_name']} ({new_asset}, sha256 {d})")
                 if bump:
                     text = text.replace(m.group(0), m.group(0).replace(f'tag = "{tag}"', f'tag = "{cand["tag_name"]}"').replace(f'asset = "{asset}"', f'asset = "{new_asset}"').replace(sha, d))
                 break
+            else:
+                if problem:
+                    newer.append(f"no good release: {where} has no stable, CI-green release with a matching asset")
         if bump:
             f.write_text(text)
     for n in newer:
-        print(("bumped " if bump else "newer stable release: ") + n)
+        print(("bumped to " if bump else "") + n)
     for x in failures:
         print("FAIL " + x, file=sys.stderr)
-    print(f"{len(failures)} pin problems, {len(newer)} newer stable releases")
+    print(f"{len(failures)} pin problems, {len(newer)} suggested pin changes")
     return 1 if failures else 0
 
 
