@@ -153,4 +153,33 @@ ColumnLayout {
             Layout.fillWidth: true
         }
     }
+
+    SettingsCard {
+        title: "More software"
+        iconName: "system-software-install"
+        help: "bindaru finds, installs and removes software from the Arch repositories and the AUR, and shows you every AUR recipe before it is built. System upgrades stay in bindleUP, under Updates."
+        Layout.fillWidth: true
+        actions: [
+            QQC2.Button {
+                objectName: "open-bindaru"
+                text: "Open bindaru"
+                icon.name: "system-software-install"
+                highlighted: tab.host && tab.host.highlight === "open-bindaru"
+                enabled: !!tab.host
+                onClicked: tab.host.openApp("bindaru", "io.github.asafelobotomy.bindaru.desktop", "bindaru is opening in its own window.")
+            }
+        ]
+
+        SettingRow {
+            settingId: "open-bindaru"
+            label: "Software store"
+            highlight: tab.host ? tab.host.highlight : ""
+            Layout.fillWidth: true
+        }
+        Outcome {
+            host: tab.host
+            noteKey: "bindaru"
+            Layout.fillWidth: true
+        }
+    }
 }
