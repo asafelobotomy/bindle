@@ -178,9 +178,9 @@ requires = ["tailscale"]
 packages = ["fuse2"]
 [[module.release]]
 repo = "asafelobotomy/scale_tail"
-tag = "v0.6.0"
-asset = "scale_tail-0.6.0-x86_64.AppImage"
-sha256 = "edb335b9283154568d3e71ff4760b2ad8eac5d0f25839817bdcc0c9b551bc057"
+tag = "v0.7.0"
+asset = "scale_tail-0.7.0-x86_64.AppImage"
+sha256 = "ce225bf8f241b05a08ca8528dd2b3cf5737da73c3ee7ba91c7aebd3b34640dd0"
 name = "scale_tail"
 
 [[module]]
