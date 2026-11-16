@@ -131,6 +131,11 @@ test("setupView reads the status and refuses what it can't trust", () => {
   assert.equal(v.has, true);
   assert.deepEqual(v.with, ["a", "b"]);
   assert.deepEqual(v.missing, ["install x"]);
+  const g = L.setupView({ code: 0, output: { selection: "/x", missing: ["sh -ec a;\nb\nc"], groups: [{ kind: "packages", label: "Install 12 packages", items: Array.from({ length: 12 }, (_, i) => `p${i}`) }, { label: 3 }, "x"] } });
+  assert.deepEqual(g.missing, ["sh -ec a …"]);
+  assert.equal(g.groups.length, 1);
+  assert.equal(g.groups[0].detail, "p0, p1, p2, p3, p4, p5, p6, p7 and 4 more");
+  assert.deepEqual(L.setupView({ code: 0, output: { selection: "/x", missing: [] } }).groups, []);
   assert.equal(L.setupView({ code: 0, output: { selection: null, profile: null, with: [], without: [], missing: [] } }).has, false);
   assert.match(L.setupView({ error: "boom" }).problem, /^Couldn't read this system's setup: boom$/);
   assert.match(L.setupView({ code: 0, output: "text" }).problem, /doesn't understand/);

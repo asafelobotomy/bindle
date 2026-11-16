@@ -13,6 +13,8 @@ ColumnLayout {
     readonly property var view: tab.host ? tab.host.setup : null
     readonly property bool ready: tab.view !== null && tab.view.problem === ""
 
+    property bool showSteps: false
+
     spacing: 16
 
     ErrorCard {
@@ -103,12 +105,42 @@ ColumnLayout {
             Layout.fillWidth: true
         }
         Repeater {
-            model: tab.ready && tab.view.error === "" ? tab.view.missing : []
+            model: tab.ready && tab.view.error === "" ? tab.view.groups : []
+
+            ColumnLayout {
+                required property var modelData
+
+                spacing: 2
+                Layout.fillWidth: true
+
+                UqLabel {
+                    text: parent.modelData.label
+                    font.bold: true
+                    Layout.fillWidth: true
+                }
+                UqLabel {
+                    visible: parent.modelData.detail !== ""
+                    text: parent.modelData.detail
+                    opacity: 0.7
+                    wrapMode: Text.Wrap
+                    Layout.fillWidth: true
+                }
+            }
+        }
+        QQC2.Button {
+            visible: tab.ready && tab.view.error === "" && tab.view.missing.length > 0
+            text: tab.showSteps ? "Hide every step" : "Show every step"
+            flat: true
+            onClicked: tab.showSteps = !tab.showSteps
+        }
+        Repeater {
+            model: tab.showSteps && tab.ready && tab.view.error === "" ? tab.view.missing : []
 
             UqLabel {
                 required property string modelData
 
                 text: "• " + modelData
+                opacity: 0.7
                 wrapMode: Text.Wrap
                 Layout.fillWidth: true
             }

@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
 use anyhow::Result;
-use bindle_core::{Catalog, Facts, Selection, plan};
+use bindle_core::{Catalog, Facts, Selection, Step, plan};
 use bindle_run::selection;
 use serde::Serialize;
 
@@ -25,8 +25,107 @@ pub struct Status {
     /// The steps applying the selection again would run, one line each;
     /// empty when everything is in place.
     pub missing: Vec<String>,
+    /// The same steps grouped by what they do, for a page that shows a summary first.
+    pub groups: Vec<Group>,
     /// The saved selection couldn't be read or planned.
     pub error: Option<String>,
+}
+
+/// Missing steps of one kind: `kind` is packages, files, services, commands or other; `label`
+/// says what they amount to ("Install 84 packages"); `items` are the names to show under it
+/// (packages, or the modules that write files or run commands).
+#[derive(Debug, Serialize, PartialEq)]
+pub struct Group {
+    pub kind: &'static str,
+    pub label: String,
+    pub items: Vec<String>,
+}
+
+fn plural(n: usize, one: &str, many: &str) -> String {
+    format!("{n} {}", if n == 1 { one } else { many })
+}
+
+/// Sort a plan's steps into a few kinds a person can read at a glance.
+pub fn group_steps(catalog: &Catalog, steps: &[Step]) -> Vec<Group> {
+    let module = |id: &str| catalog.module(id).map_or_else(|| id.to_string(), |m| m.name.clone());
+    let (mut packages, mut files, mut units, mut commands, mut other) = (vec![], vec![], vec![], vec![], vec![]);
+    let mut file_count = 0;
+    let mut command_count = 0;
+    let mut unit_count = 0;
+    let mut other_count = 0;
+    let push_once = |v: &mut Vec<String>, s: String| {
+        if !v.contains(&s) {
+            v.push(s);
+        }
+    };
+    for step in steps {
+        match step {
+            Step::InstallPackages { packages: p } | Step::InstallAur { packages: p } => {
+                packages.extend(p.iter().cloned())
+            }
+            Step::BootstrapAurHelper { package } => packages.push(package.clone()),
+            Step::InstallReleases { assets } => packages.extend(assets.iter().map(|a| a.name.clone())),
+            Step::WriteFile { module: m, .. } => {
+                file_count += 1;
+                push_once(&mut files, module(m));
+            }
+            Step::EditPacmanConf { .. } | Step::RemoveFiles { .. } | Step::MountAtBoot { .. } => {
+                file_count += 1;
+                push_once(&mut files, "System settings".into());
+            }
+            Step::EnableUnits { units: u } | Step::DisableUnits { units: u } => {
+                unit_count += u.len();
+                units.extend(u.iter().cloned());
+            }
+            Step::RunAsRoot { module: m, .. } | Step::RunAsUser { module: m, .. } => {
+                command_count += 1;
+                push_once(&mut commands, module(m));
+            }
+            Step::RebuildInitramfs => {
+                command_count += 1;
+                push_once(&mut commands, "Boot image".into());
+            }
+            Step::RemovePackages { .. } | Step::AddToGroups { .. } => {
+                other_count += 1;
+                push_once(&mut other, "Replace or add to what was installed".into());
+            }
+        }
+    }
+    packages.sort();
+    packages.dedup();
+    let mut out = vec![];
+    if !packages.is_empty() {
+        out.push(Group {
+            kind: "packages",
+            label: format!("Install {}", plural(packages.len(), "package", "packages")),
+            items: packages,
+        });
+    }
+    if file_count > 0 {
+        out.push(Group {
+            kind: "files",
+            label: format!("Write {}", plural(file_count, "settings file", "settings files")),
+            items: files,
+        });
+    }
+    if unit_count > 0 {
+        out.push(Group {
+            kind: "services",
+            label: format!("Turn on {}", plural(unit_count, "service or timer", "services and timers")),
+            items: units,
+        });
+    }
+    if command_count > 0 {
+        out.push(Group {
+            kind: "commands",
+            label: format!("Run {}", plural(command_count, "setup command", "setup commands")),
+            items: commands,
+        });
+    }
+    if other_count > 0 {
+        out.push(Group { kind: "other", label: plural(other_count, "other change", "other changes"), items: other });
+    }
+    out
 }
 
 /// The user's saved selection, else the one `bindle iso` left for the system.
@@ -47,6 +146,7 @@ pub fn collect(
         without: vec![],
         last_applied: None,
         missing: vec![],
+        groups: vec![],
         error: None,
     };
     let Some(path) = path else { return st };
@@ -69,7 +169,10 @@ pub fn collect(
     // Plan as an interactive apply would, conflicts included.
     let sel = Selection { replace_conflicts: true, ..sel };
     match plan::resolve(catalog, facts, &sel, current) {
-        Ok(p) => st.missing = p.steps.iter().map(print::describe).collect(),
+        Ok(p) => {
+            st.missing = p.steps.iter().map(print::describe).collect();
+            st.groups = group_steps(catalog, &p.steps);
+        }
         Err(e) => st.error = Some(format!("{e:#}")),
     }
     st
@@ -124,6 +227,9 @@ mod tests {
         assert!(st.last_applied.is_some());
         assert!(st.error.is_none(), "{:?}", st.error);
         assert!(!st.missing.is_empty(), "nothing is installed in a blank plan");
+        let kinds: Vec<&str> = st.groups.iter().map(|g| g.kind).collect();
+        assert!(kinds.contains(&"packages"), "{kinds:?}");
+        assert!(st.groups.iter().all(|g| !g.items.is_empty() && !g.label.is_empty()));
     }
 
     #[test]
