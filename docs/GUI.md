@@ -117,10 +117,25 @@ dry run (`u1`…`u5` per theme).
    `$XDG_RUNTIME_DIR/uq/welcome.defer` so uQ's Welcome waits; when the wizard
    ends it removes the file and runs `uqctl welcome` (uQ Phase 5).
 3. **Settings page**: `bindle first-login install` writes
-   `/usr/share/uq/settings/pages/bindle/` (`page.toml`, `Page.qml`, from
-   `uq/pages/bindle/`) and links `/usr/lib/bindle/bindle` to Bindle, giving uQ
-   Settings a "Re-run setup" page: the profile and when it last ran, "Pick
-   apps again" (`bindle open --detach`) and "Check for missing pieces".
+   `/usr/share/uq/settings/pages/bindle/` (every file of `uq/pages/bindle/`, embedded in the
+   binary) and links `/usr/lib/bindle/bindle` to Bindle, giving uQ Settings a "Bindle" page
+   (`uq_api = 3`, uQ 0.3.0 or later) of five tabs:
+   - **Setup**: the profile and when it last applied, what is missing now, Pick apps again
+     (`bindle open --detach`).
+   - **Updates**: bindleUP. `bindleup --check --ndjson` runs when the tab is first shown and fills one
+     card per stage with work (and cards for held-back stages and notes); Update now runs
+     `bindleup --ndjson` with a progress bar, after uQ's confirmation sheet shows
+     `bindleup --dry-run --json`; "Only this" runs one stage. After a run it checks again.
+   - **What's new**: `bindle whats-new --json`; Apply runs `whats-new --yes` after a
+     `--dry-run --json` preview (a snapshot is taken first).
+   - **History**: `bindle undo --list --json`, followed live; Undo runs `undo --yes <id>` after its
+     `--dry-run --json` preview.
+   - **Preferences**: `bindle config show --json`, followed live from `upgrade.toml`; each change is
+     `config set`, a refusal shows under its row.
+
+   A self-update of Bindle replaces only the binaries, so a newer page needs `sudo bindle
+   first-login install` again; an older page keeps working with a newer Bindle. The page's
+   QML tests run in CI (`tests/uq/`, with the test kit of uQ's `templates/settings-page-tests`).
 
 ## Architecture
 

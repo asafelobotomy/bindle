@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **uQ Settings' Bindle page is rebuilt** (needs uQ 0.3.0 or later; `sudo bindle first-login install` writes the new files): five tabs. **Setup** (the profile and what is missing, Pick apps again), **Updates** (bindleUP: what each stage would do, Update now with progress and a preview first, or one stage alone), **What's new** (apply what Bindle ticks, with a preview), **History** (what Bindle changed, Undo with a preview) and **Preferences** (every bindleUP setting, the daily check, per-app update sources).
+- **New command line for it**: `bindle config show|set|reset` (bindleUP's preferences and the daily check as typed keys, instead of editing `upgrade.toml`), `bindleup --ndjson` (an unattended run as one JSON event per line; the AUR is left to a terminal) and `bindleup --check --ndjson`, `bindleup --dry-run --json` (what an update would change), `bindle undo --list --json` and `undo --dry-run --json`, `bindle whats-new --dry-run --json`. `bindleup --json` now also works with `--dry-run`.
+
 ## 0.1.11 — 2026-11-16
 
 - **`bindleupgrade` is now bindleUP, and the command is `bindleup`** (`bindle upgrade` still works). Nothing else about it changes. The old `/usr/local/bin/bindleupgrade` link is no longer installed or recognised; a daily-check timer made by `bindo update-notify on` points at the old path, so run `bindo update-notify on` again to rewrite it. The window is titled "bindleUP · System update".

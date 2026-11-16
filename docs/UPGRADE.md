@@ -9,6 +9,10 @@ bindleup --skip aur,flatpak
 bindleup --only pacman
 bindleup -n              # print every command, run none
 bindleup --prefs         # the preferences in effect, as a file to save
+bindleup --dry-run --json   # what a run would change, as one plan document
+bindleup --check --ndjson   # the look at the system as JSON lines, then the plan
+bindleup --ndjson           # an unattended run as JSON lines (see below)
+bindle config show      # the preferences as typed keys; `config set <key> <value>`, `config reset <key>`
 bindo upgrade-prefs           # edit ~/.config/bindle/upgrade.toml
 bindo update                  # the same, from bindo
 ```
@@ -87,6 +91,33 @@ the others are listed as kept, with the line that would switch them. With
 (`pacman -U`). Flatpak copies are separate installs and never touched.
 `bindle apply` already leaves an app alone when any copy of it is installed.
 
+## For uQ Settings: `bindle config` and `--ndjson`
+
+uQ Settings' Bindle page ([GUI.md](GUI.md#uq-integration)) uses only the command line.
+
+- `bindle config show [--json]` lists every preference with its value, default, range and where the
+  value comes from (default, the system's file or yours). `config set <key> <value>` writes one
+  key of your `upgrade.toml` after checking the whole file (`--dry-run` only checks; a broken
+  file is never overwritten); `config reset <key>` removes it. Keys: `news_days`,
+  `mirror_max_age_days`, `firmware_refresh_days`, `space.root_mb`, `space.boot_mb`,
+  `space.efi_mb`, `battery_min_percent`, `battery_max_packages`, `releases.follow`,
+  `releases.apps.<app>` and `update_notify` (`on`/`off`: the daily-check timer of `bindo
+  update-notify`). Writing rewrites your file without its comments.
+- `bindleup --check --ndjson` prints a `step` event for each thing it looks at, then one `plan`
+  with every stage (`id`, `title`, `state`: run, note, current, skipped or held; `summary`, `why`,
+  `details`, `needs_root`).
+- `bindleup --ndjson [--only <stage>]` runs unattended, like `--yes`, with the AUR left to a
+  terminal (as in the window): `stage` (index, total, id, title, summary), `line` (what a command
+  said), `ask` (a question and the default it took), a `result` per stage, then `done` (`failed`).
+  After Bindle replaced itself, `relaunch` is sent and the new one's events follow from the first
+  stage. Exit status 1 when a stage failed. Unread Arch news that asks for a manual step still
+  holds the package stages. uQ Settings stops a command after ten minutes, so a bigger update
+  belongs in a terminal.
+- `bindleup --dry-run --json` prints what would change as one plan document, `{summary, changes
+  [{group, label, detail, reversible}], would_refuse, reason}`, the shape every
+  `--dry-run --json` of the uQ apps shares; `undo --dry-run --json [<id>]` and
+  `whats-new --dry-run --json` print the same for undoing and for applying What's new.
+
 ## Checks in the background
 
 `bindo update-notify on` installs a user timer (`~/.config/systemd/user/bindle-update-check.timer`: daily and 15 minutes after login) that runs `bindleup --check --notify`. When there is work, a notification (through the desktop's notification server: on uQ, noti-fi) lists it with Update and Later; Update opens `bindleup --gui`, or bindleup in a terminal where the window can't start. `bindo update-notify off` removes the timer.
@@ -155,5 +186,5 @@ Never test a real upgrade on the host; use the Arch VM (`tests/vm/run.sh`,
 - Bindle's self-update covers `/usr/local/bin` and AppImages; a distribution package of Bindle
   would be updated by its package manager.
 - No `--json` for the closing table.
-- No preferences page in the GUI or uQ Settings yet: the file is the preference
-  (`bindo upgrade-prefs` opens it).
+- No preferences page in the bindle-gui window: the file is the preference (`bindo upgrade-prefs`
+  opens it, `bindle config` edits it, uQ Settings' Bindle page shows it).

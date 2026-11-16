@@ -5,6 +5,7 @@
 use std::collections::BTreeSet;
 use std::path::PathBuf;
 
+use crate::upgrade_stream;
 use anyhow::{Result, bail};
 use bindle_core::Catalog;
 use bindle_run::client::Launch;
@@ -55,9 +56,15 @@ pub struct UpgradeArgs {
     /// Print the preferences in effect, as a file to save (see `bindo upgrade-prefs`).
     #[arg(long, conflicts_with_all = ["check", "dry_run"])]
     prefs: bool,
-    /// With --check: print the plan as JSON.
-    #[arg(long, requires = "check")]
+    /// With --check: print the plan as JSON. With --dry-run: print what would
+    /// change as one plan document (uQ Settings' confirmation sheet).
+    #[arg(long)]
     json: bool,
+    /// Progress as one JSON object per line (uQ Settings' Updates tab): the
+    /// run, unattended like --yes with the AUR left to a terminal; with
+    /// --check, the look at the system and its plan.
+    #[arg(long, conflicts_with_all = ["gui", "json", "prefs", "notify", "dry_run"])]
+    ndjson: bool,
     /// Root commands go to a helper that only records them under this directory.
     #[arg(long, hide = true)]
     sandbox: Option<PathBuf>,
@@ -67,7 +74,17 @@ fn stages(names: &[String]) -> Result<BTreeSet<Stage>> {
     names.iter().filter(|n| !n.trim().is_empty()).map(|n| n.parse().map_err(anyhow::Error::msg)).collect()
 }
 
-pub fn main(a: UpgradeArgs) -> Result<()> {
+fn validate(a: &UpgradeArgs) -> Result<()> {
+    if a.json && !(a.check || a.dry_run) {
+        bail!("--json goes with --check (the plan) or --dry-run (what would change)");
+    }
+    Ok(())
+}
+
+pub fn main(mut a: UpgradeArgs) -> Result<()> {
+    validate(&a)?;
+    // Nobody is there to answer: take the default answers, as --yes does.
+    a.yes |= a.ndjson;
     let prefs = prefs::load(&mut |w| eprintln!("bindleup: {w}"));
     if a.prefs {
         print!("{}", prefs.to_toml());
@@ -89,7 +106,7 @@ pub fn main(a: UpgradeArgs) -> Result<()> {
         remove_orphans: a.remove_orphans,
         ignore_news: a.ignore_news,
         interactive: !a.yes && tty.is_some(),
-        windowed: false,
+        windowed: a.ndjson,
         on_battery: a.on_battery,
         prefs,
     };
@@ -97,7 +114,7 @@ pub fn main(a: UpgradeArgs) -> Result<()> {
         bail!("{what} {todo}");
     }
     let catalog = Catalog::arch()?;
-    let quiet = a.json || a.notify;
+    let quiet = a.json || a.notify || a.ndjson;
     if !quiet {
         println!("Checking what can be updated…");
     }
@@ -105,11 +122,21 @@ pub fn main(a: UpgradeArgs) -> Result<()> {
     // A check only looks: fwupd's list is refreshed by a real run.
     let refresh = !a.check && !rehearsal;
     let probe = probe::gather(&catalog, &opts.prefs, &exe, refresh, &|s| opts.enabled(s), &mut |n| {
-        if !quiet {
+        if a.ndjson {
+            upgrade_stream::emit(&serde_json::json!({ "event": "step", "text": n }));
+        } else if !quiet {
             println!("  · {n}");
         }
     });
     let plans = plan(&probe, &opts);
+    if a.ndjson && a.check {
+        upgrade_stream::plan_event(&plans);
+        return Ok(());
+    }
+    if a.json && a.dry_run {
+        println!("{}", bindle_upgrade::preview::document(&plans).to_json());
+        return Ok(());
+    }
     if a.check {
         if a.notify {
             return notify(&plans);
@@ -131,10 +158,28 @@ pub fn main(a: UpgradeArgs) -> Result<()> {
         now.boot = boot.or(now.boot);
         after_plans(&before, &now, updated, &opts, false)
     };
-    let results = run(plans, &mut after, &run_opts, &mut Printer);
+    let mut printer = Printer;
+    let mut stream = upgrade_stream::Stream;
+    let ui: &mut dyn Ui = if a.ndjson { &mut stream } else { &mut printer };
+    let results = run(plans, &mut after, &run_opts, ui);
+    if a.ndjson {
+        results.iter().for_each(upgrade_stream::result_event);
+    }
     if bindle_upgrade::run::relaunch(&results, rehearsal) {
-        println!("\nBindle updated itself; the new one goes on.");
+        if a.ndjson {
+            upgrade_stream::emit(&serde_json::json!({ "event": "relaunch" }));
+        } else {
+            println!("\nBindle updated itself; the new one goes on.");
+        }
         return relaunch(&exe);
+    }
+    if a.ndjson {
+        let failed = report::any_failed(&results);
+        upgrade_stream::emit(&serde_json::json!({ "event": "done", "failed": failed }));
+        if failed {
+            std::process::exit(1);
+        }
+        return Ok(());
     }
     println!("\nbindleup finished:");
     report::table(&results, rehearsal).iter().for_each(|l| println!("{l}"));
@@ -235,7 +280,10 @@ mod tests {
         let t = T::parse_from(["x", "--skip", "aur,flatpak", "--skip", "fwupd", "--check"]);
         assert_eq!(stages(&t.a.skip).unwrap(), [Stage::Aur, Stage::Flatpak, Stage::Firmware].into());
         assert!(stages(&["bogus".into()]).is_err());
-        assert!(T::try_parse_from(["x", "--json"]).is_err(), "--json needs --check");
+        assert!(validate(&T::parse_from(["x", "--json"]).a).is_err(), "--json needs --check or --dry-run");
+        assert!(validate(&T::parse_from(["x", "--json", "-n"]).a).is_ok());
+        assert!(T::try_parse_from(["x", "--ndjson", "--json"]).is_err());
+        assert!(T::parse_from(["x", "--ndjson", "--check"]).a.ndjson);
         assert!(T::try_parse_from(["x", "--gui", "--check"]).is_err());
         assert!(T::parse_from(["x", "--gui", "-n"]).a.gui);
     }

@@ -21,6 +21,7 @@ Fresh-install setup wizard for Linux (Arch first). Rust workspace; TUI-first; Ap
 | `crates/bindle-cli/src/iso.rs`, `tui/iso.rs` | `bindle iso`: archinstall's menu with Bindle's preset; preset in `bindle-core/src/install/preset.rs` |
 | `tests/vm/` | QEMU end-to-end install test (`run.sh`, guest scripts); artifacts in git-ignored `.work/` |
 | `branding/` | `bindle.svg` (the icon) and `png/` sizes from `scripts/icons.sh`; rerun it after editing the SVG (a unit test checks) |
+| `uq/pages/bindle`, `tests/uq` | uQ Settings' Bindle page (QML + `logic.js`, `uq_api = 3`); every file must be listed in `crates/bindle-cli/src/firstlogin/uq_page.rs` (a test checks). QML tests: `QT_QPA_PLATFORM=offscreen /usr/lib/qt6/bin/qmltestrunner -import tests/uq/stub -input tests/uq/tst_page.qml`; logic: `node --test 'tests/uq/*.test.mjs'` |
 | `docs/` | DESIGN (why), CATALOG (schema), ROADMAP, ISO, GUI (bindle-gui, the update window, uQ integration), ARCHINSTALL (detection, first login, welcome apps), APPLY, DRIVES (fstab, mounting other drives), BINDO (recipes), UPGRADE (bindleup), UPGRADE-PATH (What's new after upgrading Bindle), RECOVERY (Roll back, Rebase, Factory Restore), VM-TEST |
 
 ## Verify

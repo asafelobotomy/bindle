@@ -1,24 +1,67 @@
-# uQ Settings' "Re-run setup" page (uQ Phase 5 spec §5.3). `bindle first-login install`
-# installs it to /usr/share/uq/settings/pages/bindle/, with /usr/lib/bindle/bindle linking
-# to /usr/local/bin/bindle (a page's commands may only run programs under /usr/bin or /usr/lib).
+# Bindle's page in uQ Settings (under Apps): the setup Bindle last applied, bindleUP (check for
+# updates, update now with progress), what's new in this Bindle, the history of what it changed
+# (and undoing it), and bindleUP's preferences. `bindle first-login install` installs it to
+# /usr/share/uq/settings/pages/bindle/, with /usr/lib/bindle/bindle linking to /usr/local/bin/bindle
+# (a page's commands may only run programs under /usr/bin or /usr/lib). Inert without uQ.
+# Everything it reads or changes goes through the `bindle` command line (docs/GUI.md).
 # Reference: docs/settings-pages.md in the uQ repository.
-uq_api = 1
+uq_api = 3
 id = "bindle"
-name = "Re-run setup"
-icon = "system-software-install"
+name = "Bindle"
+icon = "bindle"
+category = "apps"
 qml = "Page.qml"
-keywords = ["bindle", "setup", "apps", "install", "profile", "missing"]
+keywords = ["bindle", "setup", "bindleup", "update", "upgrade", "apps", "install", "profile", "missing", "history", "undo"]
 
 [[setting]]
 id = "pick-apps"
 label = "Pick apps again"
-keywords = ["bindle", "install", "apps"]
+keywords = ["bindle", "install", "apps", "setup"]
 
 [[setting]]
 id = "missing"
 label = "Check for missing pieces"
 keywords = ["bindle", "check", "repair"]
 
+[[setting]]
+id = "updates"
+label = "System updates (bindleUP)"
+keywords = ["update", "upgrade", "pacman", "aur", "flatpak", "firmware", "news", "bindleup"]
+
+[[setting]]
+id = "whats-new"
+label = "What's new in Bindle"
+keywords = ["new", "changes", "modules", "version"]
+
+[[setting]]
+id = "history"
+label = "What Bindle changed, and undo"
+keywords = ["undo", "snapshot", "revert", "rollback"]
+
+[[setting]]
+id = "update-check"
+label = "Check for updates every day"
+keywords = ["notify", "notification", "timer", "daily", "background"]
+
+[[setting]]
+id = "space"
+label = "Free space needed to update"
+keywords = ["root", "boot", "efi", "disk"]
+
+[[setting]]
+id = "battery"
+label = "Updating on battery"
+keywords = ["power", "laptop", "charge"]
+
+[[setting]]
+id = "follow"
+label = "Where pinned apps update from"
+keywords = ["releases", "pins", "source", "aur"]
+
+[requires]
+bins = ["bindle"]
+
+# ---- reads. None of these needs the network or a password.
 [[command]]
 id = "status"
 argv = ["/usr/lib/bindle/bindle", "status", "--json"]
@@ -26,7 +69,117 @@ output = "json"
 timeout_ms = 60000
 
 [[command]]
+id = "whats-new"
+argv = ["/usr/lib/bindle/bindle", "whats-new", "--json"]
+output = "json"
+timeout_ms = 60000
+
+[[command]]
+id = "history"
+argv = ["/usr/lib/bindle/bindle", "undo", "--list", "--json"]
+output = "json"
+timeout_ms = 30000
+watch = { files = ["/var/lib/bindle/snapshots"] }
+
+[[command]]
+id = "config"
+argv = ["/usr/lib/bindle/bindle", "config", "show", "--json"]
+output = "json"
+timeout_ms = 10000
+watch = { files = ["~/.config/bindle/upgrade.toml", "/etc/bindle/upgrade.toml", "~/.config/systemd/user/bindle-update-check.timer"] }
+
+[[command]]
 id = "open"
 argv = ["/usr/lib/bindle/bindle", "open", "--detach"]
 output = "none"
 timeout_ms = 10000
+
+# ---- what an action would change: reads, so they don't ask. Same arguments as the action.
+[[command]]
+id = "preview-update"
+argv = ["/usr/lib/bindle/bindle", "upgrade", "--dry-run", "--json"]
+output = "json"
+timeout_ms = 120000
+
+[[command]]
+id = "preview-update-only"
+argv = ["/usr/lib/bindle/bindle", "upgrade", "--dry-run", "--json", "--only"]
+output = "json"
+timeout_ms = 120000
+args = [{ name = "stage", pattern = "^(bindle|news|preflight|snapshot|mirrors|pacman|aur|releases|flatpak|firmware|rebuild|uq|pacnew|orphans|services|setup|reboot)$" }]
+
+[[command]]
+id = "preview-whats-new"
+argv = ["/usr/lib/bindle/bindle", "whats-new", "--json", "--dry-run"]
+output = "json"
+timeout_ms = 60000
+
+[[command]]
+id = "preview-undo"
+argv = ["/usr/lib/bindle/bindle", "undo", "--json", "--dry-run"]
+output = "json"
+timeout_ms = 30000
+args = [{ name = "id", pattern = "^[0-9A-Za-z_-]{1,64}$" }]
+
+# ---- network: look at every source now. Streamed: a line for each thing looked at, then the plan.
+[[command]]
+id = "check"
+argv = ["/usr/lib/bindle/bindle", "upgrade", "--check", "--ndjson"]
+output = "ndjson"
+timeout_ms = 300000
+
+# ---- updates. Streamed: a line as each stage starts, what its commands say, and its result.
+# Unattended (as `bindleup --yes`): pacman takes its default answers, the AUR is left to a
+# terminal, and unread Arch news that asks for manual steps holds the package stages. The root
+# commands ask for the password through uQ's polkit agent. Settings stops a command after
+# 10 minutes: a bigger update belongs in a terminal (`bindleup`).
+[[command]]
+id = "update"
+argv = ["/usr/lib/bindle/bindle", "upgrade", "--ndjson"]
+output = "ndjson"
+timeout_ms = 600000
+confirm = "Update this system now? Bindle makes a snapshot first when it can, then updates what the list shows."
+preview = "preview-update"
+
+[[command]]
+id = "update-only"
+argv = ["/usr/lib/bindle/bindle", "upgrade", "--ndjson", "--only"]
+output = "ndjson"
+timeout_ms = 600000
+args = [{ name = "stage", pattern = "^(bindle|news|preflight|snapshot|mirrors|pacman|aur|releases|flatpak|firmware|rebuild|uq|pacnew|orphans|services|setup|reboot)$" }]
+confirm = "Run only the “%s” update stage now?"
+preview = "preview-update-only"
+
+# ---- what's new: applies the ticked items, with a snapshot first (undo reverts it).
+[[command]]
+id = "apply-whats-new"
+argv = ["/usr/lib/bindle/bindle", "whats-new", "--yes"]
+output = "text"
+timeout_ms = 600000
+confirm = "Apply what's new in Bindle? A snapshot is saved first, so it can be undone."
+preview = "preview-whats-new"
+
+# ---- history
+[[command]]
+id = "undo"
+argv = ["/usr/lib/bindle/bindle", "undo", "--yes"]
+output = "text"
+timeout_ms = 300000
+args = [{ name = "id", pattern = "^[0-9A-Za-z_-]{1,64}$" }]
+confirm = "Undo what Bindle changed in snapshot %s?"
+preview = "preview-undo"
+
+# ---- preferences: `bindle config` checks each value before it writes.
+[[command]]
+id = "config-set"
+argv = ["/usr/lib/bindle/bindle", "config", "set", "--json"]
+output = "json"
+timeout_ms = 30000
+args = [{ name = "key", pattern = "^(news_days|mirror_max_age_days|firmware_refresh_days|space\\.(root|boot|efi)_mb|battery_min_percent|battery_max_packages|releases\\.follow|releases\\.apps\\.[A-Za-z0-9_-]{1,64}|update_notify)$" }, { name = "value", pattern = "^[a-z0-9]{1,16}$" }]
+
+[[command]]
+id = "config-reset"
+argv = ["/usr/lib/bindle/bindle", "config", "reset", "--json"]
+output = "json"
+timeout_ms = 30000
+args = [{ name = "key", pattern = "^(news_days|mirror_max_age_days|firmware_refresh_days|space\\.(root|boot|efi)_mb|battery_min_percent|battery_max_packages|releases\\.follow|releases\\.apps\\.[A-Za-z0-9_-]{1,64}|update_notify)$" }]

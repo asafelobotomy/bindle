@@ -16,6 +16,7 @@ use anyhow::{Context, Result, bail};
 
 use crate::apply::sys::{create_dirs, host, is_root, shell_words, write_atomic_system};
 
+mod uq_page;
 mod users;
 pub use users::{only_user, unfinished};
 
@@ -37,12 +38,9 @@ const TMPFILES_RULE: &str = "# Managed by Bindle: the live-ISO install's passwor
 /// uQ Settings' "Re-run setup" page (read only from /usr/share/uq), and the
 /// path its commands run Bindle by (they may only run programs under /usr/lib
 /// or /usr/bin). Harmless without uQ; uQ installed later picks the page up.
-pub const UQ_PAGE_DIR: &str = "/usr/share/uq/settings/pages/bindle";
+pub const UQ_PAGE_DIR: &str = uq_page::DIR;
 pub const UQ_PAGE: &str = "/usr/share/uq/settings/pages/bindle/page.toml";
-pub const UQ_PAGE_QML: &str = "/usr/share/uq/settings/pages/bindle/Page.qml";
 pub const UQ_PAGE_BIN: &str = "/usr/lib/bindle/bindle";
-const PAGE_TOML: &str = include_str!("../../../uq/pages/bindle/page.toml");
-const PAGE_QML: &str = include_str!("../../../uq/pages/bindle/Page.qml");
 
 const USER_UNIT_FILE: &str = "[Unit]
 Description=Open Bindle on the first graphical login
@@ -127,8 +125,6 @@ pub fn install(root: &Path, tty_hook: bool) -> Result<Vec<String>> {
         (LAUNCHER, LAUNCHER_ENTRY),
         (USER_UNIT, USER_UNIT_FILE),
         (POLKIT, POLICY),
-        (UQ_PAGE, PAGE_TOML),
-        (UQ_PAGE_QML, PAGE_QML),
         (TMPFILES, TMPFILES_RULE),
     ];
     if tty_hook {
@@ -138,6 +134,10 @@ pub fn install(root: &Path, tty_hook: bool) -> Result<Vec<String>> {
         write_atomic_system(&host(root, path), content.as_bytes(), 0o644)?;
         done.push(format!("wrote {path}"));
     }
+    for ((_, content), path) in uq_page::FILES.iter().zip(uq_page::paths()) {
+        write_atomic_system(&host(root, &path), content.as_bytes(), 0o644)?;
+    }
+    done.push(format!("wrote uQ Settings' Bindle page ({} files) to {UQ_PAGE_DIR}", uq_page::FILES.len()));
     let icons = crate::icons::files();
     for (path, data) in &icons {
         write_atomic_system(&host(root, path), data, 0o644)?;
@@ -161,9 +161,11 @@ pub fn install(root: &Path, tty_hook: bool) -> Result<Vec<String>> {
 pub fn remove(root: &Path, purge: bool) -> Result<Vec<String>> {
     require_root(root)?;
     let icons: Vec<String> = crate::icons::files().into_iter().map(|(p, _)| p).collect();
+    let page = uq_page::paths();
     let mut paths = vec![AUTOSTART, PROFILE_HOOK, USER_UNIT_WANTS, USER_UNIT];
     if purge {
-        paths.extend([LAUNCHER, POLKIT, TMPFILES, UQ_PAGE, UQ_PAGE_QML, UQ_PAGE_BIN, GUI_BIN, BIN]);
+        paths.extend([LAUNCHER, POLKIT, TMPFILES, UQ_PAGE_BIN, GUI_BIN, BIN]);
+        paths.extend(page.iter().map(String::as_str));
         paths.extend(crate::bindo_cmd::NAMES);
         paths.extend(icons.iter().map(String::as_str));
     }
@@ -316,7 +318,7 @@ mod tests {
         assert!(tmpfiles.lines().any(|l| l == "r /etc/sudoers.d/zz-bindle-install"), "{tmpfiles}");
         // uQ Settings' page runs Bindle by a path under /usr/lib.
         assert!(fs::read_to_string(host(&root, UQ_PAGE)).unwrap().contains(&format!("\"{UQ_PAGE_BIN}\"")));
-        assert!(host(&root, UQ_PAGE_QML).is_file());
+        assert!(uq_page::paths().iter().all(|p| host(&root, p).is_file()));
         assert_eq!(fs::read_link(host(&root, UQ_PAGE_BIN)).unwrap(), PathBuf::from(BIN));
         remove(&root, false).unwrap();
         assert!(!host(&root, AUTOSTART).exists() && host(&root, BIN).exists());
@@ -327,28 +329,43 @@ mod tests {
         assert!(!host(&root, UQ_PAGE_DIR).exists() && host(&root, UQ_PAGE_BIN).symlink_metadata().is_err());
     }
 
-    /// The page only runs Bindle commands that exist, through the linked path.
+    /// The page only runs Bindle commands that exist, through the linked path, and every
+    /// declared command parses with the real argument parser (so a flag renamed in the CLI
+    /// breaks this test, not the page).
     #[test]
     fn the_uq_page_runs_real_subcommands() {
-        let page: toml::Value = toml::from_str(PAGE_TOML).unwrap();
+        let page: toml::Value = toml::from_str(uq_page::FILES[0].1).unwrap();
         assert_eq!(page["id"].as_str(), Some("bindle"));
         let commands = page["command"].as_array().unwrap();
-        let argv = |id: &str| -> Vec<String> {
-            let c = commands.iter().find(|c| c["id"].as_str() == Some(id)).unwrap();
-            c["argv"].as_array().unwrap().iter().map(|a| a.as_str().unwrap().to_string()).collect()
-        };
-        assert_eq!(argv("status"), [UQ_PAGE_BIN, "status", "--json"]);
-        assert_eq!(argv("open"), [UQ_PAGE_BIN, "open", "--detach"]);
         use clap::CommandFactory;
         let cli = crate::Cli::command();
-        for id in ["status", "open"] {
-            let args = argv(id);
+        let example = |name: &str| match name {
+            "stage" => "pacman",
+            "id" => "20260101-1",
+            "key" => "news_days",
+            _ => "7",
+        };
+        for c in commands {
+            let id = c["id"].as_str().unwrap();
+            let mut args: Vec<String> =
+                c["argv"].as_array().unwrap().iter().map(|a| a.as_str().unwrap().to_string()).collect();
+            assert_eq!(args[0], UQ_PAGE_BIN, "{id}");
+            args[0] = "bindle".into();
+            for a in c.get("args").and_then(|a| a.as_array()).into_iter().flatten() {
+                args.push(example(a["name"].as_str().unwrap()).to_string());
+            }
             cli.clone().try_get_matches_from(&args).unwrap_or_else(|e| panic!("{id}: {e}"));
         }
-        // Only UqLabel shows text (uQ refuses Text and Label).
-        for refused in ["Text {", "Label {", "TextEdit", "TextInput", "createQmlObject"] {
-            let plain = PAGE_QML.replace("UqLabel {", "");
-            assert!(!plain.contains(refused), "Page.qml uses {refused}");
+    }
+
+    /// Only UqLabel shows text (uQ refuses Text and Label), in every file of the page.
+    #[test]
+    fn the_uq_page_shows_text_only_through_uqlabel() {
+        for (name, content) in uq_page::FILES.iter().filter(|(n, _)| n.ends_with(".qml")) {
+            let plain = content.replace("UqLabel {", "");
+            for refused in ["Text {", "Label {", "TextEdit", "TextInput", "createQmlObject", "import org.kde"] {
+                assert!(!plain.contains(refused), "{name} uses {refused}");
+            }
         }
     }
 
