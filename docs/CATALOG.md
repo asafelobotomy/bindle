@@ -106,9 +106,8 @@ sha256 from the release's `SHA256SUMS` when it has one. `make check-packages`
 with `--aur` checks every pinned URL still resolves.
 
 Pin only stable, CI-green tagged releases: never a draft or a release marked
-pre-release (beta, alpha, rc, dev), and for our own apps (`asafelobotomy/*`)
-only a tag whose commit passed every check. A third-party app's red CI is
-reported, not failed: its matrix often covers platforms Bindle never installs on. `make check-pins` (online, CI runs it) fails a pin that breaks this or
+pre-release (beta, alpha, rc, dev), and only a tag whose commit passed every
+check. `make check-pins` (online, CI runs it) fails a pin that breaks this or
 whose asset digest differs from `sha256`, and lists newer releases that keep it;
 `python3 scripts/check-pins.py --bump` rewrites those pins in place. An app with
 no stable release yet stays out of the catalog until it has one.

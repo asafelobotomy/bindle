@@ -3,9 +3,7 @@
 
 Bindle pins only stable, CI-green tagged releases. For every pin this fails when:
 - the tag's release is a draft or a pre-release (nothing BETA, ALPHA, RC or dev);
-- for our own apps (OWN, the uQ family), a check on the tag's commit failed, or the
-  commit has no checks at all. A third-party app's CI covers platforms Bindle doesn't
-  install on (FreeBSD, macOS), so a red check there is reported, not failed;
+- a check on the tag's commit failed, or the commit has no checks at all;
 - the asset is missing from the release, or its digest is not the pinned sha256.
 
 It also reports a newer release that passes the same rules. With `--bump` it
@@ -20,7 +18,6 @@ repo_root = pathlib.Path(__file__).resolve().parent.parent
 catalog = repo_root / "catalog" / "arch"
 API = "https://api.github.com"
 OK = {"success", "skipped", "neutral"}
-OWN = "asafelobotomy/"
 
 
 def get(path: str):
@@ -68,20 +65,14 @@ def digest(rel: dict, asset: str) -> str | None:
 
 def main() -> int:
     bump = "--bump" in sys.argv[1:]
-    failures, warnings, newer = [], [], []
+    failures, newer = [], []
     for f in sorted(catalog.glob("*.toml")):
         text = f.read_text()
         for m in re.finditer(r'\[\[module\.release\]\]\nrepo = "([^"]+)"\ntag = "([^"]+)"\nasset = "([^"]+)"\nsha256 = "([0-9a-f]+)"', text):
             repo, tag, asset, sha = m.groups()
             where = f"{repo} {tag}"
             rel = get(f"/repos/{repo}/releases/tags/{tag}")
-            own = repo.startswith(OWN)
-            problem = release_problem(rel)
-            if not problem and (ci := ci_problem(repo, tag)):
-                if own:
-                    problem = ci
-                else:
-                    warnings.append(f"{where}: {ci} (third-party; not failed)")
+            problem = release_problem(rel) or ci_problem(repo, tag)
             if not problem:
                 d = digest(rel, asset)
                 if d is None:
@@ -94,7 +85,7 @@ def main() -> int:
             for cand in sorted(get(f"/repos/{repo}/releases?per_page=30") or [], key=lambda r: version(r["tag_name"]), reverse=True):
                 if version(cand["tag_name"]) <= version(tag):
                     break
-                if release_problem(cand) or (own and ci_problem(repo, cand["tag_name"])):
+                if release_problem(cand) or ci_problem(repo, cand["tag_name"]):
                     continue
                 old_v, new_v = tag.lstrip("v"), cand["tag_name"].lstrip("v")
                 new_asset = asset.replace(old_v, new_v)
@@ -110,8 +101,6 @@ def main() -> int:
             f.write_text(text)
     for n in newer:
         print(("bumped " if bump else "newer stable release: ") + n)
-    for w in warnings:
-        print("note: " + w)
     for x in failures:
         print("FAIL " + x, file=sys.stderr)
     print(f"{len(failures)} pin problems, {len(newer)} newer stable releases")
