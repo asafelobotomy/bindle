@@ -225,6 +225,49 @@ fn laptop_power(f: &Facts, e: &mut Expansion) {
     }
 }
 
+pub const FIREFOX_NVIDIA_PREFS: &str = "/usr/lib/firefox/defaults/pref/bindle-nvidia.js";
+pub const FIREFOX_NVIDIA_ENV: &str = "/etc/environment.d/50-bindle-firefox-nvidia.conf";
+
+/// Firefox decoding video on NVIDIA's own driver (libva-nvidia-driver, any
+/// card from Kepler on). Nothing with nouveau: it has no NVDEC. Before
+/// Ampere the card can't decode AV1, so Firefox is told not to ask sites
+/// for it (they send VP9 or H.264, which the card decodes).
+pub(super) fn firefox_nvidia(f: &Facts) -> Expansion {
+    if !f.nvidia_devices.is_empty() && !nvidia_open_supported(f) && !nvidia_legacy(f) {
+        return Expansion {
+            notes: vec!["This NVIDIA GPU runs on nouveau, which can't decode video for Firefox.".into()],
+            ..Default::default()
+        };
+    }
+    let mut prefs = String::from(
+        "// Managed by Bindle: video decoding on NVIDIA (libva-nvidia-driver)\n\
+         pref(\"media.hardware-video-decoding.force-enabled\", true);\n\
+         pref(\"media.ffmpeg.vaapi.enabled\", true);\n\
+         pref(\"media.rdd-ffmpeg.enabled\", true);\n\
+         pref(\"gfx.x11-egl.force-enabled\", true);\n\
+         pref(\"widget.dmabuf.force-enabled\", true);\n",
+    );
+    let av1 = f.nvidia_devices.is_empty() || f.nvidia_devices.iter().any(|d| *d >= AMPERE_FIRST_DEVICE);
+    if !av1 {
+        prefs.push_str("pref(\"media.av1.enabled\", false);\n");
+    }
+    // The decoder runs in Firefox's media process, whose sandbox blocks the
+    // NVIDIA device files.
+    let env = "# Managed by Bindle: Firefox video decoding on NVIDIA\n\
+               LIBVA_DRIVER_NAME=nvidia\nNVD_BACKEND=direct\nMOZ_DISABLE_RDD_SANDBOX=1\n";
+    Expansion {
+        packages: vec!["libva-nvidia-driver".into()],
+        files: vec![
+            FileSpec { path: FIREFOX_NVIDIA_PREFS.into(), content: prefs, mode: 0o644 },
+            FileSpec { path: FIREFOX_NVIDIA_ENV.into(), content: env.into(), mode: 0o644 },
+        ],
+        notes: vec![
+            "Takes effect after logging out and in. Check it in about:support (Media: hardware decoding).".into(),
+        ],
+        ..Default::default()
+    }
+}
+
 /// Ampere (RTX 30xx) and newer start here.
 pub const AMPERE_FIRST_DEVICE: u16 = 0x2200;
 pub const NVIDIA_PM: &str = "/etc/modprobe.d/bindle-nvidia-pm.conf";

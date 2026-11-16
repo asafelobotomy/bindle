@@ -186,6 +186,19 @@ files = [{ path = "/etc/firefox/policies/policies.json", content = '''
 }
 ''' }]
 
+# NVIDIA's VA-API driver (libva-nvidia-driver) works in Firefox only with
+# its media process unsandboxed. Desktops only: on hybrid laptops the
+# variables would send every app's video to the NVIDIA GPU.
+[[module]]
+id = "firefox-nvidia"
+group = "Media"
+name = "Hardware video in Firefox (NVIDIA)"
+description = "Smoother video, less CPU. Firefox's video sandbox is turned off for it, and some driver updates break it."
+when = ["gpu:nvidia", "!hybrid-gpu", "desktop"]
+risk = "moderate"
+requires = ["firefox"]
+builtin = "firefox-nvidia"
+
 [[module]]
 id = "gpg-pinentry"
 group = "Desktop basics"

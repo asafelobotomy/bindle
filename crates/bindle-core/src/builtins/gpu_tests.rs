@@ -179,3 +179,16 @@ fn package_list_covers_every_output() {
         }
     }
 }
+
+#[test]
+fn firefox_nvidia_by_generation() {
+    let ff = |d: &[u16]| expand("firefox-nvidia", &Ctx { facts: &nvidia(d), multilib: false });
+    let ampere = ff(&[0x2684]);
+    assert!(ampere.files[0].content.contains("hardware-video-decoding.force-enabled\", true"));
+    assert!(!ampere.files[0].content.contains("media.av1.enabled"), "Ampere decodes AV1");
+    assert!(ampere.files[1].content.contains("MOZ_DISABLE_RDD_SANDBOX=1\n"));
+    assert!(ff(&[0x1e84]).files[0].content.contains("pref(\"media.av1.enabled\", false);"), "Turing: no AV1");
+    assert!(ff(&[0x1b80]).files.len() == 2, "Pascal on the 580 driver");
+    let kepler = ff(&[0x1180]);
+    assert!(kepler.files.is_empty() && !kepler.notes.is_empty(), "nouveau");
+}
