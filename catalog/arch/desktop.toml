@@ -48,6 +48,15 @@ unless = [
 manual = { 3 = "your own ~/.config/hypr/hyprland.lua was kept. Add the lines `uqctl setup` printed above to the top of it, then log out and back in to start uQ." }
 
 [[module]]
+id = "bindaru"
+group = "uQ desktop"
+name = "bindaru (software store)"
+description = "Find, install and remove software from the Arch repositories and the AUR, with every AUR recipe shown for you to read before anything is built. Add repositories, scan installs with oysterAV; a window, a command and a page in uQ Settings. By asafelobotomy."
+notes = ["Open bindaru from your app menu, or run `bindaru search <name>`. System upgrades stay in bindleUP."]
+requires = ["aur-helper"]
+aur = ["bindaru"]
+
+[[module]]
 id = "noti-fi"
 group = "uQ desktop"
 name = "noti-fi (notifications)"
@@ -98,13 +107,14 @@ packages = ["github-cli", "jq", "lua", "shellcheck", "qt6-base", "qt6-declarativ
 argv = ["sh", "-ec", """
 mkdir -p "$HOME/Projects"
 failed=""
-for r in uq bindle noti-fi scdr crumbs appofholding scale_tail romforge hauler emobie oysterAV XZram; do
+for r in uq bindle bindaru noti-fi scdr crumbs appofholding scale_tail romforge hauler emobie oysterAV XZram; do
   [ -d "$HOME/Projects/$r/.git" ] && continue
   git clone -q "https://github.com/asafelobotomy/$r.git" "$HOME/Projects/$r" || failed="$failed $r"
 done
 if [ -n "$failed" ]; then echo "could not clone:$failed" >&2; exit 3; fi"""]
 unless = [
   { path = "~/Projects/uq/.git/HEAD" }, { path = "~/Projects/bindle/.git/HEAD" },
+  { path = "~/Projects/bindaru/.git/HEAD" },
   { path = "~/Projects/noti-fi/.git/HEAD" }, { path = "~/Projects/scdr/.git/HEAD" },
   { path = "~/Projects/crumbs/.git/HEAD" }, { path = "~/Projects/appofholding/.git/HEAD" },
   { path = "~/Projects/scale_tail/.git/HEAD" }, { path = "~/Projects/romforge/.git/HEAD" },
