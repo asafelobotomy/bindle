@@ -1,5 +1,5 @@
 //! Which package updates take effect only after a restart: one rule for
-//! `bindle apply`, its review screens and bindleupgrade.
+//! `bindle apply`, its review screens and bindleup.
 
 /// A kernel, firmware (loaded when a driver starts), microcode, a graphics
 /// driver or a core system library. Kernel headers and docs are not.

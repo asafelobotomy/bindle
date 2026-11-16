@@ -16,7 +16,7 @@ impl Exec<'_> {
     pub(super) fn action(&mut self, action: &Action) -> Result<()> {
         match action {
             Action::Root(argv) => {
-                self.root(Request::Run { step: Step::RunAsRoot { module: "bindleupgrade".into(), argv: argv.clone() } })
+                self.root(Request::Run { step: Step::RunAsRoot { module: "bindleup".into(), argv: argv.clone() } })
             }
             Action::RootTerminal(argv) => {
                 let tty = self.opts.tty.clone().context("no terminal to run it on")?;

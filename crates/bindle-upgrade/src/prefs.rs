@@ -1,6 +1,6 @@
-//! bindleupgrade's preferences: `/etc/bindle/upgrade.toml` (the system's),
+//! bindleup's preferences: `/etc/bindle/upgrade.toml` (the system's),
 //! then `~/.config/bindle/upgrade.toml` (yours), each value from the last
-//! file that sets it. `bindleupgrade --prefs` prints them as a file to save;
+//! file that sets it. `bindleup --prefs` prints them as a file to save;
 //! `bindo upgrade-prefs` opens yours in an editor.
 
 use std::collections::BTreeMap;
@@ -148,7 +148,7 @@ impl Prefs {
     pub fn to_toml(&self) -> String {
         let word = |f: Follow| if f == Follow::Bindle { "bindle" } else { "source" };
         let mut s = format!(
-            "# bindleupgrade preferences (docs/UPGRADE.md)\n\n\
+            "# bindleup preferences (docs/UPGRADE.md)\n\n\
              # Refresh the mirror list with reflector when it is this many days old.\n\
              mirror_max_age_days = {}\n\
              # Without a past upgrade in pacman.log, show this many days of Arch news.\n\

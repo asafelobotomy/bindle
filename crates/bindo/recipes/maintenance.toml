@@ -5,15 +5,15 @@ name = "update"
 category = "Maintenance"
 description = "Update everything: packages, AUR, Flatpak, Bindle's apps"
 help = """
-Runs bindleupgrade, which shows what will change and checks the Arch news
+Runs bindleup, which shows what will change and checks the Arch news
 first. `bindo update check` only reports what is available."""
 args = [{ name = "mode", choices = ["all", "check"], default = "all" }]
-requires = ["bindleupgrade"]
+requires = ["bindleup"]
 run = '''
 if [ "$1" = check ]; then
-    exec bindleupgrade --check
+    exec bindleup --check
 fi
-exec bindleupgrade
+exec bindleup
 '''
 
 [[recipe]]
@@ -127,16 +127,16 @@ echo "Keys refreshed. Now update the system: bindo update"
 [[recipe]]
 name = "upgrade-prefs"
 category = "Maintenance"
-description = "Change bindleupgrade's preferences (mirror age, news, app sources)"
+description = "Change bindleup's preferences (mirror age, news, app sources)"
 help = """
 Opens ~/.config/bindle/upgrade.toml in your editor ($VISUAL, $EDITOR, else
 nano or vi), first writing it with the values in effect when it is missing."""
-requires = ["bindleupgrade"]
+requires = ["bindleup"]
 run = '''
 file="${XDG_CONFIG_HOME:-$HOME/.config}/bindle/upgrade.toml"
 if [ ! -f "$file" ]; then
     mkdir -p -- "$(dirname -- "$file")"
-    bindleupgrade --prefs > "$file"
+    bindleup --prefs > "$file"
 fi
 editor="${VISUAL:-${EDITOR:-}}"
 if [ -z "$editor" ]; then
@@ -155,10 +155,10 @@ name = "update-notify"
 category = "Maintenance"
 description = "Check for updates daily and notify you (a user timer)"
 help = """
-Runs `bindleupgrade --check --notify` once a day (and after login): when
+Runs `bindleup --check --notify` once a day (and after login): when
 there is something to update, a notification's Update button opens the
 update window. Off by default; `bindo update-notify off` removes it."""
-requires = ["bindleupgrade", "systemctl"]
+requires = ["bindleup", "systemctl"]
 args = [{ name = "state", choices = ["on", "off"] }]
 run = '''
 dir="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
@@ -170,12 +170,12 @@ if [ "$1" = off ]; then
     echo "Update checks are off."
     exit 0
 fi
-exe=$(command -v bindleupgrade)
+exe=$(command -v bindleup)
 mkdir -p -- "$dir"
 cat > "$dir/$unit.service" <<UNIT
 # Managed by Bindle (bindo update-notify)
 [Unit]
-Description=Check for system updates (bindleupgrade --check)
+Description=Check for system updates (bindleup --check)
 After=network-online.target
 
 [Service]

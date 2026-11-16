@@ -4,8 +4,8 @@ import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import org.bindle.wizard
 
-// The update window (`bindle-gui --upgrade`, `bindleupgrade --gui`): the
-// wizard's look and parts over bindleupgrade's plan. Check lists what each
+// The update window (`bindle-gui --upgrade`, `bindleup --gui`): the
+// wizard's look and parts over bindleup's plan. Check lists what each
 // stage would do, with a switch where there is a choice; Update runs it and
 // ends on the results.
 ThemedWindow {
@@ -19,7 +19,7 @@ ThemedWindow {
     readonly property bool running: run.state === "running"
     readonly property bool ended: ["done", "failed", "error"].includes(run.state)
 
-    title: "Bindle · System update"
+    title: "bindleUP · System update"
     width: Kirigami.Units.gridUnit * 56
     height: Kirigami.Units.gridUnit * 36
     minimumWidth: Kirigami.Units.gridUnit * 36

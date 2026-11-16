@@ -32,7 +32,7 @@ The first signed releases up to v0.1.9 and is retired; the second signs
 every release after it (see "Key rotation"). The public keys are
 [packaging/bindle-release.asc](packaging/bindle-release.asc). `install.sh`
 embeds them and accepts the first key only for tags up to v0.1.9 (so a pinned
-`BINDLE_VERSION` still installs); Bindle's self-update (`bindleupgrade`)
+`BINDLE_VERSION` still installs); Bindle's self-update (`bindleup`)
 trusts only the second, since it only updates to newer releases. See
 [docs/ISO.md](docs/ISO.md#trust) to verify by hand.
 

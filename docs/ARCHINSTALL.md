@@ -86,7 +86,7 @@ Bluetooth hardware is present.
 |---|---|
 | `/usr/local/bin/bindle` | the binary (a copy of whatever ran the command) |
 | `/usr/local/bin/bindle-gui` | the desktop window, when it ships next to `bindle` (release downloads and `bindle iso` include it) |
-| `/usr/local/bin/bindo`, `/usr/local/bin/bindleupgrade` | links to `bindle`, which acts as the recipe runner and the updater under those names ([BINDO.md](BINDO.md), [UPGRADE.md](UPGRADE.md)) |
+| `/usr/local/bin/bindo`, `/usr/local/bin/bindleup` | links to `bindle`, which acts as the recipe runner and the updater under those names ([BINDO.md](BINDO.md), [UPGRADE.md](UPGRADE.md)) |
 | `/usr/lib/bindle/bindle` | a link to `bindle` for uQ Settings' page, whose commands may only run programs under `/usr/lib` or `/usr/bin` |
 | `/usr/share/uq/settings/pages/bindle/page.toml`, `Page.qml` | uQ Settings' "Re-run setup" page; harmless without uQ, and a uQ installed later picks it up |
 | `/usr/share/polkit-1/actions/io.github.asafelobotomy.bindle.policy` | the reason shown in the root helper's password dialog (`bindle helper` only; asks every run) |

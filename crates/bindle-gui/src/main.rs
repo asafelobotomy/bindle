@@ -3,7 +3,7 @@
 //! theme tokens; elsewhere it follows the desktop's Qt theme.
 //!
 //! `bindle-gui --upgrade` is the system update window instead (what
-//! `bindleupgrade --gui` opens): the same look and parts over bindleupgrade's
+//! `bindleup --gui` opens): the same look and parts over bindleup's
 //! plan, from `UpgradeMain.qml` and `UpgradeBackend`. `bindle-gui
 //! --recovery` is the Recovery window (Roll back, Rebase, Factory Restore:
 //! `RecoveryMain.qml` over `RecoveryBackend`).

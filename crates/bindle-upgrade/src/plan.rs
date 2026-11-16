@@ -270,8 +270,7 @@ fn snapshot(p: &Probe, upgrading: bool) -> StagePlan {
     } else if !upgrading {
         StagePlan::new(s, Todo::Nothing, "no package upgrades")
     } else {
-        let argv =
-            ["snapper", "-c", "root", "create", "--description", "bindleupgrade", "--cleanup-algorithm", "number"];
+        let argv = ["snapper", "-c", "root", "create", "--description", "bindleup", "--cleanup-algorithm", "number"];
         StagePlan::new(s, Todo::Run(vec![root(&argv)]), "snapshot of / before upgrading")
     }
 }

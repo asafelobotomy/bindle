@@ -32,7 +32,7 @@
 - ~~Create the GitHub repo~~ ✅ (private for now); make it public and cut the first release (the curl URL depends on both)
 - ~~Full VM install from the current ISO~~ ✅ all 21 archinstall desktops ([VM-TEST.md](VM-TEST.md)); next: gaming/developer profiles, NVIDIA/AMD hardware passthrough
 - ~~Decide how first login coexists with desktop welcome apps~~ ✅ suppressed by `bindle iso`, waited for elsewhere ([ARCHINSTALL.md](ARCHINSTALL.md#welcome-apps))
-- ~~Sign releases and verify in install.sh~~ ✅ `SHA256SUMS` carries a GPG signature; `install.sh` checks it with `gpgv` against the embedded release key, and bindleupgrade's self-update does the same
+- ~~Sign releases and verify in install.sh~~ ✅ `SHA256SUMS` carries a GPG signature; `install.sh` checks it with `gpgv` against the embedded release key, and bindleup's self-update does the same
 - ~~Real apply runs in an Arch VM per desktop~~ ✅ all installable desktops ([VM-TEST.md](VM-TEST.md))
 - Turn advisories into optional steps (prune GPU drivers, iwd → NetworkManager)
 - ~~Progress view inside the TUI instead of dropping to the terminal~~ ✅ for `bindle install`; next: the same for `bindle apply` from the desktop wizard's terminal
@@ -58,7 +58,7 @@
 ## Phase 4.5: install, maintain, upgrade ✅
 - `bindle install` (also `bindleinstall`, and what `install.sh` runs with no arguments): the whole live-ISO install in one wizard, with Hardware and Apps pages, manual partitioning through archinstall's disk editor, and one progress screen ([ISO.md](ISO.md))
 - `bindo`: named system tasks as TOML recipes, shipped and from installed modules ([BINDO.md](BINDO.md))
-- `bindleupgrade` (`bindle upgrade`): the whole system updated in one guided run, staged, with checks before and after, Bindle's own self-update, a daily check with a notification, and the update window (`bindleupgrade --gui`) ([UPGRADE.md](UPGRADE.md))
+- `bindleup` (`bindle upgrade`): the whole system updated in one guided run, staged, with checks before and after, Bindle's own self-update, a daily check with a notification, and the update window (`bindleup --gui`) ([UPGRADE.md](UPGRADE.md))
 - What's new (`bindle whats-new`): what a newer Bindle adds, changes or retires for this computer, from a record every apply keeps ([UPGRADE-PATH.md](UPGRADE-PATH.md))
 - `bindle status`: what Bindle last set up here, and what of it is missing now
 

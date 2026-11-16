@@ -67,8 +67,8 @@ below); there is no button for it. The update window (`bindle-gui
 
 ## The update window
 
-`bindle-gui --upgrade` (opened by `bindleupgrade --gui`, which passes
-`--dry-run` / `--sandbox` on) is bindleupgrade with the wizard's look: the
+`bindle-gui --upgrade` (opened by `bindleup --gui`, which passes
+`--dry-run` / `--sandbox` on) is bindleup with the wizard's look: the
 same QML module, theme, `Glyph`, `Panel`, `Pill`, `Notice`, `ReviewList`,
 `StepBar` and `Disclosure`, from a second entry point (`UpgradeMain.qml`)
 in the same binary rather than a separate one, so it installs, themes and

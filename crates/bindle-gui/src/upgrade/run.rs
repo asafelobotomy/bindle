@@ -204,7 +204,7 @@ fn save_log(lines: &[String]) -> Option<String> {
     Some(path.display().to_string())
 }
 
-/// `bindleupgrade` in a terminal (all of it, or `--only aur`), where pacman
+/// `bindleup` in a terminal (all of it, or `--only aur`), where pacman
 /// and paru can ask. A rehearsal passes its `--dry-run` / `--sandbox` on.
 pub fn in_terminal(only_aur: bool, dry_run: bool, sandbox: Option<&str>) -> anyhow::Result<()> {
     let exe = crate::apply::helper_exe().ok_or_else(|| anyhow::anyhow!("the bindle program isn't installed"))?;

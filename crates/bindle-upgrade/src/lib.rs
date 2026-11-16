@@ -1,4 +1,4 @@
-//! bindleupgrade: one guided run that updates the whole system.
+//! bindleup: one guided run that updates the whole system.
 //!
 //! The run has three parts, kept apart so the middle one is pure:
 //! 1. [`probe`] looks at the system without changing it (checkupdates,

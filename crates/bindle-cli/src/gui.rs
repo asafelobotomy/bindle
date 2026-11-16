@@ -55,12 +55,12 @@ fn wait(mut cmd: Command) -> Ended {
     }
 }
 
-/// `bindleupgrade --gui`: the update window (`bindle-gui --upgrade`), with
+/// `bindleup --gui`: the update window (`bindle-gui --upgrade`), with
 /// a rehearsal's `--dry-run` or `--sandbox` passed on.
 pub fn upgrade(dry_run: bool, sandbox: Option<&Path>) -> Result<()> {
     let Some(gui) = available() else {
         anyhow::bail!(
-            "the update window can't start here (it needs bindle-gui next to bindle, a desktop session and Kirigami); run bindleupgrade without --gui"
+            "the update window can't start here (it needs bindle-gui next to bindle, a desktop session and Kirigami); run bindleup without --gui"
         );
     };
     crate::polkit_agent::ensure();
@@ -73,7 +73,7 @@ pub fn upgrade(dry_run: bool, sandbox: Option<&Path>) -> Result<()> {
         cmd.arg("--sandbox").arg(dir);
     }
     match wait(cmd) {
-        Ended::Failed => anyhow::bail!("the update window couldn't start; run bindleupgrade without --gui"),
+        Ended::Failed => anyhow::bail!("the update window couldn't start; run bindleup without --gui"),
         _ => Ok(()),
     }
 }

@@ -1,7 +1,7 @@
 //! One run's way of doing things as root and as the user: Bindle's root
 //! helper, started when the first root command is due (one password prompt
 //! for the run), a refusal remembered so later steps fail at once instead of
-//! asking again, and dry runs that only print. Shared by bindleupgrade and
+//! asking again, and dry runs that only print. Shared by bindleup and
 //! the recovery tools.
 
 use std::path::PathBuf;
