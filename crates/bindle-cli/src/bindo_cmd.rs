@@ -163,8 +163,8 @@ fn module_installed(m: &Module, has: &dyn Fn(&str) -> bool, has_appimage: &dyn F
         })
 }
 
-/// `bindo` and `bindleupgrade`: links to `bindle`, installed beside it.
-pub const NAMES: [&str; 2] = ["/usr/local/bin/bindo", "/usr/local/bin/bindleupgrade"];
+/// `bindo` and `bindleup`: links to `bindle`, installed beside it.
+pub const NAMES: [&str; 2] = ["/usr/local/bin/bindo", "/usr/local/bin/bindleup"];
 
 /// Link [`NAMES`] to `bindle` under `root` (by `bindle first-login install`).
 pub fn link_names(root: &std::path::Path) -> Result<String> {
@@ -177,7 +177,7 @@ pub fn link_names(root: &std::path::Path) -> Result<String> {
 }
 
 /// One binary, three names: run as `bindo`, do that here (None); as
-/// `bindleupgrade`, the arguments of `bindle upgrade`; else `bindle`'s own.
+/// `bindleup`, the arguments of `bindle upgrade`; else `bindle`'s own.
 pub fn route() -> Result<Option<Vec<OsString>>> {
     let mut argv: Vec<OsString> = std::env::args_os().collect();
     let appimage_argv0 = std::env::var_os("APPIMAGE").and(std::env::var_os("ARGV0"));
@@ -191,14 +191,14 @@ pub fn route() -> Result<Option<Vec<OsString>>> {
     }
 }
 
-/// The command name this binary was started as: `bindo` or `bindleupgrade`
+/// The command name this binary was started as: `bindo` or `bindleup`
 /// through a symlink, or inside an AppImage (whose runtime sets `ARGV0`).
 pub fn invoked_as(argv0: Option<&std::ffi::OsStr>, appimage_argv0: Option<&std::ffi::OsStr>) -> Option<&'static str> {
     let base = |p: &std::ffi::OsStr| std::path::Path::new(p).file_name().map(|n| n.to_string_lossy().into_owned());
     let names = [appimage_argv0.and_then(base), argv0.and_then(base)];
     names.into_iter().flatten().find_map(|n| match n.as_str() {
         "bindo" => Some("bindo"),
-        "bindleupgrade" => Some("bindleupgrade"),
+        "bindleup" => Some("bindleup"),
         _ => None,
     })
 }
@@ -224,7 +224,7 @@ mod tests {
     #[test]
     fn the_binary_answers_to_its_other_names() {
         assert_eq!(invoked_as(Some(OsStr::new("/usr/local/bin/bindo")), None), Some("bindo"));
-        assert_eq!(invoked_as(Some(OsStr::new("bindleupgrade")), None), Some("bindleupgrade"));
+        assert_eq!(invoked_as(Some(OsStr::new("bindleup")), None), Some("bindleup"));
         assert_eq!(invoked_as(Some(OsStr::new("/usr/local/bin/bindle")), None), None);
         let appimage = Some(OsStr::new("/home/u/bin/bindo"));
         assert_eq!(invoked_as(Some(OsStr::new("/tmp/.mount_x/usr/bin/bindle")), appimage), Some("bindo"));

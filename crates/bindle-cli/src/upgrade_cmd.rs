@@ -1,4 +1,4 @@
-//! `bindleupgrade` (also `bindle upgrade`): update the whole system in one
+//! `bindleup` (also `bindle upgrade`): update the whole system in one
 //! guided run. The work is in the `bindle-upgrade` crate; this is the
 //! terminal around it.
 
@@ -68,7 +68,7 @@ fn stages(names: &[String]) -> Result<BTreeSet<Stage>> {
 }
 
 pub fn main(a: UpgradeArgs) -> Result<()> {
-    let prefs = prefs::load(&mut |w| eprintln!("bindleupgrade: {w}"));
+    let prefs = prefs::load(&mut |w| eprintln!("bindleup: {w}"));
     if a.prefs {
         print!("{}", prefs.to_toml());
         return Ok(());
@@ -78,7 +78,7 @@ pub fn main(a: UpgradeArgs) -> Result<()> {
     }
     let rehearsal = a.dry_run || a.sandbox.is_some();
     if bindle_run::sys::is_root() && !a.check && !rehearsal {
-        bail!("run bindleupgrade as your user: it asks for the password when it needs to, and AUR builds refuse root");
+        bail!("run bindleup as your user: it asks for the password when it needs to, and AUR builds refuse root");
     }
     let tty = bindle_run::tty::own_tty();
     let opts = Options {
@@ -136,7 +136,7 @@ pub fn main(a: UpgradeArgs) -> Result<()> {
         println!("\nBindle updated itself; the new one goes on.");
         return relaunch(&exe);
     }
-    println!("\nbindleupgrade finished:");
+    println!("\nbindleup finished:");
     report::table(&results, rehearsal).iter().for_each(|l| println!("{l}"));
     // The Bindle that just replaced the old one: what it brings is next.
     if std::env::var_os(selfupdate::UPDATED_ENV).is_some() && !rehearsal && !probe.after.setup.whats_new.is_empty() {
@@ -178,7 +178,7 @@ fn relaunch(exe: &std::path::Path) -> Result<()> {
 }
 
 /// `--check --notify`: a notification when there is work; its Update
-/// button opens the update window (or bindleupgrade in a terminal).
+/// button opens the update window (or bindleup in a terminal).
 fn notify(plans: &[StagePlan]) -> Result<()> {
     let work: Vec<String> =
         plans.iter().filter(|p| p.runs()).map(|p| format!("{}: {}", p.stage.title(), p.summary)).collect();

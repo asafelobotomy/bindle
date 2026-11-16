@@ -246,7 +246,7 @@ fn install_files(h: &mut HelperClient, files: Vec<String>, progress: &mut dyn Pr
 }
 
 /// Whether the plan changes the kernel, microcode, drivers or a core
-/// library (`bindle_core::restart`, the rule bindleupgrade uses too).
+/// library (`bindle_core::restart`, the rule bindleup uses too).
 pub fn needs_reboot(plan: &Plan) -> bool {
     use bindle_core::restart::needs_restart;
     plan.steps.iter().any(|s| match s {

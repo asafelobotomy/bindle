@@ -8,7 +8,7 @@ through the usual review and snapshot (so `bindle undo` reverts it).
 ```bash
 bindle whats-new            # pick in the terminal, then review and apply
 bindle whats-new --list     # just show it
-bindle whats-new --json     # for scripts (bindleupgrade's report uses the same diff)
+bindle whats-new --json     # for scripts (bindleup's report uses the same diff)
 bindle whats-new --yes      # apply what is ticked by default (new and changed)
 bindle whats-new --all      # include the items you hid
 bindo whats-new
@@ -21,9 +21,9 @@ starts and there is something in it, until you are done with this version:
 (s), or applying, stops it opening by itself until a newer Bindle. "Hide"
 (h) removes one item for good, remembered by its content, so a later Bindle
 that changes it again shows it again (`~/.local/state/bindle/whats-new.json`;
-`--all` shows hidden items). It also opens after bindleupgrade updates Bindle
+`--all` shows hidden items). It also opens after bindleup updates Bindle
 itself (asked on a terminal, otherwise a notification with Review), and from
-bindleupgrade's "Bindle setup" stage and the update window's What's new button.
+bindleup's "Bindle setup" stage and the update window's What's new button.
 
 ## How it works
 
@@ -105,7 +105,7 @@ it. Unpicked items stay as they are and show again next time.
 | `bindle-run/src/whatsnew.rs` | the record from snapshots, the saved selection, the plan for the picks, the seen version |
 | `bindle-cli/src/whatsnew_cmd.rs`, `tui/whatsnew.rs` | `bindle whats-new`, the terminal page, the first-run hook |
 | `bindle-gui/src/model/whatsnew.rs`, `qml/WhatsNewPage.qml` | the window's page (steps: What's new → Review → Apply) |
-| `bindle-upgrade/src/setup.rs` | bindleupgrade's "Bindle setup" stage reports What's new |
+| `bindle-upgrade/src/setup.rs` | bindleup's "Bindle setup" stage reports What's new |
 
 ## Choices made
 

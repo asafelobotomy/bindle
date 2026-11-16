@@ -1,4 +1,4 @@
-//! The update window's state, without Qt: what bindleupgrade found
+//! The update window's state, without Qt: what bindleup found
 //! (`bindle_upgrade::probe::Probe`), the stages switched off, and the
 //! answers to the questions the terminal would ask. The plan comes from
 //! `bindle_upgrade::plan`, the same pure planner the terminal uses; this

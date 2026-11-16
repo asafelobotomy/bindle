@@ -1,6 +1,6 @@
 [package]
 name = "bindle-upgrade"
-description = "bindleupgrade: one guided run that updates the whole system"
+description = "bindleup: one guided run that updates the whole system"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

@@ -93,18 +93,18 @@ recipe can ask their own questions. pkexec clears the environment; a recipe
 that needs a variable sets it itself.
 
 Every approval in Bindle goes through pkexec (`bindle apply`, `undo` and
-`bindleupgrade` start their root helper with it too).
+`bindleup` start their root helper with it too).
 
 bindo doesn't use Bindle's root helper here: the helper runs one command at a
 time with no terminal, which would make every interactive recipe impossible.
-`bindleupgrade` does use it (one prompt for many root steps).
+`bindleup` does use it (one prompt for many root steps).
 
 ### One binary, three names
 
 bindo is a library crate (`crates/bindo`: format, loading, argument checks,
 listing, completion scripts, execution) and a subcommand of the `bindle`
 binary (`crates/bindle-cli/src/bindo_cmd.rs`). `bindle first-login install`
-links `/usr/local/bin/bindo` and `/usr/local/bin/bindleupgrade` to
+links `/usr/local/bin/bindo` and `/usr/local/bin/bindleup` to
 `/usr/local/bin/bindle`; the binary looks at the name it was started as. An
 AppImage works the same when linked or renamed to `bindo` (its runtime sets
 `ARGV0`). `bindle bindo …` works everywhere.

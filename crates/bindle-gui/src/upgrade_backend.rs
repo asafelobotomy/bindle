@@ -53,7 +53,7 @@ pub mod qobject {
         fn toggle(self: Pin<&mut UpgradeBackend>, id: &QString);
         #[qinvokable]
         fn start_run(self: Pin<&mut UpgradeBackend>);
-        /// bindleupgrade in a terminal: the AUR only, or everything (after a
+        /// bindleup in a terminal: the AUR only, or everything (after a
         /// failed system upgrade, or with no polkit agent).
         #[qinvokable]
         fn open_terminal(self: Pin<&mut UpgradeBackend>, only_aur: bool);

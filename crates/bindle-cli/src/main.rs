@@ -115,7 +115,7 @@ enum Cmd {
     WhatsNew(whatsnew_cmd::WhatsNewArgs),
     /// Update the whole system in one guided run: Arch news, packages, AUR,
     /// Flatpak, firmware, Bindle's apps, then leftovers and reboot.
-    #[command(visible_alias = "bindleupgrade")]
+    #[command(visible_alias = "bindleup")]
     Upgrade(upgrade_cmd::UpgradeArgs),
     #[command(flatten)]
     Recover(recover_cmd::RecoverCmd),

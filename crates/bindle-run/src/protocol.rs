@@ -28,7 +28,7 @@ pub enum Request {
     },
     /// The names of the files in /boot, one `Output` each (often root-only).
     BootFiles,
-    /// Replace Bindle's own programs with a verified release (bindleupgrade).
+    /// Replace Bindle's own programs with a verified release (bindleup).
     InstallBindle {
         files: Vec<BindleFile>,
     },
@@ -118,7 +118,7 @@ pub struct SnapshotPlan {
     #[serde(default)]
     pub manual: Vec<String>,
     /// Packages installed from Bindle's pinned releases (also in `packages`):
-    /// bindleupgrade updates these from their releases.
+    /// bindleup updates these from their releases.
     #[serde(default)]
     pub releases: Vec<String>,
     /// The Bindle making this apply, what each of its modules puts on the

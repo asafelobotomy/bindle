@@ -7,11 +7,11 @@ Fresh-install setup wizard for Linux (Arch first). Rust workspace; TUI-first; Ap
 | Path | What |
 |---|---|
 | `crates/bindle-core` | `detect` (facts, no root), `install` (archinstall log / pacman.log reconstruction), `desktops`, `catalog` (TOML, validated), `builtins` (hardware-computed modules; `drives` generates one module per mountable drive), `plan` (pure resolver; `plan/content.rs` per-module content), `whatsnew` (pure "What's new" diff + `catalog/changes.toml`), `recover` (pure Roll back / Rebase / Factory Restore: snapper listings, rollback script, stock set, boot entries), `pacman_conf`, `fstab` |
-| `crates/bindle-run` | apply engine shared by frontends: `apply` (orchestrator, `Progress` trait), root `helper` (`helper/recover.rs`, `helper/restore.rs`: rollback, config reset, Factory Restore), `session` (one helper per run, shared with bindleupgrade), JSON `protocol`, `client`, `snapshot` (also the per-module record), `record` (the ledger), `whatsnew` (record, picks), `whatsnew_state` (skip, hide), `sys`, `selection`, `present` (text every frontend shows) |
-| `crates/bindle-gui` | `bindle-gui`: desktop wizard, cxx-qt + Kirigami (`qml/`, `src/model.rs` holds the wizard state without Qt, `src/theme.rs` reads uQ's tokens; `--upgrade`: the bindleupgrade window, `UpgradeMain.qml` over `src/upgrade.rs` + `upgrade_backend.rs`; `--recovery`: the Recovery window, `RecoveryMain.qml` over `src/recovery.rs` + `recovery_backend.rs`). Not a default workspace member: needs Qt 6 and Kirigami |
+| `crates/bindle-run` | apply engine shared by frontends: `apply` (orchestrator, `Progress` trait), root `helper` (`helper/recover.rs`, `helper/restore.rs`: rollback, config reset, Factory Restore), `session` (one helper per run, shared with bindleup), JSON `protocol`, `client`, `snapshot` (also the per-module record), `record` (the ledger), `whatsnew` (record, picks), `whatsnew_state` (skip, hide), `sys`, `selection`, `present` (text every frontend shows) |
+| `crates/bindle-gui` | `bindle-gui`: desktop wizard, cxx-qt + Kirigami (`qml/`, `src/model.rs` holds the wizard state without Qt, `src/theme.rs` reads uQ's tokens; `--upgrade`: the bindleup window, `UpgradeMain.qml` over `src/upgrade.rs` + `upgrade_backend.rs`; `--recovery`: the Recovery window, `RecoveryMain.qml` over `src/recovery.rs` + `recovery_backend.rs`). Not a default workspace member: needs Qt 6 and Kirigami |
 | `crates/bindle-cli` | `bindle` binary: clap CLI, ratatui wizard (`src/tui`), `apply.rs` (terminal frontend over `bindle-run`), `whatsnew_cmd.rs` + `tui/whatsnew.rs`, `recover_cmd.rs` + `recover_cmd/` (`recovery`, `rollback`, `rebase`, `restore`), `firstlogin.rs`, `terminal.rs` |
 | `crates/bindo` | `bindo` recipe runner library: TOML `recipe` format, `book` (shipped `recipes/*.toml`, installed modules' `[[module.recipe]]`, then `/usr/share`, `/etc`, `~/.config` overrides), `args`, `show` (listing, help, completions), `exec` (pkexec/run0, never sudo). CLI in `bindle-cli/src/bindo_cmd.rs` |
-| `crates/bindle-upgrade` | `bindleupgrade`: `probe` (looks, no root; `probe_system.rs`), `system` (pure parsers: df, dkms, power, pin, vercmp), pure `plan` (`plan_pre`, `plan_pkgs`, `plan_after`, `plan_close`), `prefs` (`upgrade.toml`), `releases` (pins by install source), `selfupdate` (signed release), `setup` (new features, drift), `run` (+`run_actions`; root helper + user commands, keeps going), `report`. CLI in `bindle-cli/src/upgrade_cmd.rs` |
+| `crates/bindle-upgrade` | `bindleup`: `probe` (looks, no root; `probe_system.rs`), `system` (pure parsers: df, dkms, power, pin, vercmp), pure `plan` (`plan_pre`, `plan_pkgs`, `plan_after`, `plan_close`), `prefs` (`upgrade.toml`), `releases` (pins by install source), `selfupdate` (signed release), `setup` (new features, drift), `run` (+`run_actions`; root helper + user commands, keeps going), `report`. CLI in `bindle-cli/src/upgrade_cmd.rs` |
 | `catalog/` | Module data (`arch/*.toml`) + `desktops.toml`, `profiles.toml` (bases and `addon = true` add-ons) and `changes.toml` (What's new: modules added, retired, renamed per version), embedded at compile time; add files to `ARCH_FILES`; `make check-packages` |
 | `packaging/appimage` | `AppRun`, desktop file, `build-appimage.sh` |
 | `packaging/archinstall` | `bindle_plugin.py` (embedded into `bindle iso` and `bindle install`), `bindle_disk_editor.py` (`bindle install`'s manual partitioning: archinstall's disk menu) |
@@ -21,7 +21,7 @@ Fresh-install setup wizard for Linux (Arch first). Rust workspace; TUI-first; Ap
 | `crates/bindle-cli/src/iso.rs`, `tui/iso.rs` | `bindle iso`: archinstall's menu with Bindle's preset; preset in `bindle-core/src/install/preset.rs` |
 | `tests/vm/` | QEMU end-to-end install test (`run.sh`, guest scripts); artifacts in git-ignored `.work/` |
 | `branding/` | `bindle.svg` (the icon) and `png/` sizes from `scripts/icons.sh`; rerun it after editing the SVG (a unit test checks) |
-| `docs/` | DESIGN (why), CATALOG (schema), ROADMAP, ISO, GUI (bindle-gui, the update window, uQ integration), ARCHINSTALL (detection, first login, welcome apps), APPLY, DRIVES (fstab, mounting other drives), BINDO (recipes), UPGRADE (bindleupgrade), UPGRADE-PATH (What's new after upgrading Bindle), RECOVERY (Roll back, Rebase, Factory Restore), VM-TEST |
+| `docs/` | DESIGN (why), CATALOG (schema), ROADMAP, ISO, GUI (bindle-gui, the update window, uQ integration), ARCHINSTALL (detection, first login, welcome apps), APPLY, DRIVES (fstab, mounting other drives), BINDO (recipes), UPGRADE (bindleup), UPGRADE-PATH (What's new after upgrading Bindle), RECOVERY (Roll back, Rebase, Factory Restore), VM-TEST |
 
 ## Verify
 
@@ -33,7 +33,7 @@ make gui-shots     # every screen offscreen, per uQ theme fixture, into dist/sho
 cargo run -p bindle-cli -- detect
 cargo run -p bindle-cli -- plan --profile gaming
 cargo run -p bindle-cli -- bindo                # list recipes; `bindo -n <recipe>` prints, runs nothing
-cargo run -p bindle-cli -- upgrade --check      # what bindleupgrade would do; `-n` prints every command
+cargo run -p bindle-cli -- upgrade --check      # what bindleup would do; `-n` prints every command
 cargo run -p bindle-cli -- upgrade --gui -n     # the update window, dry run (needs bindle-gui built)
 cargo run -p bindle-cli -- whats-new --list      # what this Bindle adds or changes here; `--sandbox <dir> --yes` rehearses applying it
 ```

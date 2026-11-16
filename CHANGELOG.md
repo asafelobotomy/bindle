@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- **`bindleupgrade` is now bindleUP, and the command is `bindleup`** (`bindle upgrade` still works). Nothing else about it changes. The old `/usr/local/bin/bindleupgrade` link is no longer installed or recognised; a daily-check timer made by `bindo update-notify on` points at the old path, so run `bindo update-notify on` again to rewrite it. The window is titled "bindleUP · System update".
+
 ## 0.1.10 — 2026-11-16
 
 - **Opt-in choices** (offered, never ticked by default): don't freeze when memory runs out (MGLRU thrashing protection); `noatime` on Btrfs; night light on window managers (gammastep at the timezone's location, no location service); Firefox without telemetry or studies (a system policy); hardware video decoding in Firefox on NVIDIA desktops (libva-nvidia-driver; it turns off Firefox's media sandbox); GnuPG's passphrase in a window; a gentler lockout after wrong passwords (5 tries, 2 minutes); Wi-Fi address privacy (random while scanning, stable per network); firejail; auditd; real-time audio for music apps.
