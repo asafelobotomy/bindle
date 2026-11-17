@@ -191,9 +191,9 @@ name = "oysterAV (security scans)"
 description = "One GUI and CLI over ClamAV, rkhunter, Lynis and friends. By asafelobotomy."
 profiles = ["desktop", "gaming", "developer"]
 requires = ["aur-helper"]
-aur = ["oysterav"]
+aur = ["oysterav", "chkrootkit"]
 # What oysterAV scans with, ready to go: ClamAV with its signature updater running (it downloads
-# the signatures as soon as it starts), and rkhunter for the rootkit check. The firewall is the
+# the signatures as soon as it starts), and rkhunter and chkrootkit for the rootkit checks. The firewall is the
 # ufw module above.
 packages = ["clamav", "rkhunter"]
 enable = ["clamav-freshclam.service"]
