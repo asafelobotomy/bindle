@@ -291,3 +291,25 @@ fn a_kernel_modules_hook_copy_is_not_an_installed_kernel() {
     };
     assert_eq!(after_plans(&now, &now, &[], &Options::default(), false)[6].details.len(), 1, "the old image is stale");
 }
+
+#[test]
+fn a_kernel_modules_hook_copy_recommends_a_restart_but_does_not_hold_it() {
+    // After an upgrade the running kernel's modules are a copy; DKMS is built for the new kernel only.
+    let kernels = vec![
+        Kernel { version: "7.3.4-zen2-1-zen".into(), pkgbase: "linux-zen".into() },
+        Kernel { version: "7.3.4-zen2-2-zen".into(), pkgbase: "linux-zen".into() },
+    ];
+    let dkms = vec![Dkms { module: "nvidia".into(), kernel: "7.3.4-zen2-2-zen".into(), state: "installed".into() }];
+    let now = After {
+        kernels,
+        dkms,
+        unowned_kernels: vec!["7.3.4-zen2-1-zen".into()],
+        kernel_modules_present: true,
+        running_kernel: "7.3.4-zen2-1-zen".into(),
+        ..after()
+    };
+    let check = &after_plans(&now, &now, &[], &Options::default(), false)[6];
+    assert!(!matches!(check.todo, Todo::Hold(_) | Todo::Run(_)), "{check:?}");
+    assert_eq!(check.todo, Todo::Report, "the running kernel was replaced: a restart is recommended");
+    assert!(check.summary.contains("the running kernel (7.3.4-zen2-1-zen) was replaced"), "{check:?}");
+}

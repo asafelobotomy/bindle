@@ -7,7 +7,7 @@ use crate::setup::Setup;
 use crate::stage::Stage;
 use bindle_core::uki;
 
-use crate::system::{dkms_missing, images_missing};
+use crate::system::{Kernel, dkms_missing, images_missing};
 use bindle_core::whatsnew::Kind;
 
 /// Units failed now that weren't before the run (`--check`: those failed now).
@@ -65,7 +65,10 @@ pub use bindle_core::restart::needs_restart;
 pub(super) fn reboot(a: &After, updated: &[String], pending: bool) -> StagePlan {
     let s = Stage::Reboot;
     let mut why = vec![];
-    if !a.kernel_modules_present {
+    // With kernel-modules-hook the running kernel's modules stay as a copy no package owns: that is
+    // the sign a kernel upgrade replaced it, as much as the folder being gone.
+    let replaced = !a.kernel_modules_present || a.unowned_kernels.contains(&a.running_kernel);
+    if replaced {
         why.push(format!("the running kernel ({}) was replaced", a.running_kernel));
     }
     let hits: Vec<&str> = updated.iter().map(String::as_str).filter(|n| needs_restart(n)).collect();
@@ -73,9 +76,12 @@ pub(super) fn reboot(a: &After, updated: &[String], pending: bool) -> StagePlan 
         let verb = if pending { "will update" } else { "updated" };
         why.push(format!("{verb} {}", hits.join(", ")));
     }
-    let dkms = dkms_missing(&a.kernels, &a.dkms);
+    // A copy of the running kernel's modules (kernel-modules-hook keeps one until the restart) is
+    // not an installed kernel: no package, headers or DKMS build for it, so nothing to fix there.
+    let owned: Vec<Kernel> = a.kernels.iter().filter(|k| !a.unowned_kernels.contains(&k.version)).cloned().collect();
+    let dkms = dkms_missing(&owned, &a.dkms);
     let uki = uki_findings(a);
-    let images = a.boot.as_ref().map(|b| images_missing(&a.kernels, b)).unwrap_or_default();
+    let images = a.boot.as_ref().map(|b| images_missing(&owned, b)).unwrap_or_default();
     let mut broken: Vec<String> =
         dkms.iter().map(|(m, k)| format!("{m} isn't built for {k}: pkexec dkms autoinstall -k {k}")).collect();
     broken.extend(images.iter().map(|f| format!("/boot/{f} is missing: pkexec mkinitcpio -P")));
@@ -107,7 +113,7 @@ pub(super) fn reboot(a: &After, updated: &[String], pending: bool) -> StagePlan 
     if let Some((_, lines)) = &stale {
         details.extend(lines.iter().cloned());
     }
-    let when = if pending && a.kernel_modules_present { "will be needed" } else { "recommended" };
+    let when = if pending && !replaced { "will be needed" } else { "recommended" };
     let summary = match (why.is_empty(), stale) {
         (true, None) => return StagePlan::new(s, Todo::Nothing, "not needed").details(details),
         (true, Some((note, _))) => note,

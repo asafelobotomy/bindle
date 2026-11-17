@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **bindleUP no longer holds the restart for the kernel copy kernel-modules-hook keeps.** After a kernel upgrade, the running kernel's modules stay as a copy no package owns; bindleUP counted it as an installed kernel, said "don't restart yet: nvidia isn't built for" it and offered a build that can't work (its headers are gone). It now ignores that copy for DKMS and boot-image checks, and treats it as the sign the running kernel was replaced, so the reboot line says so.
+
 ## 0.1.14 — 2026-11-17
 
 - **bindleUP checks unified kernel images.** The Reboot stage reads the kernel inside each UKI on the EFI partition and flags one that holds a kernel which is no longer installed (the leftover "previous" image that broke a boot), or an installed kernel no image holds ("don't restart yet", then `mkinitcpio -P`). Same rule as the boot guard; it works without `objcopy` and through the root helper when the partition is root-only.
