@@ -226,9 +226,9 @@ name = "hauler (download manager)"
 description = "Fast, resumable downloads over parallel connections; CLI, daemon and Kirigami app. By asafelobotomy."
 [[module.release]]
 repo = "asafelobotomy/hauler"
-tag = "v0.2.0"
-asset = "hauler-0.2.0-1-x86_64.pkg.tar.zst"
-sha256 = "5e19eb8fb5dbeddd71d8f04239332d7ada153db080fc3c4c9e3b9ac2637f1443"
+tag = "v0.2.1"
+asset = "hauler-0.2.1-1-x86_64.pkg.tar.zst"
+sha256 = "c13b5940c3d992bfef098efaaf4a49226d8d095a083782de1a7b6198a01fce2c"
 name = "hauler"
 
 [[module]]

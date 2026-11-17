@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.1.18 — 2026-11-17
+
+- **Newer hauler, XZram and appOFholding.** Pinned to hauler 0.2.1, XZram 0.7.1 and appOFholding 0.12.0; all three now follow the uQ theme.
+
 ## 0.1.17 — 2026-11-17
 
 - **oysterAV installs by default on desktop, gaming and developer profiles**, along with ClamAV and rkhunter, and starts the signature updater (`freshclam`), so its first scan has something to check against. A boot-guard status recipe was added.
