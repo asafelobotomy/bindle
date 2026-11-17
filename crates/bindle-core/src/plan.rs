@@ -30,8 +30,13 @@ impl Selection {
         {
             bail!("unknown profile `{p}`");
         }
+        // A module retired in a later Bindle stays in the selection saved before it: skipped here
+        // (What's new offers the clean-up), not an error that stops every command reading the file.
+        let retired: BTreeSet<String> = crate::whatsnew::Changes::arch(catalog)
+            .map(|t| t.retired.into_iter().map(|r| r.id).collect())
+            .unwrap_or_default();
         for id in self.include.iter().chain(&self.exclude) {
-            if catalog.module(id).is_none() && !mounts::absent(catalog, id) {
+            if catalog.module(id).is_none() && !mounts::absent(catalog, id) && !retired.contains(id) {
                 bail!("unknown module `{id}`");
             }
         }

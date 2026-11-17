@@ -392,3 +392,17 @@ fn rustup_toolchain_is_set_before_aur_builds() {
     let bootstrap = at(&|s| matches!(s, Step::BootstrapAurHelper { .. }));
     assert!(install < rustup && rustup < bootstrap, "{:?}", p.steps);
 }
+
+#[test]
+fn a_module_retired_since_the_selection_was_saved_is_skipped_not_an_error() {
+    // pdfcraft left the catalog in 0.1.11 (changes.toml `retired`): a selection saved before still lists it.
+    let sel = Selection { include: vec!["pdfcraft".into(), "earlyoom".into()], ..Default::default() };
+    let p = plan(sel, &facts()).expect("a retired id is skipped");
+    assert!(
+        p.steps
+            .iter()
+            .any(|s| matches!(s, Step::InstallPackages { packages } if packages.iter().any(|x| x == "earlyoom")))
+    );
+    let nope = Selection { include: vec!["never-existed".into()], ..Default::default() };
+    assert!(plan(nope, &facts()).unwrap_err().to_string().contains("unknown module `never-existed`"));
+}
