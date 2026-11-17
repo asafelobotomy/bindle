@@ -22,6 +22,7 @@ tmp=$(mktemp) || exit 0
 trap 'rm -f "$tmp"' EXIT
 seen=
 found=0
+unreadable=0
 for dir in /boot/EFI/Linux /efi/EFI/Linux /boot/efi/EFI/Linux; do
     [ -d "$dir" ] || continue
     for f in "$dir"/*.efi; do
@@ -30,10 +31,13 @@ for dir in /boot/EFI/Linux /efi/EFI/Linux /boot/efi/EFI/Linux; do
         # objcopy replaces its output file, so a pipe or /dev/stdout gives nothing.
         objcopy -O binary --only-section=.uname "$f" "$tmp" 2>/dev/null
         v=$(tr -d '\0\n' <"$tmp")
+        # An image with no readable kernel version (built without .uname) is not provably stale
+        # or missing a kernel: skip it, and don't claim an installed kernel has no image.
+        [ -n "$v" ] || { unreadable=1; continue; }
         case " $installed " in
-        *" $v "*) [ -n "$v" ] && seen="$seen $v" ;;
+        *" $v "*) seen="$seen $v" ;;
         *)
-            echo "bindle: boot-guard: $f holds kernel ${v:-?}, which is not installed." >&2
+            echo "bindle: boot-guard: $f holds kernel $v, which is not installed." >&2
             echo "bindle: boot-guard: it can be first in the boot menu and then boot without its modules." >&2
             echo "bindle: boot-guard: remove it, or move it out of $(dirname "$f"), then check the menu." >&2
             ;;
@@ -43,6 +47,7 @@ done
 
 # Only a system that boots from UKIs has anything to check.
 [ "$found" = 1 ] || exit 0
+[ "$unreadable" = 0 ] || exit 0
 for v in $installed; do
     case " $seen " in
     *" $v "*) ;;
