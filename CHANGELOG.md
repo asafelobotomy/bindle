@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.1.14 — 2026-11-17
+
 - **bindleUP checks unified kernel images.** The Reboot stage reads the kernel inside each UKI on the EFI partition and flags one that holds a kernel which is no longer installed (the leftover "previous" image that broke a boot), or an installed kernel no image holds ("don't restart yet", then `mkinitcpio -P`). Same rule as the boot guard; it works without `objcopy` and through the root helper when the partition is root-only.
 
 ## 0.1.13 — 2026-11-17
