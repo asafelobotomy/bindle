@@ -189,6 +189,7 @@ id = "oysterav"
 group = "Hardening & scans"
 name = "oysterAV (security scans)"
 description = "One GUI and CLI over ClamAV, rkhunter, Lynis and friends. By asafelobotomy."
+profiles = ["desktop", "gaming", "developer"]
 requires = ["aur-helper"]
 aur = ["oysterav"]
 notes = ["Set it up with `oyst-cli setup run`, or open oysterAV from your app menu."]

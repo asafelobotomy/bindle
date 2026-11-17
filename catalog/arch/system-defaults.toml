@@ -69,6 +69,17 @@ Depends = binutils
 ''' },
 ]
 
+[[module.recipe]]
+name = "boot-guard"
+category = "Diagnose"
+description = "Check that every boot image holds an installed kernel"
+args = []
+run = '''
+out=$(/usr/local/libexec/bindle/boot-guard-check 2>&1)
+if [ -n "$out" ]; then printf '%s\n' "$out"; exit 1; fi
+echo "ok"
+'''
+
 [[module]]
 id = "pacnew-notice"
 group = "Package manager"
