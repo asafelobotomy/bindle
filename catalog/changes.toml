@@ -84,3 +84,8 @@ why = "Bindle now offers only stable releases, and the ArtCraft apps are still i
 id = "gridcraft"
 version = "0.1.11"
 why = "Bindle now offers only stable releases, and the ArtCraft apps are still in alpha. They come back once they leave it. A copy you already have stays installed."
+
+[[added]]
+version = "0.1.13"
+modules = ["boot-guard"]
+why = "New in Bindle 0.1.13: a guard for kernel updates. It refuses a kernel update while the boot partition isn't mounted, and warns when a boot image holds a kernel that is no longer installed, which can leave you at an emergency prompt after a restart."
