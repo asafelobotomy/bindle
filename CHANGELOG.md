@@ -5,7 +5,7 @@
 ## 0.1.17 — 2026-11-17
 
 - **oysterAV installs by default on desktop, gaming and developer profiles**, along with ClamAV and rkhunter, and starts the signature updater (`freshclam`), so its first scan has something to check against. A boot-guard status recipe was added.
-- **Newer romforge.** Pinned to romforge 0.18.0.
+- **Newer romforge and AV Morning Star.** Pinned to romforge 0.18.0 and AV Morning Star 0.4.3, which follows the uQ theme.
 
 ## 0.1.16 — 2026-11-17
 
