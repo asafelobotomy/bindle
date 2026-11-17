@@ -206,6 +206,8 @@ mod emit;
 mod gather;
 mod mounts;
 pub mod retire;
+#[cfg(test)]
+mod retired_selection_tests;
 mod select;
 #[cfg(test)]
 mod tests;
