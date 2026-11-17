@@ -206,10 +206,10 @@ impl UpgradeBackend {
         std::thread::Builder::new()
             .name("upgrade".into())
             .spawn(move || {
-                let mut after = |updated: &[String], boot: Option<Vec<String>>| {
+                let mut after = |updated: &[String], boot: bindle_upgrade::run::BootView| {
                     // A rehearsal changed nothing: the first look still holds.
-                    let mut now = if rehearsal { before.clone() } else { probe::after() };
-                    now.boot = boot.or(now.boot);
+                    let now = if rehearsal { before.clone() } else { probe::after() };
+                    let now = boot.into_after(now);
                     after_plans(&before, &now, updated, &o, false)
                 };
                 let how = How { dry_run, sandbox, aur_terminal, new_features };

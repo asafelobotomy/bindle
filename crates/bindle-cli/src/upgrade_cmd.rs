@@ -152,10 +152,10 @@ pub fn main(mut a: UpgradeArgs) -> Result<()> {
     let run_opts =
         RunOpts { yes: a.yes, dry_run: a.dry_run, sandbox: a.sandbox.clone(), launch: Launch::default(), tty };
     let before = probe.after.clone();
-    let mut after = |updated: &[String], boot: Option<Vec<String>>| {
+    let mut after = |updated: &[String], boot: bindle_upgrade::run::BootView| {
         // A rehearsal changed nothing: the first look still holds.
-        let mut now = if rehearsal { before.clone() } else { probe::after() };
-        now.boot = boot.or(now.boot);
+        let now = if rehearsal { before.clone() } else { probe::after() };
+        let now = boot.into_after(now);
         after_plans(&before, &now, updated, &opts, false)
     };
     let mut printer = Printer;

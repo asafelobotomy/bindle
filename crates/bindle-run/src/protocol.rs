@@ -28,6 +28,9 @@ pub enum Request {
     },
     /// The names of the files in /boot, one `Output` each (often root-only).
     BootFiles,
+    /// The unified kernel images on the EFI partition, one `Output` each:
+    /// `<path>\t<kernel version>` (the partition is often root-only).
+    BootImages,
     /// Replace Bindle's own programs with a verified release (bindleup).
     InstallBindle {
         files: Vec<BindleFile>,

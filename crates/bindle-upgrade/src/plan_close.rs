@@ -5,6 +5,8 @@ use super::{Action, StagePlan, Todo, plural};
 use crate::probe::After;
 use crate::setup::Setup;
 use crate::stage::Stage;
+use bindle_core::uki;
+
 use crate::system::{dkms_missing, images_missing};
 use bindle_core::whatsnew::Kind;
 
@@ -72,10 +74,14 @@ pub(super) fn reboot(a: &After, updated: &[String], pending: bool) -> StagePlan 
         why.push(format!("{verb} {}", hits.join(", ")));
     }
     let dkms = dkms_missing(&a.kernels, &a.dkms);
+    let uki = uki_findings(a);
     let images = a.boot.as_ref().map(|b| images_missing(&a.kernels, b)).unwrap_or_default();
     let mut broken: Vec<String> =
         dkms.iter().map(|(m, k)| format!("{m} isn't built for {k}: pkexec dkms autoinstall -k {k}")).collect();
     broken.extend(images.iter().map(|f| format!("/boot/{f} is missing: pkexec mkinitcpio -P")));
+    broken.extend(
+        uki.missing.iter().map(|v| format!("no boot image holds the installed kernel {v}: pkexec mkinitcpio -P")),
+    );
     if !broken.is_empty() {
         let mut details = broken.clone();
         details.extend(why.iter().map(|w| format!("restart afterwards: {w}")));
@@ -94,12 +100,47 @@ pub(super) fn reboot(a: &After, updated: &[String], pending: bool) -> StagePlan 
             .ask("Build the missing modules and boot images now?", true);
     }
     let mut details = vec![];
-    if a.boot.is_none() && !a.kernels.is_empty() {
+    if a.boot.is_none() && a.ukis.is_none() && !a.kernels.is_empty() {
         details.push("boot images not checked: /boot can only be read as root".to_string());
     }
-    if why.is_empty() {
-        return StagePlan::new(s, Todo::Nothing, "not needed").details(details);
+    let stale = uki_stale(a);
+    if let Some((_, lines)) = &stale {
+        details.extend(lines.iter().cloned());
     }
     let when = if pending && a.kernel_modules_present { "will be needed" } else { "recommended" };
-    StagePlan::new(s, Todo::Report, format!("{when}: {}", why.join("; "))).details(details)
+    let summary = match (why.is_empty(), stale) {
+        (true, None) => return StagePlan::new(s, Todo::Nothing, "not needed").details(details),
+        (true, Some((note, _))) => note,
+        (false, None) => format!("{when}: {}", why.join("; ")),
+        (false, Some((note, _))) => format!("{when}: {}; {note}", why.join("; ")),
+    };
+    StagePlan::new(s, Todo::Report, summary).details(details)
+}
+
+/// Unified kernel images against the installed kernels.
+fn uki_findings(a: &After) -> uki::Findings {
+    let installed: Vec<String> =
+        a.kernels.iter().map(|k| k.version.clone()).filter(|v| !a.unowned_kernels.contains(v)).collect();
+    a.ukis.as_deref().map(|u| uki::check(&installed, u)).unwrap_or_default()
+}
+
+/// A stale image is its own reason to look at the boot menu, with or without
+/// a restart: the boot loader can pick it, and it holds a kernel whose
+/// modules are gone. (summary, details)
+fn uki_stale(a: &After) -> Option<(String, Vec<String>)> {
+    let stale = uki_findings(a).stale;
+    if stale.is_empty() {
+        return None;
+    }
+    let details = stale
+        .iter()
+        .map(|u| match u.kernel.as_str() {
+            "" => format!("{} holds no kernel version I can read; check it before the next boot", u.path),
+            k => format!(
+                "{} holds kernel {k}, which is not installed; it can boot without its modules: remove it",
+                u.path
+            ),
+        })
+        .collect();
+    Some((format!("{} boot image(s) hold a kernel that is not installed", stale.len()), details))
 }

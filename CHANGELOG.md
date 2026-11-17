@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **bindleUP checks unified kernel images.** The Reboot stage reads the kernel inside each UKI on the EFI partition and flags one that holds a kernel which is no longer installed (the leftover "previous" image that broke a boot), or an installed kernel no image holds ("don't restart yet", then `mkinitcpio -P`). Same rule as the boot guard; it works without `objcopy` and through the root helper when the partition is root-only.
+
 ## 0.1.13 — 2026-11-17
 
 - **Newer appOFholding and emobie.** appOFholding 0.11.0 can add an AppImage from a link and go back to an earlier version from uQ Settings; emobie 0.9.1 (0.9.0 never shipped) brings its uQ Settings page and command line.

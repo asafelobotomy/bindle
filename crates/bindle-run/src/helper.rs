@@ -233,6 +233,12 @@ impl Helper {
                 }
                 Ok(None)
             }
+            Request::BootImages => {
+                for line in crate::pacman_check::boot_images(self.root())? {
+                    self.emit(&Event::Output { line });
+                }
+                Ok(None)
+            }
             Request::InstallBindle { files } => {
                 let (root, fake) = (self.opts.root.clone(), self.opts.fake_commands);
                 crate::self_install::install(&root, &files, fake, &mut |l| self.output(l)).map(|()| None)

@@ -13,6 +13,7 @@ pub mod plan;
 pub mod preview;
 pub mod recover;
 pub mod restart;
+pub mod uki;
 pub mod whatsnew;
 
 pub use catalog::Catalog;
