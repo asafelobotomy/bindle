@@ -172,9 +172,9 @@ description = "Identifies, tidies, enriches and plays your ROM collection. By as
 packages = ["fuse2"]
 [[module.release]]
 repo = "asafelobotomy/romforge"
-tag = "v0.17.0"
-asset = "romforge_0.17.0_amd64.AppImage"
-sha256 = "0672230d16aaa53e67d18527dabfec9aa0c3f2c4921871e54720b9516924ba8b"
+tag = "v0.18.0"
+asset = "romforge_0.18.0_amd64.AppImage"
+sha256 = "92c87ac141c2a3f4964bee8f7964cb9145d5aa062131a9f489a31df727d7277d"
 name = "romforge"
 
 [[module]]
