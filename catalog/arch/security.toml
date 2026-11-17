@@ -192,7 +192,12 @@ description = "One GUI and CLI over ClamAV, rkhunter, Lynis and friends. By asaf
 profiles = ["desktop", "gaming", "developer"]
 requires = ["aur-helper"]
 aur = ["oysterav"]
-notes = ["Set it up with `oyst-cli setup run`, or open oysterAV from your app menu."]
+# What oysterAV scans with, ready to go: ClamAV with its signature updater running (it downloads
+# the signatures as soon as it starts), and rkhunter for the rootkit check. The firewall is the
+# ufw module above.
+packages = ["clamav", "rkhunter"]
+enable = ["clamav-freshclam.service"]
+notes = ["ClamAV downloads its virus signatures right after install; oysterAV shows \"no virus signatures\" until that has finished. Open oysterAV from your app menu for the rest."]
 
 [[module]]
 id = "keepassxc"
