@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 0.1.17 — 2026-11-17
+
+- **oysterAV installs by default on desktop, gaming and developer profiles**, along with ClamAV and rkhunter, and starts the signature updater (`freshclam`), so its first scan has something to check against. A boot-guard status recipe was added.
+- **Newer romforge and AV Morning Star.** Pinned to romforge 0.18.0 and AV Morning Star 0.4.3, which follows the uQ theme.
+
 ## 0.1.16 — 2026-11-17
 
 - **A module Bindle retired no longer breaks a selection saved before.** Selections saved by Bindle 0.1.8 to 0.1.10 list the ArtCraft apps (pdfcraft, photocraft, wordcraft…) that 0.1.11 retired; every command that read the file (`bindle whats-new`, `bindle status`, `apply --from`, bindleUP's setup check) stopped with "unknown module `pdfcraft`" or, in bindleUP, said "nothing from Bindle to compare". Retired ids are now skipped; a name that never existed is still an error.

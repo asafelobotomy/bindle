@@ -239,7 +239,7 @@ description = "Downloads video and audio from YouTube, Odysee and 1000+ sites (a
 packages = ["fuse2", "yt-dlp"]
 [[module.release]]
 repo = "asafelobotomy/AV-Morning-Star"
-tag = "v0.4.2"
-asset = "AV-Morning-Star-0.4.2-x86_64.AppImage"
-sha256 = "e12b3c7d125936b6ed9776b2da1513f9a1e9c10e466e6f8a9bde0a581e8d4a47"
+tag = "v0.4.3"
+asset = "AV-Morning-Star-0.4.3-x86_64.AppImage"
+sha256 = "cfcaf684c9354491645193030a552103734b78a89e815913793f3214855d826a"
 name = "av-morning-star"
