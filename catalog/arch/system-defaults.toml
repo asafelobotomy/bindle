@@ -22,6 +22,54 @@ packages = ["kernel-modules-hook"]
 enable = ["linux-modules-cleanup.service"]
 
 [[module]]
+id = "boot-guard"
+group = "Firmware & upkeep"
+name = "Stop a kernel update from breaking the next boot"
+description = "Refuses a kernel update while the boot partition isn't mounted, and warns after one when a boot image holds a kernel that is no longer installed (the cause of a boot that can't mount /boot)."
+default = true
+packages = ["binutils"]
+files = [
+  { path = "/etc/pacman.d/hooks/00-bindle-boot-mounted.hook", content = '''
+# Managed by Bindle
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Operation = Remove
+Type = Path
+Target = usr/lib/modules/*/vmlinuz
+
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Operation = Remove
+Type = Package
+Target = mkinitcpio
+
+[Action]
+Description = Checking that the boot partition is mounted...
+When = PreTransaction
+Exec = /bin/sh -c 'for m in /boot /efi; do if findmnt -n --fstab "$m" >/dev/null 2>&1 && ! mountpoint -q "$m"; then echo "bindle: $m is not mounted: mount it, then update again." >&2; exit 1; fi; done'
+AbortOnFail
+''' },
+  { path = "/usr/local/libexec/bindle/boot-guard-check", source = "boot-guard-check.sh", mode = 0o755 },
+  { path = "/etc/pacman.d/hooks/zz-bindle-boot-check.hook", content = '''
+# Managed by Bindle
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Operation = Remove
+Type = Path
+Target = usr/lib/modules/*/vmlinuz
+
+[Action]
+Description = Checking that the boot images match the installed kernels...
+When = PostTransaction
+Exec = /usr/local/libexec/bindle/boot-guard-check
+Depends = binutils
+''' },
+]
+
+[[module]]
 id = "pacnew-notice"
 group = "Package manager"
 name = "Point out new config files after updates"

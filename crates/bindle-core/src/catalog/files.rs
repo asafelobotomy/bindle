@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 /// The scripts a `source` can name.
 const SOURCES: &[(&str, &str)] = &[
+    ("boot-guard-check.sh", include_str!("../../../../catalog/files/boot-guard-check.sh")),
     ("bindle-screenshot.sh", include_str!("../../../../catalog/files/bindle-screenshot.sh")),
     ("captive-portal.sh", include_str!("../../../../catalog/files/captive-portal.sh")),
     ("chromium-vaapi.sh", include_str!("../../../../catalog/files/chromium-vaapi.sh")),
