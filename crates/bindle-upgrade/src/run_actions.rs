@@ -5,6 +5,7 @@ use std::process::Command;
 
 use anyhow::{Context, Result, bail};
 use bindle_core::Step;
+use bindle_core::uki::Uki;
 use bindle_run::protocol::{BindleFile, Request};
 use bindle_run::{release, sys};
 
@@ -51,6 +52,21 @@ impl Exec<'_> {
         let mut names = vec![];
         helper.request(&Request::BootFiles, &mut |l| names.push(l.to_string())).ok()?;
         Some(names)
+    }
+
+    /// The unified kernel images through the root helper; None when it
+    /// couldn't read them.
+    pub(super) fn boot_images(&mut self) -> Option<Vec<Uki>> {
+        let helper = self.session.helper()?;
+        let mut lines = vec![];
+        helper.request(&Request::BootImages, &mut |l| lines.push(l.to_string())).ok()?;
+        Some(
+            lines
+                .iter()
+                .filter_map(|l| l.split_once('\t'))
+                .map(|(path, kernel)| Uki { path: path.into(), kernel: kernel.into() })
+                .collect(),
+        )
     }
 
     fn rehearsal(&self) -> bool {

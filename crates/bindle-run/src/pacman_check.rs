@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
 
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, bail};
 
 use crate::sys::{host, write_atomic};
 
@@ -47,6 +47,13 @@ pub fn boot_files(root: &Path) -> Result<Vec<String>> {
     names.retain(|n| !n.contains(['\n', '\r']));
     names.sort();
     Ok(names)
+}
+
+/// `<path>\t<kernel>` for each unified kernel image on the EFI partition,
+/// for bindleup's check that none holds a kernel that is gone.
+pub fn boot_images(root: &Path) -> Result<Vec<String>> {
+    let ukis = bindle_core::uki::scan(root).context("couldn't read the boot partition")?;
+    Ok(ukis.into_iter().map(|u| format!("{}\t{}", u.path, u.kernel)).collect())
 }
 
 #[cfg(test)]

@@ -75,6 +75,12 @@ pub struct After {
     pub kernel_modules_present: bool,
     /// Installed kernels (/usr/lib/modules with a `pkgbase`).
     pub kernels: Vec<Kernel>,
+    /// Kernel versions in /usr/lib/modules that no package owns (a copy
+    /// kept by kernel-modules-hook for the running kernel): not installed.
+    pub unowned_kernels: Vec<String>,
+    /// The kernel inside each unified kernel image on the EFI partition;
+    /// None when it can't be read (often root-only).
+    pub ukis: Option<Vec<bindle_core::uki::Uki>>,
     /// `dkms status`; empty without DKMS.
     pub dkms: Vec<Dkms>,
     /// The files in /boot; None when /boot can't be read (often root-only).
@@ -233,6 +239,8 @@ pub fn after() -> After {
         kernel_modules_present: running.is_empty() || Path::new("/usr/lib/modules").join(&running).is_dir(),
         running_kernel: running,
         kernels: look::kernels(),
+        unowned_kernels: look::unowned_kernels(),
+        ukis: bindle_core::uki::scan(Path::new("/")),
         dkms: look::dkms(),
         boot: look::boot(),
         failed: look::failed(),

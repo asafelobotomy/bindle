@@ -237,7 +237,7 @@ mod tests {
         u.toggle("news"); // read it
         let after_data = u.probe().after.clone();
         let mut seen = 0;
-        let mut after = |up: &[String], _: Option<Vec<String>>| {
+        let mut after = |up: &[String], _: bindle_upgrade::run::BootView| {
             after_plans(&after_data, &after_data, up, &Default::default(), false)
         };
         let how = How { dry_run: true, sandbox: None, aur_terminal: u.aur_in_terminal(), new_features: 1 };
@@ -268,8 +268,9 @@ mod tests {
     fn a_restart_is_fine_again_once_the_fix_ran() {
         let u = Upgrade::new(sample::held(), Prefs::default());
         let after_data = u.probe().after.clone();
-        let mut after =
-            |up: &[String], _: Option<Vec<String>>| after_plans(&after_data, &after_data, up, &u.run_options(), false);
+        let mut after = |up: &[String], _: bindle_upgrade::run::BootView| {
+            after_plans(&after_data, &after_data, up, &u.run_options(), false)
+        };
         let how = How { dry_run: true, sandbox: None, aur_terminal: false, new_features: 0 };
         let end = run(u.plans(), u.answers(), &mut after, how, |_| {});
         assert!(end.log.iter().any(|l| l == "would run as root: dkms autoinstall -k 7.3.5-zen1-1-zen"));

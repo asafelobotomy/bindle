@@ -75,6 +75,18 @@ pub(super) fn kernels() -> Vec<Kernel> {
     out
 }
 
+/// Kernels whose `vmlinuz` no package owns (`pacman -Qqo`).
+pub(super) fn unowned_kernels() -> Vec<String> {
+    kernels()
+        .into_iter()
+        .filter(|k| {
+            let vmlinuz = format!("/usr/lib/modules/{}/vmlinuz", k.version);
+            Path::new(&vmlinuz).is_file() && capture(&["pacman", "-Qqo", &vmlinuz]).is_ok_and(|(code, ..)| code != 0)
+        })
+        .map(|k| k.version)
+        .collect()
+}
+
 pub(super) fn dkms() -> Vec<Dkms> {
     if !on_path("dkms") {
         return vec![];

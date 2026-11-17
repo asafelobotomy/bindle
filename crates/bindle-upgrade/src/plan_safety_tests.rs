@@ -230,3 +230,64 @@ fn a_failed_check_says_so_instead_of_nothing_to_do() {
     let pacnew = plans.iter().find(|p| p.stage == Stage::Pacfiles).unwrap();
     assert_eq!(pacnew.todo, Todo::Nothing, "other stages are untouched");
 }
+
+fn uki(name: &str, kernel: &str) -> bindle_core::uki::Uki {
+    bindle_core::uki::Uki { path: format!("/boot/EFI/Linux/{name}.efi"), kernel: kernel.into() }
+}
+
+fn zen_with(ukis: Option<Vec<bindle_core::uki::Uki>>) -> After {
+    let kernels = vec![Kernel { version: "7.3.5-zen1-1-zen".into(), pkgbase: "linux-zen".into() }];
+    After { kernels, ukis, running_kernel: "7.3.5-zen1-1-zen".into(), ..after() }
+}
+
+#[test]
+fn a_stale_boot_image_is_reported() {
+    // The 2026-11-17 failure: the "previous" image holding the old kernel sits in the boot menu.
+    let now = zen_with(Some(vec![
+        uki("arch-linux-zen", "7.3.5-zen1-1-zen"),
+        uki("arch-linux-zen-previous", "7.3.4-zen2-1-zen"),
+    ]));
+    let r = &after_plans(&now, &now, &[], &Options::default(), false)[6];
+    assert_eq!(r.todo, Todo::Report);
+    assert_eq!(r.summary, "1 boot image(s) hold a kernel that is not installed");
+    assert!(r.details[0].contains("arch-linux-zen-previous.efi holds kernel 7.3.4-zen2-1-zen"), "{:?}", r.details);
+}
+
+#[test]
+fn current_boot_images_need_nothing() {
+    let now = zen_with(Some(vec![uki("arch-linux-zen", "7.3.5-zen1-1-zen")]));
+    assert_eq!(after_plans(&now, &now, &[], &Options::default(), false)[6].todo, Todo::Nothing);
+    let not_uki = zen_with(Some(vec![]));
+    assert_eq!(after_plans(&not_uki, &not_uki, &[], &Options::default(), false)[6].todo, Todo::Nothing);
+    let unread = zen_with(None);
+    assert_eq!(after_plans(&unread, &unread, &[], &Options::default(), false)[6].todo, Todo::Nothing);
+}
+
+#[test]
+fn a_kernel_without_a_boot_image_is_rebuilt_not_rebooted_into() {
+    let now = zen_with(Some(vec![uki("arch-linux-zen", "7.3.4-zen2-1-zen")]));
+    assert!(
+        held(&after_plans(&now, &now, &[], &Options::default(), true)[6])
+            .contains("no boot image holds the installed kernel 7.3.5-zen1-1-zen")
+    );
+    let fix = &after_plans(&now, &now, &[], &Options::default(), false)[6];
+    match &fix.todo {
+        Todo::Run(a) => assert_eq!(a.last(), Some(&Action::Root(vec!["mkinitcpio".into(), "-P".into()]))),
+        other => panic!("{other:?}"),
+    }
+}
+
+#[test]
+fn a_kernel_modules_hook_copy_is_not_an_installed_kernel() {
+    let kernels = vec![
+        Kernel { version: "7.3.4-zen2-1-zen".into(), pkgbase: "linux-zen".into() },
+        Kernel { version: "7.3.5-zen1-1-zen".into(), pkgbase: "linux-zen".into() },
+    ];
+    let now = After {
+        kernels,
+        unowned_kernels: vec!["7.3.4-zen2-1-zen".into()],
+        ukis: Some(vec![uki("arch-linux-zen", "7.3.5-zen1-1-zen"), uki("old", "7.3.4-zen2-1-zen")]),
+        ..after()
+    };
+    assert_eq!(after_plans(&now, &now, &[], &Options::default(), false)[6].details.len(), 1, "the old image is stale");
+}

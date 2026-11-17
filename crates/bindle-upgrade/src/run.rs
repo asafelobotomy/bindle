@@ -8,6 +8,7 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
+use bindle_core::uki::Uki;
 use bindle_run::client::Launch;
 use bindle_run::session::Session;
 use bindle_run::sys;
@@ -56,7 +57,24 @@ pub struct StageResult {
 }
 
 /// Plans the closing stages from the packages upgraded and /boot's files.
-pub type Closing<'a> = dyn FnMut(&[String], Option<Vec<String>>) -> Vec<StagePlan> + 'a;
+pub type Closing<'a> = dyn FnMut(&[String], BootView) -> Vec<StagePlan> + 'a;
+
+/// What the root helper could read of the boot partition, which is often
+/// root-only: the files in /boot, and the kernel inside each unified image.
+#[derive(Debug, Default)]
+pub struct BootView {
+    pub files: Option<Vec<String>>,
+    pub ukis: Option<Vec<Uki>>,
+}
+
+impl BootView {
+    /// Fill what a look at the system couldn't read.
+    pub fn into_after(self, mut now: crate::probe::After) -> crate::probe::After {
+        now.boot = self.files.or(now.boot);
+        now.ukis = self.ukis.or(now.ukis);
+        now
+    }
+}
 
 /// Run the stages of `plans` before the upgrade ends, then ask `after` for
 /// the closing stages and run those. `after` is given the packages upgraded,
@@ -83,7 +101,7 @@ pub fn run(plans: Vec<StagePlan>, after: &mut Closing, opts: &RunOpts, ui: &mut 
         return results;
     }
     let updated = ex.updated.clone();
-    let boot = ex.boot_files();
+    let boot = BootView { files: ex.boot_files(), ukis: ex.boot_images() };
     for plan in after(&updated, boot) {
         results.push(ex.stage(plan, results.len(), total));
     }
