@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.1.13 — 2026-11-17
+
 - **Newer appOFholding and emobie.** appOFholding 0.11.0 can add an AppImage from a link and go back to an earlier version from uQ Settings; emobie 0.9.1 (0.9.0 never shipped) brings its uQ Settings page and command line.
 - **Newer hauler, appOFholding and romforge.** Pinned to hauler 0.2.0, appOFholding 0.10.0 and romforge 0.17.0, which can check what they download or install with oysterAV (off by default). scale_tail is now 0.7.0 and XZram 0.7.0.
 - **The Bindle page's Setup tab sums up what is missing** instead of listing every step: "Install 82 packages", "Write 23 settings files", "Turn on 10 services and timers", "Run 16 setup commands", each with the names under it. "Show every step" opens the full list, and a script shows as its first line. `bindle status --json` gained a `groups` list for it.
