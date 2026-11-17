@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.1.15 — 2026-11-17
+
 - **bindleUP no longer holds the restart for the kernel copy kernel-modules-hook keeps.** After a kernel upgrade, the running kernel's modules stay as a copy no package owns; bindleUP counted it as an installed kernel, said "don't restart yet: nvidia isn't built for" it and offered a build that can't work (its headers are gone). It now ignores that copy for DKMS and boot-image checks, and treats it as the sign the running kernel was replaced, so the reboot line says so.
 
 ## 0.1.14 — 2026-11-17
