@@ -50,9 +50,13 @@ pub enum Action {
     Root(Vec<String>),
     /// Through the root helper, on the user's terminal, so it can ask.
     RootTerminal(Vec<String>),
-    /// As the user, with the terminal (AUR helpers and Flatpak ask for
-    /// their own permissions).
+    /// As the user, with the terminal.
     User(Vec<String>),
+    /// An AUR helper as the user, on the terminal; the pacman calls it
+    /// would `sudo` go to the run's root helper (no further password).
+    UserElevated(Vec<String>),
+    /// These, one after the other (a failure stops the rest).
+    Each(Vec<Action>),
     /// Download, check against the pin, install (packages through the helper).
     Releases(Vec<ReleaseAsset>),
     /// Asked on its own (default answer), then run: a clean-up after an update.
@@ -68,12 +72,13 @@ impl Action {
     /// Runs through the root helper, so the run asks for the password.
     pub fn needs_root(&self) -> bool {
         match self {
-            Action::Root(_) | Action::RootTerminal(_) => true,
+            Action::Root(_) | Action::RootTerminal(_) | Action::UserElevated(_) => true,
             Action::Releases(assets) => {
                 assets.iter().any(|r| r.kind() == Some(bindle_core::catalog::AssetKind::Package))
             }
             Action::SelfUpdate { location, .. } => matches!(location, Location::Installed { .. }),
             Action::Optional { action, .. } => action.needs_root(),
+            Action::Each(actions) => actions.iter().any(Action::needs_root),
             Action::User(_) | Action::UqSetup => false,
         }
     }
@@ -137,6 +142,10 @@ fn plural(n: usize, one: &str, many: &str) -> String {
 
 fn root(argv: &[&str]) -> Action {
     Action::Root(argv.iter().map(|s| s.to_string()).collect())
+}
+
+fn user_elevated(argv: &[&str]) -> Action {
+    Action::UserElevated(argv.iter().map(|s| s.to_string()).collect())
 }
 
 fn user(argv: &[&str]) -> Action {

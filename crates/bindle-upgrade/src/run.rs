@@ -87,6 +87,16 @@ pub fn run(plans: Vec<StagePlan>, after: &mut Closing, opts: &RunOpts, ui: &mut 
     let total = Stage::ALL.len();
     let mut results: Vec<StageResult> = vec![];
     let rehearsal = opts.dry_run || opts.sandbox.is_some();
+    // Ask for the password once, now, when anything this run does needs it,
+    // so the rest goes on unattended. (A run that replaces Bindle first asks
+    // in the new Bindle, which does the rest.)
+    let self_update = plans.iter().any(|p| p.stage == Stage::Bindle && p.runs());
+    if !rehearsal && !self_update && plans.iter().any(StagePlan::needs_root) {
+        let ui = &mut *ex.ui;
+        if let Err(e) = ex.session.start(&mut |l| ui.line(l)) {
+            ex.ui.line(&format!("✗ {e:#}"));
+        }
+    }
     for plan in plans.into_iter().filter(|p| !p.stage.after_upgrade()) {
         if relaunch(&results, rehearsal) {
             // The new Bindle runs the rest, with its own pins and stages.

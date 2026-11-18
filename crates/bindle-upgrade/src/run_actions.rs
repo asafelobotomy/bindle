@@ -28,6 +28,11 @@ impl Exec<'_> {
                 done
             }
             Action::User(argv) => self.user(argv),
+            Action::UserElevated(argv) => {
+                let ui = &mut *self.ui;
+                self.session.user_elevated(argv, self.opts.tty.as_deref(), &mut |l| ui.line(l))
+            }
+            Action::Each(actions) => actions.iter().try_for_each(|a| self.action(a)),
             Action::Releases(assets) => {
                 let fake = self.rehearsal();
                 let ui = &mut *self.ui;

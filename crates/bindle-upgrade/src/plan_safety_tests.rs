@@ -126,7 +126,7 @@ fn broken_aur_packages_are_rebuilt() {
         ..after()
     };
     let r = &after_plans(&now, &now, &["python".into()], &Options::default(), false)[0];
-    assert!(matches!(&r.todo, Todo::Run(a) if a == &[Action::User(
+    assert!(matches!(&r.todo, Todo::Run(a) if a == &[Action::UserElevated(
         ["paru", "-S", "--rebuild", "--", "python-foo"].map(String::from).to_vec()
     )]));
     assert!(r.details[1].contains("bar (from extra"));

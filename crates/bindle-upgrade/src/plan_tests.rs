@@ -17,6 +17,8 @@ fn shown(a: &Action) -> String {
         Action::Root(v) => format!("root: {}", v.join(" ")),
         Action::RootTerminal(v) => format!("root on the terminal: {}", v.join(" ")),
         Action::User(v) => format!("user: {}", v.join(" ")),
+        Action::UserElevated(v) => format!("user, pacman as root: {}", v.join(" ")),
+        Action::Each(v) => v.iter().map(shown).collect::<Vec<_>>().join(" + "),
         Action::Releases(r) => format!("releases: {}", r.len()),
         Action::Optional { question, action, .. } => format!("{question} {}", shown(action)),
         Action::SelfUpdate { tag, .. } => format!("self-update: {tag}"),
@@ -157,9 +159,9 @@ fn stale_mirrors_are_refreshed_before_upgrading() {
 #[test]
 fn aur_uses_the_installed_helper() {
     let p = Probe { aur_helper: Some("paru".into()), aur: Ok(vec![up("kyko-bin")]), ..Default::default() };
-    assert_eq!(argvs(get(&plan(&p, &Options::default()), Stage::Aur)), ["user: paru -Sua"]);
+    assert_eq!(argvs(get(&plan(&p, &Options::default()), Stage::Aur)), ["user, pacman as root: paru -Sua"]);
     let yes = plan(&p, &Options { yes: true, ..Default::default() });
-    assert_eq!(argvs(get(&yes, Stage::Aur)), ["user: paru -Sua --noconfirm --skipreview"]);
+    assert_eq!(argvs(get(&yes, Stage::Aur)), ["user, pacman as root: paru -Sua --noconfirm --skipreview"]);
     assert!(matches!(get(&plan(&Probe::default(), &Options::default()), Stage::Aur).todo, Todo::Skip(_)));
 }
 
@@ -178,17 +180,18 @@ fn firmware_is_reported_unless_asked_for() {
     assert_eq!(report.todo, Todo::Report);
     assert!(report.summary.contains("--firmware"));
     let run = plan(&p, &Options { firmware: true, yes: true, ..Default::default() });
-    assert_eq!(argvs(get(&run, Stage::Firmware)), ["user: fwupdmgr update -y"]);
+    assert_eq!(argvs(get(&run, Stage::Firmware)), ["root: fwupdmgr update -y"]);
 }
 
 #[test]
-fn flatpak_updates_run_as_the_user() {
+fn flatpak_updates_use_the_one_root_helper_for_the_system_installation() {
     let p = Probe { flatpak: Some(Ok(vec!["org.mozilla.firefox".into()])), ..Default::default() };
     assert_eq!(
         argvs(get(&plan(&p, &Options::default()), Stage::Flatpak)),
         [
-            "user: flatpak update -y --noninteractive",
-            "Remove Flatpak runtimes no app uses any more? user: flatpak uninstall --unused -y --noninteractive"
+            "user: flatpak update --user -y --noninteractive",
+            "root: flatpak update --system -y --noninteractive",
+            "Remove Flatpak runtimes no app uses any more? user: flatpak uninstall --user --unused -y --noninteractive + root: flatpak uninstall --system --unused -y --noninteractive"
         ]
     );
 }

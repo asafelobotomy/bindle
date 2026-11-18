@@ -52,7 +52,8 @@ fn a_dry_run_prints_commands_and_reports_each_stage() {
     assert_eq!(outcome(&results, Stage::Pacman), Outcome::Done);
     assert_eq!(outcome(&results, Stage::Flatpak), Outcome::Done);
     assert!(ui.lines.contains(&"would run as root: pacman -Syu --noconfirm".to_string()));
-    assert!(ui.lines.contains(&"would run: flatpak update -y --noninteractive".to_string()));
+    assert!(ui.lines.contains(&"would run: flatpak update --user -y --noninteractive".to_string()));
+    assert!(ui.lines.contains(&"would run as root: flatpak update --system -y --noninteractive".to_string()));
     assert_eq!(seen, ["linux"], "the closing stages hear what was upgraded");
     assert_eq!(outcome(&results, Stage::Reboot), Outcome::Reported);
 }

@@ -32,9 +32,9 @@ In order; each can be left out with `--skip <id>` or picked with `--only`.
 | `snapshot` | Snapshot | `snapper -c root create` before upgrading, when snapper has a root config and there are package upgrades. Skipped when `snap-pac` is installed (it snapshots every pacman run). A failed snapshot asks whether to go on. |
 | `mirrors` | Mirrors | `systemctl start reflector.service` (reflector's own settings) when the mirror list is `mirror_max_age_days` old (14 by default) and reflector is installed. |
 | `pacman` | Packages | Lists the updates from `checkupdates` (pacman-contrib: a private copy of the databases, no root), then `pacman -Syu` on your terminal: pacman shows its own summary and asks its own questions (proceed, replacements, conflicts). Unattended (`--yes`, or no terminal) it is asked here and runs with `--noconfirm`, which takes pacman's default answers; a conflict that defaults to "no" fails the stage with a hint to run it from a terminal. A new `archlinux-keyring` is installed first. Without pacman-contrib it still upgrades. |
-| `aur` | AUR | `paru -Sua` (or `yay`) as the user, with its own PKGBUILD review; `--yes` skips the review. Held when the system upgrade failed. |
+| `aur` | AUR | `paru -Sua` (or `yay`) as the user, with its own PKGBUILD review; `--yes` skips the review. Its `sudo pacman` calls go through the run's one root helper: no password. Held when the system upgrade failed. |
 | `releases` | Bindle apps | The catalog's pinned GitHub releases (`[[module.release]]`) that are newer than what is installed (`vercmp`; AppImages by the asset their desktop entry names). Only apps Bindle installed from its releases are updated; a copy from the Arch repos, the AUR or elsewhere stays on that source (see [Preferences](#preferences)). Downloaded and checked against the pinned sha256 as the user, packages installed through the helper. |
-| `flatpak` | Flatpak | `flatpak update -y --noninteractive` when `flatpak remote-ls --updates` lists anything, then `flatpak uninstall --unused` (asked, default yes). |
+| `flatpak` | Flatpak | `flatpak update --user …` as you and `flatpak update --system …` through the root helper (no polkit prompt), when `flatpak remote-ls --updates` lists anything, then `flatpak uninstall --unused` (asked, default yes). |
 | `firmware` | Firmware | `fwupdmgr get-updates`. A real run first refreshes fwupd's list (`fwupdmgr refresh`) when it is `firmware_refresh_days` (7) old; `--check`, the timer and the window only look, and say how old the list is. Reported only; `--firmware` installs (`fwupdmgr update`). |
 | `rebuild` | Rebuilds | After the upgrade, `checkrebuild` (rebuild-detector, which Bindle's AUR-helper module now installs) lists packages a library update (Qt, Python, ICU…) broke; the foreign (AUR) ones are rebuilt with `paru -S --rebuild` (asked, default yes; in the window, handed to a terminal). Without rebuild-detector it says to install it. |
 | `uq` | uQ | When `uq` was upgraded: `uqctl setup --apps --json` as the user (it never overwrites the user's own files; each file it wrote or kept is reported), and it says to log out and back in: uqd and the shell keep running the old version until then (`uqctl reload` isn't used: it would have the old uqd render the new templates). uqctl has no migrate or post-upgrade command; asafelobotomy/uq#57 makes `uq` depend on the pin it is tested with, adds a log-in-again note to the package, and suggests one. If greetd (uQ's login screen) was the display manager before the run and isn't after, `uqctl greeter enable` as root. |
@@ -146,15 +146,28 @@ The `bindle-upgrade` crate keeps the three parts apart:
    `Todo` (`Run(actions)`, `Report`, `Nothing`, `Skip`, `Hold`), its
    question and what declining it stops. Every rule is a unit test.
 3. `run` carries it out. Root actions go to one session of Bindle's root
-   helper (`RunAsRoot` steps and `InstallFiles`), started when the first one
-   is due: one password prompt (pkexec, like every approval in Bindle),
+   helper (`RunAsRoot` steps and `InstallFiles`), started before the first
+   stage when any stage needs root (or at the first root step otherwise): one
+   password prompt for the whole run (pkexec, like every approval in Bindle),
    logged to `/var/log/bindle/upgrade-*.log`, and the helper's lock keeps it
    from running beside `bindle apply`. `pacman -Syu` goes to the helper as an
    `interactive` request naming your terminal (`/dev/pts/N`): the helper
    checks it is a terminal device owned by the user who authenticated
-   (`PKEXEC_UID`) and runs pacman on it. AUR helpers, Flatpak and fwupd run as
-   the user with the terminal; they ask for their own permissions as they
-   always do.
+   (`PKEXEC_UID`) and runs pacman on it. Nothing else asks: Flatpak's
+   system installation and fwupd run as root through the helper, and the AUR
+   helper runs as you with `--sudo <shim>`: its `sudo pacman …` calls reach
+   the helper through a socket only you can open (`bindle-run/src/bridge.rs`;
+   a random token per run, `pacman` only, never with `--root`, `--dbpath`,
+   `--hookdir`, `--config` and the like, `-U` only for package files under
+   your home, `/var/cache` or `/tmp`), so builds and installs need no
+   further password. The one exception: a run that replaces Bindle itself
+   asks again in the new Bindle, which does the rest.
+
+The look at the system (`probe::gather`) runs its network checks (Bindle's
+release, news, pacman's databases, the AUR, Flatpak, fwupd) and the local
+ones side by side, so start-up takes as long as the slowest one, not their
+sum. AUR builds get `MAKEFLAGS=-jN` when neither your environment nor
+`/etc/makepkg.conf` sets it.
 
 The closing stages (`rebuild`, `uq`, `pacnew`, `orphans`, `services`,
 `setup`, `reboot`; `plan::after_plans`) are planned again from a fresh look

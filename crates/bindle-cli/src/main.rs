@@ -222,6 +222,12 @@ enum Cmd {
         #[arg(long)]
         user: Option<String>,
     },
+    /// bindleup's AUR step: the `sudo` it gives paru or yay (internal).
+    #[command(hide = true)]
+    ElevShim {
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
     /// Root helper used by `apply` (internal).
     #[command(hide = true)]
     Helper {
@@ -244,6 +250,7 @@ fn main() -> Result<()> {
     let command = cli.command.unwrap_or(Cmd::Wizard { sandbox: None });
     // Commands that don't need detection (and may run as root).
     match command {
+        Cmd::ElevShim { args } => std::process::exit(bindle_run::bridge::shim(&args)),
         Cmd::Helper { log, root, fake_commands } => {
             return apply::helper::serve(apply::helper::HelperOpts { root, fake_commands, log });
         }
@@ -354,6 +361,7 @@ fn main() -> Result<()> {
                 .map(drop)
         }
         Cmd::Helper { .. }
+        | Cmd::ElevShim { .. }
         | Cmd::CarryNetwork { .. }
         | Cmd::InstallTarget { .. }
         | Cmd::Open { .. }
