@@ -89,8 +89,32 @@ impl Bridge {
             bail!("not this run's request");
         }
         let home = std::env::var("HOME").unwrap_or_default();
-        allowed(&ask.argv, &home)
+        let cmd = allowed(&ask.argv, &home)?;
+        package_files_trusted(&cmd)?;
+        Ok(cmd)
     }
+}
+
+/// `pacman -U` runs a package's install scripts as root, so a file only counts when nobody
+/// else could have written it: a plain file (not a link) owned by this user or by root, that
+/// neither group nor others can write. `/tmp` and `/var/tmp` are shared, so the owner check
+/// is what keeps another account's package out. Checked again by pacman's own signature
+/// rules; this only stops the bridge from handing root to a file it can't vouch for.
+fn package_files_trusted(cmd: &[String]) -> Result<()> {
+    use std::os::unix::fs::MetadataExt;
+    if !cmd.iter().skip(1).any(|a| a == "--upgrade" || (a.starts_with('-') && !a.starts_with("--") && a.contains('U')))
+    {
+        return Ok(());
+    }
+    // SAFETY: getuid has no preconditions and cannot fail.
+    let me = unsafe { libc::getuid() };
+    for a in cmd.iter().skip(1).filter(|a| !a.starts_with('-')) {
+        let meta = fs::symlink_metadata(a).with_context(|| format!("can't look at `{a}`"))?;
+        if !meta.is_file() || (meta.uid() != me && meta.uid() != 0) || meta.mode() & 0o022 != 0 {
+            bail!("`{a}` must be a plain package file owned by you that others can't write");
+        }
+    }
+    Ok(())
 }
 
 impl Drop for Bridge {
@@ -216,6 +240,30 @@ mod tests {
         assert!(no(&["pacman", "-U", "/opt/x.pkg.tar.zst"]).contains("package files"));
         assert!(no(&["pacman", "foo"]).contains("operation"));
         assert!(no(&[]).contains("empty"));
+    }
+
+    #[test]
+    fn a_package_file_must_be_a_plain_file_nobody_else_can_write() {
+        use std::os::unix::fs::{PermissionsExt, symlink};
+        let dir = std::env::temp_dir().join(format!("bindle-pkg-test-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let pkg = dir.join("x-1-1-any.pkg.tar.zst");
+        fs::write(&pkg, b"x").unwrap();
+        fs::set_permissions(&pkg, fs::Permissions::from_mode(0o644)).unwrap();
+        let cmd = |p: &Path| v(&["/usr/bin/pacman", "-U", "--noconfirm", &p.display().to_string()]);
+        assert!(package_files_trusted(&cmd(&pkg)).is_ok());
+        fs::set_permissions(&pkg, fs::Permissions::from_mode(0o666)).unwrap();
+        assert!(package_files_trusted(&cmd(&pkg)).is_err(), "world-writable");
+        fs::set_permissions(&pkg, fs::Permissions::from_mode(0o664)).unwrap();
+        assert!(package_files_trusted(&cmd(&pkg)).is_err(), "group-writable");
+        let link = dir.join("link.pkg.tar.zst");
+        symlink(&pkg, &link).unwrap();
+        fs::set_permissions(&pkg, fs::Permissions::from_mode(0o644)).unwrap();
+        assert!(package_files_trusted(&cmd(&link)).is_err(), "a symlink");
+        assert!(package_files_trusted(&cmd(&dir.join("missing.pkg.tar.zst"))).is_err());
+        // Not an install from a file: nothing to check.
+        assert!(package_files_trusted(&v(&["/usr/bin/pacman", "-S", "foo"])).is_ok());
+        let _ = fs::remove_dir_all(&dir);
     }
 
     #[test]
