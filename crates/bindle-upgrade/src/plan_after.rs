@@ -1,7 +1,7 @@
 //! The stages that close a run, planned from a look at the system after
 //! the upgrades: rebuilds, uQ, config files and orphans.
 
-use super::{Action, Options, StagePlan, Todo, plural, root, user};
+use super::{Action, Options, StagePlan, Todo, plural, root, user_elevated};
 use crate::probe::After;
 use crate::stage::Stage;
 
@@ -81,10 +81,8 @@ pub(super) fn rebuild(now: &After, updated: &[String], o: &Options, pending: boo
         });
     }
     argv.push("--");
-    let mut action = user(&argv);
-    if let Action::User(v) = &mut action {
-        v.extend(foreign.iter().cloned());
-    }
+    argv.extend(foreign.iter().map(String::as_str));
+    let action = user_elevated(&argv);
     StagePlan::new(s, Todo::Run(vec![action]), format!("{n} a rebuild after the library updates"))
         .details(details)
         .ask(format!("Rebuild {}?", plural(foreign.len(), "AUR package", "AUR packages")), true)

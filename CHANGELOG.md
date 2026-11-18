@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **bindleUP asks for the password once.** The root helper now starts before the first stage (when anything needs it), and what used to ask on its own goes through it: the AUR helper's `sudo pacman` calls (a per-run socket, `pacman` only, package files only for `-U`), Flatpak's system installation and fwupd's updates. Start it, enter the password, walk away (`--yes` also answers pacman's and the AUR's own questions). A run that replaces Bindle itself still asks a second time, in the new Bindle.
+- **bindleUP starts faster.** Its look at the system ran every check one after the other; the network ones (Bindle's release, the news, `checkupdates`, the AUR, Flatpak, fwupd) and the local ones now run side by side, as do the closing looks (`checkrebuild`, `dkms`, orphans, failed units). AUR builds use all cores (`MAKEFLAGS=-jN`) when nothing else sets it.
 - **A short "What's new in Bindle X.Y.Z" after Bindle updates.** The first time a newer Bindle opens (the wizard, the update window after bindleUP replaced Bindle, or the terminal), a popup lists up to four highlights of that release, taken from this changelog, with "Open What's new" for the per-item review and "Dismiss". It shows once per version, never on a fresh install, and bindleUP's notification carries the same summary.
 
 ## 0.1.19 — 2026-11-18

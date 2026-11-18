@@ -4,6 +4,7 @@
 //! shows ([`present`]).
 
 pub mod apply;
+pub mod bridge;
 pub mod client;
 pub mod helper;
 pub mod net;

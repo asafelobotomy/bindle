@@ -1,7 +1,7 @@
 //! The package stages: pacman, the AUR, Bindle's pinned releases, Flatpak
 //! and firmware.
 
-use super::{Action, Options, StagePlan, Todo, plural, root, user};
+use super::{Action, Options, StagePlan, Todo, plural, root, user, user_elevated};
 use crate::prefs::{Follow, Prefs};
 use crate::probe::Probe;
 use crate::releases::{Newer, Source};
@@ -74,8 +74,8 @@ pub(super) fn aur(p: &Probe, o: &Options) -> StagePlan {
     if o.windowed {
         return StagePlan::new(s, Todo::Report, format!("{n} to upgrade: {helper} needs a terminal")).details(details);
     }
-    let mut pl =
-        StagePlan::new(s, Todo::Run(vec![user(&argv)]), format!("{n} to upgrade with {helper}")).details(details);
+    let mut pl = StagePlan::new(s, Todo::Run(vec![user_elevated(&argv)]), format!("{n} to upgrade with {helper}"))
+        .details(details);
     pl.packages = list.iter().map(|u| u.name.clone()).collect();
     pl
 }
@@ -131,13 +131,22 @@ pub(super) fn flatpak(p: &Probe) -> StagePlan {
         Some(Err(e)) => StagePlan::new(s, Todo::Report, format!("couldn't check ({e})")),
         Some(Ok(l)) if l.is_empty() => StagePlan::new(s, Todo::Nothing, "up to date"),
         Some(Ok(l)) => {
+            // Your own installation as you; the system-wide one through the
+            // run's root helper (no polkit prompt of Flatpak's own).
             // Runtimes the update leaves unused go too, asked (default yes).
             let clean = Action::Optional {
                 question: "Remove Flatpak runtimes no app uses any more?".into(),
                 default: true,
-                action: Box::new(user(&["flatpak", "uninstall", "--unused", "-y", "--noninteractive"])),
+                action: Box::new(Action::Each(vec![
+                    user(&["flatpak", "uninstall", "--user", "--unused", "-y", "--noninteractive"]),
+                    root(&["flatpak", "uninstall", "--system", "--unused", "-y", "--noninteractive"]),
+                ])),
             };
-            let run = Todo::Run(vec![user(&["flatpak", "update", "-y", "--noninteractive"]), clean]);
+            let run = Todo::Run(vec![
+                user(&["flatpak", "update", "--user", "-y", "--noninteractive"]),
+                root(&["flatpak", "update", "--system", "-y", "--noninteractive"]),
+                clean,
+            ]);
             StagePlan::new(s, run, format!("{} to update", plural(l.len(), "app or runtime", "apps and runtimes")))
                 .details(l.clone())
         }
@@ -164,8 +173,14 @@ fn firmware_updates(p: &Probe, o: &Options) -> StagePlan {
         Some(Err(e)) => StagePlan::new(s, Todo::Report, format!("couldn't check ({e})")),
         Some(Ok(l)) if l.is_empty() => StagePlan::new(s, Todo::Nothing, "up to date"),
         Some(Ok(l)) if o.firmware => {
-            let argv: &[&str] = if o.yes { &["fwupdmgr", "update", "-y"] } else { &["fwupdmgr", "update"] };
-            StagePlan::new(s, Todo::Run(vec![user(argv)]), plural(l.len(), "firmware update", "firmware updates"))
+            // As root, through the run's helper: fwupd's own polkit prompt is
+            // one more password. A terminal run answers its questions itself.
+            let action = if o.interactive && !o.yes {
+                Action::RootTerminal(vec!["fwupdmgr".into(), "update".into()])
+            } else {
+                root(&["fwupdmgr", "update", "-y"])
+            };
+            StagePlan::new(s, Todo::Run(vec![action]), plural(l.len(), "firmware update", "firmware updates"))
                 .details(l.clone())
         }
         Some(Ok(l)) => StagePlan::new(

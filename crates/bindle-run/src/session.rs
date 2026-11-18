@@ -10,6 +10,7 @@ use std::process::Command;
 use anyhow::{Context, Result, bail};
 use bindle_core::Step;
 
+use crate::bridge::Bridge;
 use crate::client::{HelperClient, Launch};
 use crate::protocol::Request;
 use crate::sys;
@@ -64,19 +65,80 @@ impl<'a> Session<'a> {
         if let Some(why) = &self.refused {
             bail!("{why}");
         }
-        if self.helper.is_none() {
-            line("Asking for administrator rights (once for this run).");
-            match HelperClient::launch(self.sandbox.as_deref(), &self.log, self.launch) {
-                Ok(h) => self.helper = Some(h),
-                Err(e) => {
-                    let why = format!("couldn't get administrator rights: {e:#}");
-                    self.refused = Some(why.clone());
-                    bail!(why);
-                }
-            }
-        }
+        self.start(line)?;
         let helper = self.helper.as_mut().expect("started above");
         helper.request(req, line).map(drop)
+    }
+
+    /// Start the root helper now (the password is asked here, once), so the
+    /// rest of the run needs nobody. Does nothing when it already runs, in a
+    /// rehearsal, or after a refusal (the root steps then say why).
+    pub fn start(&mut self, line: &mut dyn FnMut(&str)) -> Result<()> {
+        if self.dry_run || self.helper.is_some() {
+            return Ok(());
+        }
+        if let Some(why) = &self.refused {
+            bail!("{why}");
+        }
+        line("Asking for administrator rights (once for this run).");
+        match HelperClient::launch(self.sandbox.as_deref(), &self.log, self.launch) {
+            Ok(h) => {
+                self.helper = Some(h);
+                Ok(())
+            }
+            Err(e) => {
+                let why = format!("couldn't get administrator rights: {e:#}");
+                self.refused = Some(why.clone());
+                bail!(why);
+            }
+        }
+    }
+
+    /// An AUR helper on the terminal whose `sudo pacman …` calls go to this
+    /// run's root helper (see [`crate::bridge`]): no password while it
+    /// builds and installs. Other commands, a rehearsal and a run without a
+    /// terminal behave as [`Session::user`].
+    pub fn user_elevated(&mut self, argv: &[String], tty: Option<&str>, line: &mut dyn FnMut(&str)) -> Result<()> {
+        let known = argv.first().is_some_and(|p| matches!(p.as_str(), "paru" | "yay"));
+        let Some(tty) = tty.filter(|_| known && !self.rehearsal()) else {
+            return self.user(argv, tty.is_some(), line);
+        };
+        self.start(line)?;
+        let exe = std::env::current_exe().context("find this program")?;
+        let bridge = Bridge::start(&exe)?;
+        let shown = sys::shell_words(argv);
+        if let Some(h) = self.helper.as_mut() {
+            let _ = h.request(
+                &Request::Log { line: format!("(as the user, its pacman calls as root) $ {shown}") },
+                &mut |_| {},
+            );
+        }
+        let mut child = Command::new(&argv[0]);
+        child.args(["--sudo", &bridge.shim()]).args(&argv[1..]).envs(bridge.env());
+        if let Some(flags) = parallel_make() {
+            child.env("MAKEFLAGS", flags);
+        }
+        let mut child = child.spawn().with_context(|| format!("start `{}`", argv[0]))?;
+        let status = loop {
+            bridge.poll(&mut |pacman| {
+                // pacman (as root) ignores Ctrl-C mid-transaction; so does this side.
+                sys::ignore_interrupts(true);
+                let done = match self.helper.as_mut() {
+                    Some(h) => h.request(&Request::Interactive { argv: pacman, tty: tty.to_string() }, &mut |_| {}),
+                    None => Err(anyhow::anyhow!("the root helper isn't running")),
+                };
+                sys::ignore_interrupts(false);
+                done.map(drop)
+            });
+            if let Some(s) = child.try_wait()? {
+                break s;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(25));
+        };
+        if !status.success() {
+            bail!("`{shown}` failed ({status})");
+        }
+        Ok(())
     }
 
     /// A command as the user: on the terminal when there is one (`tty`),
@@ -107,4 +169,18 @@ impl<'a> Session<'a> {
             h.quit();
         }
     }
+}
+
+/// `-jN` for the AUR builds when neither the environment nor makepkg.conf
+/// chose: makepkg builds on one core by default.
+fn parallel_make() -> Option<String> {
+    if std::env::var_os("MAKEFLAGS").is_some() {
+        return None;
+    }
+    let conf = std::fs::read_to_string("/etc/makepkg.conf").unwrap_or_default();
+    if conf.lines().any(|l| l.trim_start().starts_with("MAKEFLAGS=")) {
+        return None;
+    }
+    let n = std::thread::available_parallelism().map_or(1, |n| n.get());
+    (n > 1).then(|| format!("-j{n}"))
 }

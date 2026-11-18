@@ -21,8 +21,11 @@ use crate::setup::Setup;
 use crate::stage::Stage;
 use crate::system::{Dkms, Kernel, Mount, Pin, Power, Rebuild};
 
+#[path = "probe_gather.rs"]
+mod gather_all;
 #[path = "probe_system.rs"]
 mod look;
+pub use gather_all::gather;
 
 /// A list, or why it couldn't be made.
 pub type Listed<T> = Result<Vec<T>, String>;
@@ -148,84 +151,24 @@ pub fn today() -> i64 {
     (secs / 86_400) as i64
 }
 
-/// Look at everything the enabled stages need; `note` hears what is being
-/// checked (some checks take a few seconds).
-/// `bindle`: the `bindle` program this run belongs to (whether it can update
-/// itself depends on where it is). `refresh`: may refresh fwupd's firmware
-/// list when it is old (a download into fwupd's cache); a `--check` doesn't.
-pub fn gather(
-    catalog: &Catalog,
-    prefs: &Prefs,
-    bindle: &Path,
-    refresh: bool,
-    enabled: &dyn Fn(Stage) -> bool,
-    note: &mut dyn FnMut(&str),
-) -> Probe {
-    let mut p = Probe { today: today(), ..Default::default() };
-    let off = || Err("not checked".to_string());
-    if enabled(Stage::Bindle) {
-        note("Checking for a new Bindle");
-        p.bindle = look::bindle(bindle);
-    }
-    if enabled(Stage::News) {
-        note("Reading the Arch news");
-        p.news = arch_news();
-        p.last_upgrade = fs::read_to_string("/var/log/pacman.log").ok().and_then(|l| parse::last_upgrade(&l));
-    }
-    if enabled(Stage::Pacman) {
-        note("Checking for package updates");
-        p.pacman = pacman_updates();
-    } else {
-        p.pacman = off();
-    }
-    p.aur_helper = ["paru", "yay"].into_iter().find(|h| on_path(h)).map(String::from);
-    p.aur = match (&p.aur_helper, enabled(Stage::Aur)) {
-        (Some(h), true) => {
-            note("Checking the AUR");
-            aur_updates(h)
-        }
-        _ => off(),
-    };
-    if enabled(Stage::Flatpak) && on_path("flatpak") {
-        note("Checking Flatpak");
-        p.flatpak = Some(flatpak_updates());
-    }
-    if enabled(Stage::Firmware) && on_path("fwupdmgr") {
-        note("Checking firmware (fwupd)");
-        p.firmware_age = look::firmware(prefs.firmware_refresh_days, refresh);
-        p.firmware = Some(firmware_updates());
-    }
-    p.mounts = look::mounts();
-    p.power = look::power();
-    p.reflector = on_path("reflector");
-    p.mirrorlist_age_days = age_days(Path::new("/etc/pacman.d/mirrorlist"));
-    let installed = installed_versions();
-    p.snapper_root = Path::new("/etc/snapper/configs/root").is_file();
-    p.snap_pac = installed.contains_key("snap-pac");
-    if installed.contains_key("uq-hyprland-pin") {
-        p.pin = Some(look::pin());
-    }
-    let mut unchecked = vec![];
-    if enabled(Stage::Releases) {
-        let (newer, problem) = release_updates(catalog, &installed);
-        p.releases = newer;
-        unchecked.extend(problem.map(|why| (Stage::Releases, why)));
-    }
-    note("Looking at kernels, services and Bindle's setup");
-    p.after = after();
-    p.after.unchecked.extend(unchecked);
-    p
-}
-
-/// Leftovers and the kernel, looked at before and again after upgrading.
+/// Leftovers and the kernel, looked at before and again after upgrading
+/// (the slower looks side by side).
 pub fn after() -> After {
+    use gather_all::{join, on};
     let running = fs::read_to_string("/proc/sys/kernel/osrelease").unwrap_or_default().trim().to_string();
     let mut unchecked = vec![];
-    let pacfiles = pacfiles().unwrap_or_else(|e| {
+    let (pacfiles, orphans, rebuild, dkms, failed) = std::thread::scope(|s| {
+        let orphans = on(s, true, || pacman_list(&["pacman", "-Qdtq"]));
+        let rebuild = on(s, true, look::rebuild);
+        let dkms = on(s, true, look::dkms);
+        let failed = on(s, true, look::failed);
+        (pacfiles(), join(orphans), join(rebuild), join(dkms), join(failed))
+    });
+    let pacfiles = pacfiles.unwrap_or_else(|e| {
         unchecked.push((Stage::Pacfiles, e));
         vec![]
     });
-    let orphans = pacman_list(&["pacman", "-Qdtq"]).unwrap_or_else(|e| {
+    let orphans = orphans.unwrap_or_else(|| Err("not checked".into())).unwrap_or_else(|e| {
         unchecked.push((Stage::Orphans, e));
         vec![]
     });
@@ -241,10 +184,10 @@ pub fn after() -> After {
         kernels: look::kernels(),
         unowned_kernels: look::unowned_kernels(),
         ukis: bindle_core::uki::scan(Path::new("/")),
-        dkms: look::dkms(),
+        dkms: dkms.unwrap_or_default(),
         boot: look::boot(),
-        failed: look::failed(),
-        rebuild: look::rebuild(),
+        failed: failed.unwrap_or_default(),
+        rebuild: rebuild.flatten(),
         aur_helper: ["paru", "yay"].into_iter().find(|h| on_path(h)).map(String::from),
         uq: on_path("uqctl"),
         greeter: look::greeter(),
