@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.1.21 — 2026-11-18
+
+- **Newer appOFholding.** Pinned to appOFholding 0.12.1, which only checks uQ's theme while its window is showing.
+
 ## 0.1.20 — 2026-11-18
 
 - **bindleUP asks for the password once.** The root helper now starts before the first stage (when anything needs it), and what used to ask on its own goes through it: the AUR helper's `sudo pacman` calls (a per-run socket, `pacman` only, package files only for `-U`), Flatpak's system installation and fwupd's updates. Start it, enter the password, walk away (`--yes` also answers pacman's and the AUR's own questions). A run that replaces Bindle itself still asks a second time, in the new Bindle.
