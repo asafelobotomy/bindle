@@ -36,7 +36,8 @@ pub fn facts(f: &Facts) {
     }
 }
 
-pub fn list(c: &Catalog, f: &Facts) {
+/// With `facts`, modules that don't apply to this machine are marked.
+pub fn list(c: &Catalog, f: Option<&Facts>) {
     println!("Profiles:");
     for p in &c.profiles {
         println!("  {:<10} {}", p.id, p.description);
@@ -44,9 +45,9 @@ pub fn list(c: &Catalog, f: &Facts) {
     for cat in &c.categories {
         println!("\n{} — {}", cat.name, cat.description);
         for m in c.modules_in(&cat.id) {
-            let status = match f.matches(&m.when) {
-                Ok(()) => String::new(),
-                Err(r) => format!("  [n/a: {r}]"),
+            let status = match f.map(|f| f.matches(&m.when)) {
+                Some(Err(r)) => format!("  [n/a: {r}]"),
+                _ => String::new(),
             };
             println!("  {:<18} {}{status}", m.id, m.name);
         }

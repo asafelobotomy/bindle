@@ -66,7 +66,11 @@ enum Cmd {
         json: bool,
     },
     /// List profiles, categories and modules.
-    List,
+    List {
+        /// Also detect this machine: add one module per spare drive and mark what doesn't apply here.
+        #[arg(long)]
+        here: bool,
+    },
     /// Preview what a selection would change. Never modifies the system.
     Plan {
         #[command(flatten)]
@@ -269,6 +273,11 @@ fn main() -> Result<()> {
         Cmd::Upgrade(args) => return upgrade_cmd::main(args),
         Cmd::Config { cmd } => return config_cmd::main(cmd),
         Cmd::Recover(cmd) => return recover_cmd::main(cmd),
+        // The plain catalog needs no detection, so it prints at once.
+        Cmd::List { here: false } => {
+            print::list(&Catalog::arch()?, None);
+            return Ok(());
+        }
         _ => {}
     }
 
@@ -335,8 +344,8 @@ fn main() -> Result<()> {
             }
             Ok(())
         }
-        Cmd::List => {
-            print::list(&catalog, &facts);
+        Cmd::List { .. } => {
+            print::list(&catalog, Some(&facts));
             Ok(())
         }
         Cmd::Status { json } => status::run(&catalog, &facts, json, std::path::Path::new(SYSTEM_SELECTION)),
