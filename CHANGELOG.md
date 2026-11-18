@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 0.1.19 — 2026-11-18
+
+- **oysterAV installs chkrootkit too**, next to ClamAV and rkhunter, so its scans have all three rootkit and malware scanners.
+- **Newer romforge.** Pinned to romforge 0.18.1.
+
 ## 0.1.18 — 2026-11-17
 
 - **Newer hauler, XZram and appOFholding.** Pinned to hauler 0.2.1, XZram 0.7.1 and appOFholding 0.12.0; all three now follow the uQ theme.
