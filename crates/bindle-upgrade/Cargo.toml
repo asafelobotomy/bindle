@@ -13,3 +13,10 @@ bindle-run = { path = "../bindle-run" }
 serde.workspace = true
 serde_json.workspace = true
 toml.workspace = true
+
+[dev-dependencies]
+criterion = { version = "0.5", default-features = false }
+
+[[bench]]
+name = "parse"
+harness = false

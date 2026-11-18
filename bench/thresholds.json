@@ -1,0 +1,10 @@
+{
+  "comment": "Fractions over the base, on the same CI machine. Fail when both the fraction and min_abs (in the metric's unit) are exceeded.",
+  "rules": [
+    { "match": "^binary_size$", "warn": 0.03, "fail": 0.10, "min_abs": 65536 },
+    { "match": "^rss_", "warn": 0.10, "fail": 0.25, "min_abs": 524288 },
+    { "match": "^cmd_", "warn": 0.15, "fail": 0.40, "min_abs": 2 },
+    { "match": "^bench_", "warn": 0.15, "fail": 0.35, "min_abs": 20000 },
+    { "match": ".*", "warn": 0.10, "fail": 0.25, "min_abs": 0 }
+  ]
+}
