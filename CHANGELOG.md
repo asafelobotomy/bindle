@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- **Faster `list`, `detect`, `plan` and `status`.** `bindle list` no longer inspects the machine, so it prints at once (`bindle list --here` adds the drive modules and the "n/a here" marks). The other commands run their system probes (pacman, lsblk, id, getent, systemd-detect-virt) side by side instead of one by one.
+- **Faster `list`, `detect`, `plan` and `status`.** `bindle list` no longer inspects the machine, so it prints at once (`bindle list --here` adds the drive modules and the "n/a here" marks). The other commands run their system probes (pacman, lsblk, id, getent, systemd-detect-virt) side by side, read package groups (`pacman -Sgg`, the slowest probe) only when something asks for them, and keep that answer in `~/.cache/bindle/package-groups` until a sync database changes.
 
 ## 0.1.21 — 2026-11-18
 

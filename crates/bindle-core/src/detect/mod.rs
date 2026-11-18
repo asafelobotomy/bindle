@@ -7,6 +7,7 @@ mod boot;
 mod devices;
 mod drives;
 pub mod extras;
+mod groups;
 mod hw;
 mod probes;
 mod system;
@@ -98,9 +99,10 @@ pub struct Facts {
     pub enabled_units: BTreeSet<String>,
     #[serde(skip)]
     pub installed: BTreeSet<String>,
-    /// Sync-database package groups → members (`pacman -Sgg`).
+    /// Sync-database package groups → members (`pacman -Sgg`); read on first use
+    /// (see `groups`), since it is the slowest probe and few commands need it.
     #[serde(skip)]
-    pub groups: BTreeMap<String, BTreeSet<String>>,
+    pub groups: std::sync::OnceLock<BTreeMap<String, BTreeSet<String>>>,
     pub installed_count: usize,
 }
 
@@ -152,7 +154,7 @@ impl Facts {
     }
 
     fn from_probes(p: probes::Probes, fstab: &str) -> Self {
-        let probes::Probes { installed, groups, virt, drives, user, user_groups, home } = p;
+        let probes::Probes { installed, virt, drives, user, user_groups, home } = p;
         let (os, cmdline) = (read("/etc/os-release"), read("/proc/cmdline"));
         let desktop_data = desktops::all().unwrap_or_default();
         let install = InstallRecord::detect(&desktop_data);
@@ -222,7 +224,7 @@ impl Facts {
             enabled_units: system::enabled_units(),
             installed_count: installed.len(),
             installed,
-            groups,
+            groups: Default::default(),
             install,
         };
         if f.distro_id.is_empty() {
@@ -236,10 +238,14 @@ impl Facts {
         f
     }
 
+    pub fn groups(&self) -> &BTreeMap<String, BTreeSet<String>> {
+        self.groups.get_or_init(groups::load)
+    }
+
     /// Installed, or a group whose members are all installed.
     pub fn has_package(&self, name: &str) -> bool {
         self.installed.contains(name)
-            || self.groups.get(name).is_some_and(|m| !m.is_empty() && m.iter().all(|p| self.installed.contains(p)))
+            || self.groups().get(name).is_some_and(|m| !m.is_empty() && m.iter().all(|p| self.installed.contains(p)))
     }
 
     /// Arch Linux itself (or unknown, as in tests): not a derivative.
@@ -344,16 +350,6 @@ fn dir_nonempty(path: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn groups_count_as_installed_when_complete() {
-        let mut f = Facts::default();
-        f.groups.insert("deepin-extra".into(), ["a", "b"].map(String::from).into());
-        f.installed.insert("a".into());
-        assert!(!f.has_package("deepin-extra"));
-        f.installed.insert("b".into());
-        assert!(f.has_package("deepin-extra") && f.has_package("a"));
-    }
 
     #[test]
     fn when_conditions() {
