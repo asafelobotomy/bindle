@@ -36,7 +36,7 @@ def fmt(v, unit):
         return f"{v / 1e6:.3f} ms" if v >= 1e6 else f"{v / 1e3:.1f} µs"
     if unit == "bytes":
         return f"{v / 1048576:.2f} MiB"
-    return f"{v:.2f} {unit}"
+    return {"pct": f"{v:.2f} %", "per_s": f"{v:.1f} /s", "per_min": f"{v:.1f} /min", "count": f"{v:.0f}"}.get(unit, f"{v:.2f} {unit}")
 
 
 def main():
@@ -57,7 +57,8 @@ def main():
             continue
         (b, unit), (h, _) = base[name], head[name]
         r = rule(rules, name)
-        delta = (h - b) / b if b else 0.0
+        # From zero any growth is infinite in relative terms; min_abs then decides if it matters.
+        delta = (h - b) / b if b else (float("inf") if h > b else 0.0)
         mark = "ok"
         if abs(h - b) > r.get("min_abs", 0):
             if delta > r["fail"]:
@@ -67,7 +68,7 @@ def main():
                 mark = "warn"
             elif delta < -r["warn"]:
                 mark = "faster"
-        rows.append((name, fmt(b, unit), fmt(h, unit), f"{delta * 100:+.1f}%", mark))
+        rows.append((name, fmt(b, unit), fmt(h, unit), ("new" if delta == float("inf") else f"{delta * 100:+.1f}%"), mark))
 
     md = ["| metric | base | head | change | |", "|---|---:|---:|---:|---|"]
     md += [f"| `{n}` | {b} | {h} | {d} | {m} |" for n, b, h, d, m in rows]
