@@ -29,7 +29,7 @@ The AppImage, for an existing install, is on the
 
 ## Status
 
-**Status:** 0.1.18, hardening (Phase 1.5). The live-ISO installer, detection,
+**Status:** 0.1.19, hardening (Phase 1.5). The live-ISO installer, detection,
 planning, apply (with snapshots and undo), first-login autostart, the desktop
 window, bindo, bindleup and What's new work. Installs and applies are
 verified in VMs for every archinstall desktop through `bindle iso`
