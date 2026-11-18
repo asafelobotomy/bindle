@@ -1,6 +1,6 @@
 //! OS release, mounts, packages, services, users and config drop-ins.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 use std::fs;
 use std::process::Command;
 
@@ -118,18 +118,8 @@ pub(super) fn enabled_units() -> BTreeSet<String> {
     out
 }
 
-fn stdout(cmd: &mut Command) -> Option<String> {
+pub(super) fn stdout(cmd: &mut Command) -> Option<String> {
     cmd.output().ok().filter(|o| o.status.success()).map(|o| String::from_utf8_lossy(&o.stdout).into_owned())
-}
-
-pub(super) fn package_groups() -> BTreeMap<String, BTreeSet<String>> {
-    let mut out: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
-    for line in stdout(Command::new("pacman").arg("-Sgg")).unwrap_or_default().lines() {
-        if let Some((group, pkg)) = line.split_once(' ') {
-            out.entry(group.to_string()).or_default().insert(pkg.to_string());
-        }
-    }
-    out
 }
 
 pub(super) fn installed_packages() -> BTreeSet<String> {

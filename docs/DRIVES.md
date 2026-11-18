@@ -7,7 +7,7 @@ at startup*) and writes the fstab line for it.
 
 ```bash
 bindle detect                       # "Other drives" lists what was found
-bindle list                         # one mount-<uuid> module per drive
+bindle list --here                 # one mount-<uuid> module per drive
 bindle plan --with mount-<uuid>     # the review prints the exact line
 ```
 
