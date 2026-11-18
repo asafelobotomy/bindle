@@ -184,8 +184,9 @@ pub fn main(mut a: UpgradeArgs) -> Result<()> {
     println!("\nbindleup finished:");
     report::table(&results, rehearsal).iter().for_each(|l| println!("{l}"));
     // The Bindle that just replaced the old one: what it brings is next.
-    if std::env::var_os(selfupdate::UPDATED_ENV).is_some() && !rehearsal && !probe.after.setup.whats_new.is_empty() {
-        whats_new_next(run_opts.tty.is_some() && !a.yes, &exe);
+    let items = probe.after.setup.whats_new.len();
+    if std::env::var_os(selfupdate::UPDATED_ENV).is_some() && !rehearsal {
+        whats_new_next(run_opts.tty.is_some() && !a.yes, &exe, items);
     }
     if report::any_failed(&results) {
         std::process::exit(1);
@@ -193,13 +194,20 @@ pub fn main(mut a: UpgradeArgs) -> Result<()> {
     Ok(())
 }
 
-/// After a self-update: on a terminal, offer What's new now; otherwise a
-/// notification (from its own process, so this run can end).
-fn whats_new_next(interactive: bool, exe: &std::path::Path) {
+/// After a self-update: the release notes once, then What's new. On a
+/// terminal: print the notes and offer the review; otherwise a notification
+/// (from its own process, so this run can end) with the summary.
+fn whats_new_next(interactive: bool, exe: &std::path::Path, items: usize) {
     if interactive {
-        if crate::apply::confirm("\nReview what's new in this Bindle now?", true) {
+        let notes = crate::relnotes_cmd::show_pending();
+        if items > 0
+            && crate::apply::confirm(
+                if notes { "Open What's new now?" } else { "\nReview what's new in this Bindle now?" },
+                true,
+            )
+        {
             let _ = std::process::Command::new(exe).arg("whats-new").status();
-        } else {
+        } else if items > 0 {
             println!("Any time: bindle whats-new");
         }
         return;

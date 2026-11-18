@@ -43,6 +43,8 @@ pub mod qobject {
         #[qproperty(QString, sandbox)]
         /// `--dry-run`: every command printed, none run.
         #[qproperty(bool, dry_run)]
+        /// The release-notes popup, after Bindle updated itself (`crate::relnotes`).
+        #[qproperty(QString, release_notes_json)]
         type UpgradeBackend = super::UpgradeRust;
 
         /// Look at the system (or, for screenshots, the sample).
@@ -59,6 +61,12 @@ pub mod qobject {
         fn open_terminal(self: Pin<&mut UpgradeBackend>, only_aur: bool);
         #[qinvokable]
         fn reboot(self: Pin<&mut UpgradeBackend>);
+        /// The release notes were answered (either button): not shown again for this version.
+        #[qinvokable]
+        fn dismiss_release_notes(self: Pin<&mut UpgradeBackend>);
+        /// Screenshots: made-up release notes.
+        #[qinvokable]
+        fn sample_release_notes(self: Pin<&mut UpgradeBackend>);
         /// Open Bindle's What's new page (new and changed features to review).
         #[qinvokable]
         fn open_bindle(self: Pin<&mut UpgradeBackend>);
@@ -86,6 +94,7 @@ pub struct UpgradeRust {
     check_json: QString,
     run_json: QString,
     notice: QString,
+    release_notes_json: QString,
     screenshot_dir: QString,
     sandbox: QString,
     dry_run: bool,
@@ -110,6 +119,10 @@ impl cxx_qt::Initialize for UpgradeBackend {
         let notes: Vec<&str> = if self.screenshots() { sample::NOTES[..3].to_vec() } else { vec![] };
         self.as_mut().set_check_json(qs(&json!({ "state": "checking", "notes": notes })));
         self.as_mut().set_run_json(qs(&json!({ "state": "idle" })));
+        // After Bindle replaced itself (`reopen`, or the terminal's relaunch): its release notes.
+        let updated = std::env::var_os(bindle_upgrade::selfupdate::UPDATED_ENV).is_some();
+        let real = !self.screenshots() && self.sandbox_dir().is_none() && !self.rust().dry_run;
+        self.as_mut().set_release_notes_json(qs(&crate::relnotes::due(real && updated)));
         let path = theme::tokens_path();
         self.as_mut().set_theme_json(qs(&theme::load(path.as_ref())));
         let qt = self.qt_thread();
@@ -244,6 +257,16 @@ impl UpgradeBackend {
         {
             self.as_mut().set_notice(QString::from(&note));
         }
+    }
+
+    fn dismiss_release_notes(self: Pin<&mut Self>) {
+        if !self.screenshots() && self.sandbox_dir().is_none() && !self.rust().dry_run {
+            bindle_run::relnotes::dismiss();
+        }
+    }
+
+    fn sample_release_notes(mut self: Pin<&mut Self>) {
+        self.as_mut().set_release_notes_json(qs(&crate::relnotes::sample()));
     }
 
     fn open_bindle(mut self: Pin<&mut Self>) {

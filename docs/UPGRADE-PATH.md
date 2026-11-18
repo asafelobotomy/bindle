@@ -25,6 +25,37 @@ that changes it again shows it again (`~/.local/state/bindle/whats-new.json`;
 itself (asked on a terminal, otherwise a notification with Review), and from
 bindleup's "Bindle setup" stage and the update window's What's new button.
 
+## Release notes popup
+
+Separate from the per-item review above: a short "What's new in Bindle
+X.Y.Z" saying what the *release itself* brings, shown once per version.
+
+- **Source**: the version's section of `CHANGELOG.md`, embedded at build time
+  (`bindle_core::relnotes`, pure and unit-tested), so the AppImage and the
+  installed binary carry their own notes. Each bullet's bold lead is a
+  highlight's title, the rest its detail (plain text, at most 160 characters).
+  Up to four highlights show; the rest are counted ("and 1 more"). A version
+  with no section or no bullets (a development build) shows nothing.
+- **When**: once, when the running version is newer than
+  `notes_seen` in `~/.local/state/bindle/whats-new.json`
+  (`bindle_run::whatsnew_state::State::notes`). Answering it (any button, or
+  Escape), or an apply on this version, records the version, so a dismissed
+  version stays dismissed. **Never on a fresh install**: with no saved
+  selection (Bindle hasn't applied anything here) the version is recorded
+  silently, so the first update after it shows its notes.
+- **Where**: `bindle-gui` and the update window (`bindle-gui --upgrade`,
+  after bindleup replaced Bindle: `BINDLE_UPGRADED`) as a popup; the terminal
+  wizard (`bindle`) and bindleup on a terminal print it, then offer What's
+  new; without a terminal, bindleup's notification (`bindle whats-new
+  --notify`) carries the highlight titles. A notification nobody answers
+  leaves the notes for the next window or terminal.
+- **Actions**: "Open What's new" starts the existing review (nothing is
+  duplicated: it is `bindle whats-new` / `bindle-gui --whats-new`), only when
+  something waits in it; "Dismiss" / "Later" just closes.
+- **Changelog format it reads**: `## X.Y.Z — date`, then `- **Title.** text`
+  bullets (continuation lines indented). Keep the lead short: it is shown as
+  a title and in the notification.
+
 ## How it works
 
 ### 1. Every apply records what it did
@@ -105,6 +136,8 @@ it. Unpicked items stay as they are and show again next time.
 | `bindle-run/src/whatsnew.rs` | the record from snapshots, the saved selection, the plan for the picks, the seen version |
 | `bindle-cli/src/whatsnew_cmd.rs`, `tui/whatsnew.rs` | `bindle whats-new`, the terminal page, the first-run hook |
 | `bindle-gui/src/model/whatsnew.rs`, `qml/WhatsNewPage.qml` | the window's page (steps: What's new → Review → Apply) |
+| `bindle-core/src/relnotes.rs`, `bindle-run/src/relnotes.rs` | the release notes: the CHANGELOG parser, and when they are due (once per version) |
+| `bindle-cli/src/relnotes_cmd.rs`, `bindle-gui/src/relnotes.rs`, `qml/ReleaseNotesDialog.qml` | the terminal text and notification, the window popup |
 | `bindle-upgrade/src/setup.rs` | bindleup's "Bindle setup" stage reports What's new |
 
 ## Choices made

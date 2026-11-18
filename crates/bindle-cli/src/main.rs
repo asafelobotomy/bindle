@@ -16,6 +16,7 @@ mod polkit_agent;
 mod print;
 mod recover_cmd;
 
+mod relnotes_cmd;
 mod sel_args;
 mod session;
 mod status;

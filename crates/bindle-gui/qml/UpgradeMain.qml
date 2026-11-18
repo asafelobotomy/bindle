@@ -30,9 +30,22 @@ ThemedWindow {
         id: backend
     }
 
+    readonly property var releaseNotes: JSON.parse(backend.releaseNotesJson || '{"state": "none"}')
+
     Component.onCompleted: {
         if (backend.screenshotDir === "")
             backend.startCheck();
+        if (root.releaseNotes.state === "show")
+            notesDialog.open();
+    }
+
+    // After Bindle updated itself: what this release brings, once.
+    ReleaseNotesDialog {
+        id: notesDialog
+        notes: root.releaseNotes
+        canOpen: (root.check.newFeatures || 0) > 0
+        onOpenWhatsNew: backend.openBindle()
+        onDismissed: backend.dismissReleaseNotes()
     }
 
     function primaryLabel() {
@@ -135,9 +148,15 @@ ThemedWindow {
             { name: "u3b-done-log", log: true },
             // A laptop where the update must wait, and a restart that isn't safe.
             { name: "u4-check-held", sample: "held" },
-            { name: "u5-done-held", run: true, keepNews: true }
+            { name: "u5-done-held", run: true, keepNews: true },
+            { name: "u6-release-notes", notes: true }
         ]
         onShoot: s => {
+            if (s.notes) {
+                backend.sampleReleaseNotes();
+                notesDialog.open();
+                return;
+            }
             if (s.check)
                 backend.startCheck();
             if (s.details)

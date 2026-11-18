@@ -114,16 +114,7 @@ pub fn run(catalog: &Catalog, facts: &Facts, a: WhatsNewArgs) -> Result<()> {
         return Ok(());
     }
     if a.notify {
-        if !wn.is_empty() {
-            let body = format!("{} to review: new features, changes and clean-ups.", wn.items.len());
-            let title = format!("What's new in Bindle {}", wn.version);
-            if crate::notify::show(&title, &body, &[("review", "Review"), ("later", "Later")])?.as_deref()
-                == Some("review")
-            {
-                crate::gui::whats_new()?;
-            }
-        }
-        return Ok(());
+        return crate::relnotes_cmd::notify(wn.items.len());
     }
     if wn.is_empty() {
         println!("Nothing new: this system has everything Bindle {} would set up.", wn.version);
@@ -200,16 +191,22 @@ fn apply_picks(
     Ok(())
 }
 
-/// Before the wizard: the first run of a newer Bindle opens What's new when
-/// there is something in it. Never fails the wizard.
+/// Before the wizard: the first run of a newer Bindle shows its release
+/// notes once, then opens What's new when there is something in it. Never
+/// fails the wizard.
 pub fn first_run(catalog: &Catalog, facts: &Facts, sandbox: Option<PathBuf>) {
     if !std::io::stdout().is_terminal() {
         return;
     }
+    let notes = sandbox.is_none() && crate::relnotes_cmd::show_pending();
     let root = sandbox.clone().unwrap_or_else(|| PathBuf::from("/"));
     if let Ok(Some((wn, _))) = whatsnew::look(catalog, facts, &root, false)
         && whatsnew_state::load().should_open(&wn, whatsnew::VERSION)
     {
+        if notes && !apply::confirm("Open What's new now?", true) {
+            println!("Any time: bindle whats-new");
+            return;
+        }
         let args = WhatsNewArgs { sandbox, ..Default::default() };
         if let Err(e) = run(catalog, facts, args) {
             eprintln!("What's new: {e:#}");

@@ -28,6 +28,7 @@ mod glyph;
 mod model;
 mod recovery;
 mod recovery_backend;
+mod relnotes;
 mod theme;
 mod upgrade;
 mod upgrade_backend;

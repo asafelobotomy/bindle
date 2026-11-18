@@ -65,6 +65,14 @@ hand-off to uQ's Welcome is automatic when the first-login wizard ends (see
 below); there is no button for it. The update window (`bindle-gui
 --upgrade`) is a second set of screens in the same binary, below.
 
+**Release notes popup** (`ReleaseNotesDialog.qml`, data from `src/relnotes.rs`):
+the first time a newer Bindle opens, a modal "What's new in Bindle X.Y.Z"
+lists up to four highlights of the release from CHANGELOG.md, with "Open
+What's new" (the per-item review above; only when something waits in it) and
+"Dismiss". Either answer, or Escape, is final for that version. It is shown in
+this window and, after Bindle updated itself, in the update window. See
+[UPGRADE-PATH.md](UPGRADE-PATH.md#release-notes-popup).
+
 ## The update window
 
 `bindle-gui --upgrade` (opened by `bindleup --gui`, which passes
