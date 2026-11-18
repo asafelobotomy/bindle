@@ -164,6 +164,10 @@ pub fn run(plan: &Plan, facts: &Facts, opts: &Options, progress: &mut dyn Progre
             ));
         }
     }
+    if failed.is_none() && !fake {
+        // An apply on this version: its release notes aren't news here.
+        let _ = crate::whatsnew_state::mark_notes_seen();
+    }
     Ok(Report {
         total,
         failed,

@@ -12,6 +12,7 @@ pub mod present;
 pub mod protocol;
 pub mod record;
 pub mod release;
+pub mod relnotes;
 pub mod selection;
 pub mod self_install;
 pub mod session;

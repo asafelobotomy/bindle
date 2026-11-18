@@ -37,9 +37,26 @@ ThemedWindow {
         id: backend
     }
 
+    readonly property var releaseNotes: JSON.parse(backend.releaseNotesJson || '{"state": "none"}')
+
     Component.onCompleted: {
         if (root.whatsNewMode)
             root.page = 6;
+        if (root.releaseNotes.state === "show")
+            notesDialog.open();
+    }
+
+    // The release's own highlights, once after Bindle updated. Either answer
+    // is final for this version; "Open What's new" goes to the review.
+    ReleaseNotesDialog {
+        id: notesDialog
+        notes: root.releaseNotes
+        canOpen: root.whatsNew.state === "ready"
+        onOpenWhatsNew: {
+            backend.setWhatsNew(true);
+            root.page = 6;
+        }
+        onDismissed: backend.dismissReleaseNotes()
     }
 
     // Leave What's new for the wizard: "Not now" (it asks again next time),
@@ -261,6 +278,7 @@ ThemedWindow {
             // What's new after a Bindle upgrade, on a made-up comparison.
             { page: 6, name: "7-whats-new", whatsNew: true },
             { page: 6, name: "7b-whats-new-changes", whatsNewOpen: true },
+            { page: 6, name: "7c-release-notes", notes: true },
             // Only with --sandbox: apply for real (recording commands) and wait.
             { page: 5, name: "6-applied", apply: true },
             { page: 5, name: "6b-applied-details", details: true }
@@ -275,6 +293,12 @@ ThemedWindow {
                 backend.setWhatsNew(false);
             if (s.whatsNew)
                 backend.sampleWhatsNew();
+            if (s.notes) {
+                backend.sampleReleaseNotes();
+                notesDialog.open();
+            }
+            else
+                notesDialog.close();
             if (s.whatsNewOpen) {
                 whatsNewPage.openAll = true;
                 Qt.callLater(() => whatsNewPage.contentItem.contentY = Kirigami.Units.gridUnit * 13);

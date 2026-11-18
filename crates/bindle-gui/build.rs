@@ -25,6 +25,7 @@ fn main() {
         QmlFile::from("qml/Disclosure.qml"),
         QmlFile::from("qml/Glyph.qml"),
         QmlFile::from("qml/WhatsNewPage.qml"),
+        QmlFile::from("qml/ReleaseNotesDialog.qml"),
         QmlFile::from("qml/UpgradeMain.qml"),
         QmlFile::from("qml/UpgradeCheckPage.qml"),
         QmlFile::from("qml/UpgradeRunPage.qml"),

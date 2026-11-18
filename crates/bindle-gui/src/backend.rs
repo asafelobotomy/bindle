@@ -49,6 +49,8 @@ pub mod qobject {
         #[qproperty(QString, apply_json)]
         /// "What's new" after a Bindle upgrade (`Wizard::whats_new_json`).
         #[qproperty(QString, whats_new_json)]
+        /// The release-notes popup (`crate::relnotes`): `{"state": "show", ...}` once per version.
+        #[qproperty(QString, release_notes_json)]
         type Backend = super::BackendRust;
 
         #[qinvokable]
@@ -91,6 +93,12 @@ pub mod qobject {
         /// Done with this version: What's new opens by itself again for a newer Bindle.
         #[qinvokable]
         fn skip_whats_new(self: Pin<&mut Backend>);
+        /// The release notes were answered (either button): not shown again for this version.
+        #[qinvokable]
+        fn dismiss_release_notes(self: Pin<&mut Backend>);
+        /// Screenshots: made-up release notes.
+        #[qinvokable]
+        fn sample_release_notes(self: Pin<&mut Backend>);
         /// Screenshots: a made-up What's new.
         #[qinvokable]
         fn sample_whats_new(self: Pin<&mut Backend>);
@@ -126,6 +134,7 @@ pub struct BackendRust {
     sandbox: QString,
     apply_json: QString,
     whats_new_json: QString,
+    release_notes_json: QString,
     wizard: Option<Wizard>,
     applying: bool,
 }
@@ -169,6 +178,9 @@ impl cxx_qt::Initialize for Backend {
             self.as_mut().wizard_mut().set_whats_new_active(true);
         }
         self.as_mut().refresh_whats_new();
+        // The release notes, once after an update (not when asked for What's new itself).
+        let due = crate::relnotes::due(real && !shots && !asked);
+        self.as_mut().set_release_notes_json(QString::from(&due.to_string()));
 
         let path = theme::tokens_path();
         self.as_mut().set_theme_json(json(&theme::load(path.as_ref())));
@@ -348,6 +360,16 @@ impl Backend {
             let _ = bindle_run::whatsnew_state::skip_this_version();
         }
         self.set_whats_new(false);
+    }
+
+    fn dismiss_release_notes(self: Pin<&mut Self>) {
+        if self.real_run() {
+            bindle_run::relnotes::dismiss();
+        }
+    }
+
+    fn sample_release_notes(mut self: Pin<&mut Self>) {
+        self.as_mut().set_release_notes_json(QString::from(&crate::relnotes::sample().to_string()));
     }
 
     fn sample_whats_new(mut self: Pin<&mut Self>) {

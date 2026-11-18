@@ -1,7 +1,8 @@
 //! What the user told What's new, per user (`~/.local/state/bindle/whats-new.json`):
 //! the version they skipped (it opens by itself again only for a newer
 //! Bindle), and items they hid (each by its content: a later Bindle that
-//! changes it again shows it again). "Not now" stores nothing.
+//! changes it again shows it again). "Not now" stores nothing. Also the last
+//! version whose release notes were shown (`notes_seen`, `relnotes`).
 
 use std::collections::BTreeSet;
 use std::fs;
@@ -21,6 +22,22 @@ pub struct State {
     /// `item_key`s of hidden items.
     #[serde(default)]
     pub hidden: BTreeSet<String>,
+    /// The newest version whose release notes were shown or dismissed, or
+    /// that this user installed fresh (never news).
+    #[serde(default)]
+    pub notes_seen: Option<String>,
+}
+
+/// What to do with the release notes of the running version.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Notes {
+    /// Bindle was updated since the notes were last seen: show them once.
+    Show,
+    /// Bindle hasn't set anything up here (a fresh install): no popup, and
+    /// this version counts as seen.
+    Baseline,
+    /// Already seen (or a downgrade).
+    Quiet,
 }
 
 /// An item and what it changes (FNV-1a of its changes): hiding it hides
@@ -45,6 +62,19 @@ impl State {
     /// Open by itself: something to show, and this version not done with.
     pub fn should_open(&self, wn: &WhatsNew, version: &str) -> bool {
         !wn.is_empty() && self.skipped.as_deref().is_none_or(|v| bindle_core::version_cmp(version, v).is_gt())
+    }
+}
+
+impl State {
+    /// `set_up`: Bindle has applied something here (a saved selection).
+    pub fn notes(&self, version: &str, set_up: bool) -> Notes {
+        if self.notes_seen.as_deref().is_some_and(|v| bindle_core::version_cmp(version, v).is_le()) {
+            Notes::Quiet
+        } else if set_up {
+            Notes::Show
+        } else {
+            Notes::Baseline
+        }
     }
 }
 
@@ -92,6 +122,14 @@ pub fn skip_this_version() -> Result<()> {
     save(&s)
 }
 
+/// The release notes of this version are done with (shown, dismissed, or
+/// news to nobody: a fresh install, an apply on this version).
+pub fn mark_notes_seen() -> Result<()> {
+    let mut s = load_for_update()?;
+    s.notes_seen = Some(VERSION.into());
+    save(&s)
+}
+
 pub fn hide(i: &Item) -> Result<()> {
     let mut s = load_for_update()?;
     s.hidden.insert(item_key(i));
@@ -124,6 +162,17 @@ mod tests {
         assert_eq!(s.visible(wn).items.len(), 1);
         let changed = WhatsNew { items: vec![item("printing", "+ installs foomatic-db")], ..Default::default() };
         assert_eq!(s.visible(changed).items.len(), 1);
+    }
+
+    #[test]
+    fn release_notes_show_once_after_an_update_never_on_a_fresh_install() {
+        let seen = |v: &str| State { notes_seen: Some(v.into()), ..Default::default() };
+        assert_eq!(seen("0.1.16").notes("0.1.17", true), Notes::Show, "updated");
+        assert_eq!(seen("0.1.17").notes("0.1.17", true), Notes::Quiet, "dismissed stays dismissed");
+        assert_eq!(seen("0.2.0").notes("0.1.17", true), Notes::Quiet, "a downgrade");
+        assert_eq!(State::default().notes("0.1.17", true), Notes::Show, "set up before notes were tracked");
+        assert_eq!(State::default().notes("0.1.17", false), Notes::Baseline, "fresh install");
+        assert_eq!(seen("0.1.16").notes("0.1.17", false), Notes::Baseline, "never applied: no popup");
     }
 
     #[test]

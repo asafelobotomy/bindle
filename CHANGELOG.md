@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **A short "What's new in Bindle X.Y.Z" after Bindle updates.** The first time a newer Bindle opens (the wizard, the update window after bindleUP replaced Bindle, or the terminal), a popup lists up to four highlights of that release, taken from this changelog, with "Open What's new" for the per-item review and "Dismiss". It shows once per version, never on a fresh install, and bindleUP's notification carries the same summary.
+
 ## 0.1.19 — 2026-11-18
 
 - **oysterAV installs chkrootkit too**, next to ClamAV and rkhunter, so its scans have all three rootkit and malware scanners.

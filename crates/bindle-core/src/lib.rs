@@ -12,6 +12,7 @@ pub mod pacman_conf;
 pub mod plan;
 pub mod preview;
 pub mod recover;
+pub mod relnotes;
 pub mod restart;
 pub mod uki;
 pub mod whatsnew;
