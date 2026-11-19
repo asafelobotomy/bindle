@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **emobie starts at login again.** Pinned to emobie 0.9.2, which rewrites a login entry that pointed at a file name an update had removed.
+
 ## 0.1.25 — 2026-11-19
 
 - **No more CopyQ error popups on uQ.** uQ keeps its own clipboard history (uqlip, Super + Shift + V), so Bindle no longer sets up CopyQ there. A CopyQ it installed earlier is offered for clean-up in What's new and `bindle plan`, which ends its "Command copyq onClipboardChanged, exit code 1" notifications.
