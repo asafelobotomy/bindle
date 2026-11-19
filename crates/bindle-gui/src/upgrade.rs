@@ -251,7 +251,7 @@ mod tests {
         assert_eq!(row(&c, "news")["on"], false, "news asking for a manual step must be read first");
         assert_eq!(row(&c, "news")["switch"], "I've read it and done what it says");
         assert_eq!(row(&c, "firmware")["switch"], "Install them");
-        assert_eq!(row(&c, "aur")["kind"], "run", "the window updates the AUR itself");
+        assert_eq!(row(&c, "aur")["kind"], "hold", "the window updates the AUR itself, after the news");
         assert_eq!(c["password"], true);
         assert_eq!(c["news"][0]["manual"], true);
     }
@@ -260,7 +260,7 @@ mod tests {
     fn unread_news_shows_the_upgrades_held() {
         let mut u = upgrade();
         let c = u.check();
-        for id in ["pacman", "releases"] {
+        for id in ["pacman", "aur", "releases"] {
             assert_eq!(row(&c, id)["kind"], "hold", "{id}");
             assert_eq!(row(&c, id)["held"], "held until you confirm you've read the news");
         }
@@ -268,8 +268,13 @@ mod tests {
         u.toggle("news");
         let c = u.check();
         assert_eq!(row(&c, "pacman")["kind"], "run");
+        assert_eq!(row(&c, "aur")["kind"], "run", "the window updates the AUR itself");
         assert!(row(&c, "pacman")["held"].is_null());
-        assert_eq!(c["work"].as_u64().unwrap(), held_work + 3, "the snapshot, packages and Bindle apps count again");
+        assert_eq!(
+            c["work"].as_u64().unwrap(),
+            held_work + 4,
+            "the snapshot, packages, AUR and Bindle apps count again"
+        );
     }
 
     #[test]
