@@ -63,7 +63,8 @@ pub(super) fn aur(p: &Probe, o: &Options) -> StagePlan {
         Err(e) => return StagePlan::new(s, Todo::Report, format!("couldn't check the AUR ({e})")),
     };
     let mut argv = vec![helper.as_str(), "-Sua"];
-    if o.yes {
+    // Nobody reviews build files in the window or an unattended run.
+    if o.yes || o.windowed {
         argv.extend(match helper.as_str() {
             "yay" => &["--noconfirm", "--answerdiff", "None", "--answerclean", "None"][..],
             _ => &["--noconfirm", "--skipreview"][..],
@@ -71,9 +72,6 @@ pub(super) fn aur(p: &Probe, o: &Options) -> StagePlan {
     }
     let n = plural(list.len(), "AUR package", "AUR packages");
     let details = list.iter().map(|u| format!("{} {} → {}", u.name, u.old, u.new)).collect();
-    if o.windowed {
-        return StagePlan::new(s, Todo::Report, format!("{n} to upgrade: {helper} needs a terminal")).details(details);
-    }
     let mut pl = StagePlan::new(s, Todo::Run(vec![user_elevated(&argv)]), format!("{n} to upgrade with {helper}"))
         .details(details);
     pl.packages = list.iter().map(|u| u.name.clone()).collect();

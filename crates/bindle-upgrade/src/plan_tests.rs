@@ -166,11 +166,10 @@ fn aur_uses_the_installed_helper() {
 }
 
 #[test]
-fn the_window_leaves_the_aur_to_a_terminal() {
+fn the_window_updates_the_aur_without_a_review() {
     let p = Probe { aur_helper: Some("paru".into()), aur: Ok(vec![up("kyko-bin")]), ..Default::default() };
     let aur = get(&plan(&p, &Options { windowed: true, ..Default::default() }), Stage::Aur).clone();
-    assert_eq!(aur.todo, Todo::Report);
-    assert_eq!(aur.summary, "1 AUR package to upgrade: paru needs a terminal");
+    assert_eq!(argvs(&aur), ["user, pacman as root: paru -Sua --noconfirm --skipreview"]);
 }
 
 #[test]

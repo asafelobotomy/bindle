@@ -90,7 +90,7 @@ ColumnLayout {
             Layout.fillWidth: true
         }
         UqLabel {
-            text: "A bigger update than ten minutes of work, or an AUR update, belongs in a terminal: run bindleup there."
+            text: "A bigger update than ten minutes of work belongs in a terminal: run bindleup there."
             opacity: 0.7
             wrapMode: Text.Wrap
             Layout.fillWidth: true

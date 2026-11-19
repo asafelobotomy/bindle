@@ -206,7 +206,7 @@ impl UpgradeBackend {
             return;
         }
         let Some(u) = self.rust().upgrade.as_ref() else { return };
-        let (plans, answers, aur_terminal) = (u.plans(), u.answers(), u.aur_in_terminal());
+        let (plans, answers) = (u.plans(), u.answers());
         let new_features = u.probe().after.setup.whats_new.len();
         let o = u.run_options();
         let before = u.probe().after.clone();
@@ -225,7 +225,7 @@ impl UpgradeBackend {
                     let now = boot.into_after(now);
                     after_plans(&before, &now, updated, &o, false)
                 };
-                let how = How { dry_run, sandbox, aur_terminal, new_features };
+                let how = How { dry_run, sandbox, new_features };
                 let publish = |s: &RunState| {
                     let text = serde_json::to_string(s).unwrap_or_default();
                     let _ = qt.queue(move |b| b.set_run_json(QString::from(&text)));

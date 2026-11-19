@@ -142,11 +142,6 @@ impl Upgrade {
         out
     }
 
-    /// The AUR has updates that only a terminal can install.
-    pub fn aur_in_terminal(&self) -> bool {
-        matches!(&self.probe.aur, Ok(l) if !l.is_empty()) && self.probe.aur_helper.is_some()
-    }
-
     /// The Check page: one row per stage, the new Arch news, and what the
     /// run costs.
     pub fn check(&self) -> Value {
@@ -206,7 +201,6 @@ impl Upgrade {
             "restartBlocked": restart_blocked,
             "snapper": self.probe.snapper_root,
             "snapshot": run.iter().any(|p| p.stage == Stage::Snapshot && p.runs()),
-            "aurTerminal": self.aur_in_terminal(),
         })
     }
 }
@@ -257,8 +251,7 @@ mod tests {
         assert_eq!(row(&c, "news")["on"], false, "news asking for a manual step must be read first");
         assert_eq!(row(&c, "news")["switch"], "I've read it and done what it says");
         assert_eq!(row(&c, "firmware")["switch"], "Install them");
-        assert_eq!(row(&c, "aur")["kind"], "report", "the window leaves the AUR to a terminal");
-        assert_eq!(c["aurTerminal"], true);
+        assert_eq!(row(&c, "aur")["kind"], "run", "the window updates the AUR itself");
         assert_eq!(c["password"], true);
         assert_eq!(c["news"][0]["manual"], true);
     }

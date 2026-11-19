@@ -5,7 +5,7 @@ import org.kde.kirigami as Kirigami
 
 // The update running (crate::upgrade::run::RunState): each stage with its
 // status beside the command output. Once it ends: a result banner, what to
-// do next (restart, the AUR or a retry in a terminal, the log) and the
+// do next (restart, a retry in a terminal, the log) and the
 // stage table; the output folds away.
 ColumnLayout {
     id: page
@@ -141,17 +141,6 @@ ColumnLayout {
         ActionButton {
             text: "What's new"
             onClicked: page.openBindle()
-        }
-    }
-    Notice {
-        Layout.fillWidth: true
-        visible: page.ended && page.run.aurTerminal === true && page.run.retryTerminal !== true
-        tone: "muted"
-        icon: "dialog-scripts"
-        text: "AUR packages update in a terminal, where paru shows what it builds and asks for your password."
-        ActionButton {
-            text: "Update the AUR"
-            onClicked: page.terminal(true)
         }
     }
 

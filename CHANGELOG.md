@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **bindleUP rebuilds AUR packages by itself.** Packages a library update broke are rebuilt with paru (no review, no question), named in the Rebuilds row, in the terminal, the window and uQ Settings alike; the window and uQ Settings now update the AUR too, instead of leaving it to a terminal.
+- **No false "don't restart yet" on unified kernel images.** A system whose mkinitcpio presets write UKIs (or with UKIs on the EFI partition) keeps no `initramfs-*.img` in /boot, so that is no longer reported missing. When boot images or DKMS modules really are missing, they are built without a question, and the row says "builds the missing … then restart".
 ## 0.1.25 — 2026-11-19
 
 - **No more CopyQ error popups on uQ.** uQ keeps its own clipboard history (uqlip, Super + Shift + V), so Bindle no longer sets up CopyQ there. A CopyQ it installed earlier is offered for clean-up in What's new and `bindle plan`, which ends its "Command copyq onClipboardChanged, exit code 1" notifications.

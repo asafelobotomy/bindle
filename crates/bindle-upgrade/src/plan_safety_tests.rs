@@ -130,8 +130,15 @@ fn broken_aur_packages_are_rebuilt() {
         ["paru", "-S", "--rebuild", "--", "python-foo"].map(String::from).to_vec()
     )]));
     assert!(r.details[1].contains("bar (from extra"));
+    assert_eq!(r.summary, "rebuilding python-foo with paru after the library updates");
+    assert!(r.ask.is_none(), "not asked mid-run");
+    // The window and uQ Settings rebuild too, without a terminal or a build-file review.
     let w = &after_plans(&now, &now, &[], &Options { windowed: true, ..Default::default() }, false)[0];
-    assert_eq!(w.todo, Todo::Report);
+    assert!(matches!(&w.todo, Todo::Run(a) if a == &[Action::UserElevated(
+        ["paru", "-S", "--rebuild", "--noconfirm", "--skipreview", "--", "python-foo"].map(String::from).to_vec()
+    )]));
+    let check = &after_plans(&now, &now, &[], &Options::default(), true)[0];
+    assert_eq!(check.summary, "1 AUR package needs a rebuild (python-foo): paru rebuilds them after the upgrade");
     let missing = &after_plans(&after(), &after(), &["python".into()], &Options::default(), false)[0];
     assert!(missing.summary.starts_with("install rebuild-detector"));
 }
@@ -204,7 +211,12 @@ fn an_unbuilt_dkms_module_means_dont_restart_yet() {
         }
         other => panic!("{other:?}"),
     }
-    assert!(fix.ask.as_ref().unwrap().1, "asked, default yes");
+    assert!(fix.ask.is_none(), "built without asking mid-run");
+    assert!(
+        fix.summary.starts_with("builds the missing DKMS modules and boot images (nvidia isn't built"),
+        "{}",
+        fix.summary
+    );
     let images = After { boot: Some(vec!["vmlinuz-linux-zen".into()]), dkms: vec![], ..now.clone() };
     assert!(held(&after_plans(&images, &images, &[], &Options::default(), true)[6]).contains("mkinitcpio -P"));
     let fine = After { dkms: vec![], ..now };
@@ -251,6 +263,21 @@ fn a_stale_boot_image_is_reported() {
     assert_eq!(r.todo, Todo::Report);
     assert_eq!(r.summary, "1 boot image(s) hold a kernel that is not installed");
     assert!(r.details[0].contains("arch-linux-zen-previous.efi holds kernel 7.3.4-zen2-1-zen"), "{:?}", r.details);
+}
+
+#[test]
+fn a_uki_system_needs_no_initramfs_in_boot() {
+    // solon64: mkinitcpio writes /boot/EFI/Linux/arch-linux-zen.efi, and /boot keeps only vmlinuz.
+    let boot = Some(vec!["vmlinuz-linux-zen".to_string(), "EFI".into()]);
+    let read = After { boot: boot.clone(), ..zen_with(Some(vec![uki("arch-linux-zen", "7.3.5-zen1-1-zen")])) };
+    assert_eq!(after_plans(&read, &read, &[], &Options::default(), false)[6].todo, Todo::Nothing);
+    // The images couldn't be read, but the presets say UKI.
+    let preset = After { boot, uki_presets: true, ..zen_with(None) };
+    let r = &after_plans(&preset, &preset, &[], &Options::default(), false)[6];
+    assert!(!r.summary.contains("initramfs"), "{}", r.summary);
+    // A UKI that holds no installed kernel is still caught.
+    let none = zen_with(Some(vec![uki("arch-linux-zen", "7.3.4-zen2-1-zen")]));
+    assert!(matches!(after_plans(&none, &none, &[], &Options::default(), false)[6].todo, Todo::Run(_)));
 }
 
 #[test]

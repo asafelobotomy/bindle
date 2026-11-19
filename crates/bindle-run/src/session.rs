@@ -4,8 +4,9 @@
 //! asking again, and dry runs that only print. Shared by bindleup and
 //! the recovery tools.
 
+use std::io::{BufRead, BufReader, Read};
 use std::path::PathBuf;
-use std::process::Command;
+use std::process::{Command, Stdio};
 
 use anyhow::{Context, Result, bail};
 use bindle_core::Step;
@@ -94,15 +95,15 @@ impl<'a> Session<'a> {
         }
     }
 
-    /// An AUR helper on the terminal whose `sudo pacman …` calls go to this
-    /// run's root helper (see [`crate::bridge`]): no password while it
-    /// builds and installs. Other commands, a rehearsal and a run without a
-    /// terminal behave as [`Session::user`].
+    /// An AUR helper (on the terminal, or line by line without one) whose
+    /// `sudo pacman …` calls go to this run's root helper (see
+    /// [`crate::bridge`]): no password while it builds and installs. Other
+    /// commands and a rehearsal behave as [`Session::user`].
     pub fn user_elevated(&mut self, argv: &[String], tty: Option<&str>, line: &mut dyn FnMut(&str)) -> Result<()> {
         let known = argv.first().is_some_and(|p| matches!(p.as_str(), "paru" | "yay"));
-        let Some(tty) = tty.filter(|_| known && !self.rehearsal()) else {
+        if !known || self.rehearsal() {
             return self.user(argv, tty.is_some(), line);
-        };
+        }
         self.start(line)?;
         let exe = std::env::current_exe().context("find this program")?;
         let bridge = Bridge::start(&exe)?;
@@ -118,23 +119,61 @@ impl<'a> Session<'a> {
         if let Some(flags) = parallel_make() {
             child.env("MAKEFLAGS", flags);
         }
+        // Without a terminal (the window, uQ Settings) the helper's output comes line by line,
+        // and its pacman calls run through the root helper without one (they carry --noconfirm).
+        let (tx, rx) = std::sync::mpsc::channel::<String>();
+        if tty.is_none() {
+            child.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
+        }
         let mut child = child.spawn().with_context(|| format!("start `{}`", argv[0]))?;
+        let readers: Vec<_> = [
+            child.stdout.take().map(|s| Box::new(s) as Box<dyn Read + Send>),
+            child.stderr.take().map(|s| Box::new(s) as Box<dyn Read + Send>),
+        ]
+        .into_iter()
+        .flatten()
+        .map(|stream| {
+            let tx = tx.clone();
+            std::thread::spawn(move || {
+                let mut reader = BufReader::new(stream);
+                let mut buf = Vec::new();
+                while matches!(reader.read_until(b'\n', &mut buf), Ok(n) if n > 0) {
+                    let _ = tx.send(String::from_utf8_lossy(&buf).trim_end_matches(['\n', '\r']).to_string());
+                    buf.clear();
+                }
+            })
+        })
+        .collect();
+        drop(tx);
         let status = loop {
             bridge.poll(&mut |pacman| {
                 // pacman (as root) ignores Ctrl-C mid-transaction; so does this side.
                 sys::ignore_interrupts(true);
+                let req = match tty {
+                    Some(tty) => Request::Interactive { argv: pacman, tty: tty.to_string() },
+                    None => Request::Run { step: Step::RunAsRoot { module: "bindleup".into(), argv: pacman } },
+                };
                 let done = match self.helper.as_mut() {
-                    Some(h) => h.request(&Request::Interactive { argv: pacman, tty: tty.to_string() }, &mut |_| {}),
+                    Some(h) => h.request(&req, &mut |l| line(l)),
                     None => Err(anyhow::anyhow!("the root helper isn't running")),
                 };
                 sys::ignore_interrupts(false);
                 done.map(drop)
             });
+            while let Ok(l) = rx.try_recv() {
+                line(&l);
+            }
             if let Some(s) = child.try_wait()? {
                 break s;
             }
             std::thread::sleep(std::time::Duration::from_millis(25));
         };
+        for r in readers {
+            let _ = r.join();
+        }
+        while let Ok(l) = rx.try_recv() {
+            line(&l);
+        }
         if !status.success() {
             bail!("`{shown}` failed ({status})");
         }

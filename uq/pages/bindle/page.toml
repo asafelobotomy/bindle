@@ -134,8 +134,8 @@ output = "ndjson"
 timeout_ms = 300000
 
 # ---- updates. Streamed: a line as each stage starts, what its commands say, and its result.
-# Unattended (as `bindleup --yes`): pacman takes its default answers, the AUR is left to a
-# terminal, and unread Arch news that asks for manual steps holds the package stages. The root
+# Unattended (as `bindleup --yes`): pacman takes its default answers, the AUR and rebuilds run
+# without a build-file review, and unread Arch news that asks for manual steps holds the package stages. The root
 # commands ask for the password through uQ's polkit agent. Settings stops a command after
 # 10 minutes: a bigger update belongs in a terminal (`bindleup`).
 [[command]]

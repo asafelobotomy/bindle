@@ -81,7 +81,13 @@ pub(super) fn reboot(a: &After, updated: &[String], pending: bool) -> StagePlan 
     let owned: Vec<Kernel> = a.kernels.iter().filter(|k| !a.unowned_kernels.contains(&k.version)).cloned().collect();
     let dkms = dkms_missing(&owned, &a.dkms);
     let uki = uki_findings(a);
-    let images = a.boot.as_ref().map(|b| images_missing(&owned, b)).unwrap_or_default();
+    // A system that boots unified kernel images keeps no initramfs-*.img in /boot (mkinitcpio
+    // writes the UKI instead): the UKI check above is the one that counts there.
+    let boots_ukis = a.uki_presets || a.ukis.as_ref().is_some_and(|u| !u.is_empty());
+    let images = match &a.boot {
+        Some(b) if !boots_ukis => images_missing(&owned, b),
+        _ => vec![],
+    };
     let mut broken: Vec<String> =
         dkms.iter().map(|(m, k)| format!("{m} isn't built for {k}: pkexec dkms autoinstall -k {k}")).collect();
     broken.extend(images.iter().map(|f| format!("/boot/{f} is missing: pkexec mkinitcpio -P")));
@@ -101,9 +107,11 @@ pub(super) fn reboot(a: &After, updated: &[String], pending: bool) -> StagePlan 
         let mut actions: Vec<Action> =
             kernels.iter().map(|k| Action::Root(["dkms", "autoinstall", "-k", k].map(String::from).to_vec())).collect();
         actions.push(Action::Root(vec!["mkinitcpio".into(), "-P".into()]));
-        return StagePlan::new(s, Todo::Run(actions), format!("{hold}; building what is missing"))
-            .details(details)
-            .ask("Build the missing modules and boot images now?", true);
+        // Built without asking: restarting without them is what fails. Done, the row says so.
+        let then = if why.is_empty() { "" } else { "; then restart" };
+        let what = if kernels.is_empty() { "boot images" } else { "DKMS modules and boot images" };
+        return StagePlan::new(s, Todo::Run(actions), format!("builds the missing {what} ({}){then}", broken[0]))
+            .details(details);
     }
     let mut details = vec![];
     if a.boot.is_none() && a.ukis.is_none() && !a.kernels.is_empty() {

@@ -84,6 +84,9 @@ pub struct After {
     /// The kernel inside each unified kernel image on the EFI partition;
     /// None when it can't be read (often root-only).
     pub ukis: Option<Vec<bindle_core::uki::Uki>>,
+    /// A mkinitcpio preset writes a unified kernel image (`<preset>_uki=`):
+    /// the system boots UKIs, and /boot has no initramfs-*.img.
+    pub uki_presets: bool,
     /// `dkms status`; empty without DKMS.
     pub dkms: Vec<Dkms>,
     /// The files in /boot; None when /boot can't be read (often root-only).
@@ -184,6 +187,7 @@ pub fn after() -> After {
         kernels: look::kernels(),
         unowned_kernels: look::unowned_kernels(),
         ukis: bindle_core::uki::scan(Path::new("/")),
+        uki_presets: crate::system::uki_presets(Path::new("/etc/mkinitcpio.d")),
         dkms: dkms.unwrap_or_default(),
         boot: look::boot(),
         failed: failed.unwrap_or_default(),
