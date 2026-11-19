@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Newer romforge.** Pinned to romforge 0.18.9, whose uQ window rules now match DuckStation, Azahar and PPSSPP by the app IDs they set, with a second rule for six more emulators.
+
 ## 0.1.23 — 2026-11-18
 
 - **bindleUP's AUR bridge trusts fewer package files.** `pacman -U` through the one-password bridge now only takes a plain package file (not a link) owned by you or root that group and others can't write, so a package dropped in `/tmp` by another account is refused.
