@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **No more CopyQ error popups on uQ.** uQ keeps its own clipboard history (uqlip, Super + Shift + V), so Bindle no longer sets up CopyQ there. A CopyQ it installed earlier is offered for clean-up in What's new and `bindle plan`, which ends its "Command copyq onClipboardChanged, exit code 1" notifications.
 ## 0.1.24 — 2026-11-19
 
 - **bindleUP asks once, then runs by itself.** At a terminal it first lists what it would update (packages, AUR, apps, Flatpak, rebuilds, firmware, orphan clean-up), all switched on: Enter starts, numbers switch items off. Questions that default to "no" (an Arch news post asking for a manual step, upgrading on battery) are asked in the same place. After that comes the one password and no more y/n, no pacman prompts and no AUR build-file review; problems are listed at the end. An unattended run now waits when the snapshot failed, instead of upgrading without one. `--yes` still skips the list.

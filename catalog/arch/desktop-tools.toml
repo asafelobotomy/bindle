@@ -67,10 +67,12 @@ echo "Removed. Reload your window manager's config (or log in again) to let go o
 
 # Clipboard history with a tray icon, where the desktop has none: Plasma has
 # Klipper; GNOME shows no tray icons; Xfce (Clipman), LXQt, Enlightenment,
-# Deepin and DMS have their own; COSMIC lets other apps read the clipboard
+# Deepin and DMS have their own; uQ keeps its own history (uqlip, Super+Shift+V),
+# and a second clipboard manager beside it only competes for the clipboard (CopyQ
+# there raised "copyq onClipboardChanged" errors); COSMIC lets other apps read the clipboard
 # only after an opt-in. copyq-commands adds Bindle's commands (stamp each
 # copy, drop items past the chosen age, the age in the tray menu). CopyQ
-# starts with the session (the user unit, for uwsm and uQ) or from XDG
+# starts with the session (the user unit, for uwsm) or from XDG
 # autostart; a second start finds it running and leaves it.
 [[module]]
 id = "copyq"
@@ -81,7 +83,7 @@ notes = [
   "History starts from your next login. On i3, bspwm, qtile, xmonad and awesome, nothing starts CopyQ: add `exec copyq` to your config.",
   "The tray icon needs a panel with a tray (waybar, swaybar, i3bar, polybar…).",
 ]
-when = ["desktop", "!desktop:plasma", "!desktop:gnome", "!desktop:cosmic", "!desktop:xfce4", "!desktop:lxqt", "!desktop:enlightenment", "!desktop:deepin", "!desktop:niri-dms"]
+when = ["desktop", "!desktop:plasma", "!desktop:gnome", "!desktop:cosmic", "!desktop:xfce4", "!desktop:lxqt", "!desktop:enlightenment", "!desktop:deepin", "!desktop:niri-dms", "!desktop:uq"]
 profiles = ["desktop", "gaming", "developer"]
 packages = ["copyq"]
 user_commands = [
