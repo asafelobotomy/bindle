@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **No more CopyQ error popups on uQ.** uQ keeps its own clipboard history (uqlip, Super + Shift + V), so Bindle no longer sets up CopyQ there. A CopyQ it installed earlier is offered for clean-up in What's new and `bindle plan`, which ends its "Command copyq onClipboardChanged, exit code 1" notifications.
 - **Newer romforge.** Pinned to romforge 0.20.0, which also opens ROMs from your file manager and brings the command line and app closer together. Its uQ window rules match DuckStation, Azahar and PPSSPP by the app IDs they set (plus a second rule for six more emulators), and the AppImage can add its games to uQ search from Settings (your own files, removable).
 
 ## 0.1.23 — 2026-11-18
