@@ -5,7 +5,7 @@
 use std::collections::BTreeSet;
 use std::path::PathBuf;
 
-use crate::upgrade_stream;
+use crate::{upgrade_select, upgrade_stream};
 use anyhow::{Result, bail};
 use bindle_core::Catalog;
 use bindle_run::client::Launch;
@@ -98,7 +98,7 @@ pub fn main(mut a: UpgradeArgs) -> Result<()> {
         bail!("run bindleup as your user: it asks for the password when it needs to, and AUR builds refuse root");
     }
     let tty = bindle_run::tty::own_tty();
-    let opts = Options {
+    let mut opts = Options {
         skip: stages(&a.skip)?,
         only: stages(&a.only)?,
         yes: a.yes,
@@ -128,7 +128,7 @@ pub fn main(mut a: UpgradeArgs) -> Result<()> {
             println!("  · {n}");
         }
     });
-    let plans = plan(&probe, &opts);
+    let mut plans = plan(&probe, &opts);
     if a.ndjson && a.check {
         upgrade_stream::plan_event(&plans);
         return Ok(());
@@ -149,8 +149,22 @@ pub fn main(mut a: UpgradeArgs) -> Result<()> {
         }
         return Ok(());
     }
+    // A run at a terminal asks once what to update; the rest is unattended.
+    let mut relaunch_args = None;
+    if opts.interactive && !a.ndjson && plans.iter().any(StagePlan::runs) {
+        match choose(&mut opts, &probe, &plans) {
+            Some(args) => {
+                relaunch_args = Some(args);
+                plans = plan(&probe, &opts);
+            }
+            None => {
+                println!("Nothing was changed.");
+                return Ok(());
+            }
+        }
+    }
     let run_opts =
-        RunOpts { yes: a.yes, dry_run: a.dry_run, sandbox: a.sandbox.clone(), launch: Launch::default(), tty };
+        RunOpts { yes: opts.yes, dry_run: a.dry_run, sandbox: a.sandbox.clone(), launch: Launch::default(), tty };
     let before = probe.after.clone();
     let mut after = |updated: &[String], boot: bindle_upgrade::run::BootView| {
         // A rehearsal changed nothing: the first look still holds.
@@ -171,7 +185,7 @@ pub fn main(mut a: UpgradeArgs) -> Result<()> {
         } else {
             println!("\nBindle updated itself; the new one goes on.");
         }
-        return relaunch(&exe);
+        return relaunch(&exe, relaunch_args);
     }
     if a.ndjson {
         let failed = report::any_failed(&results);
@@ -192,6 +206,66 @@ pub fn main(mut a: UpgradeArgs) -> Result<()> {
         std::process::exit(1);
     }
     Ok(())
+}
+
+/// The one question: what to update. Changes `opts` so every later question
+/// is answered (`yes`), and returns the same answers as arguments for a
+/// Bindle that replaces itself mid-run. None: the user quit.
+fn choose(
+    opts: &mut Options,
+    probe: &bindle_upgrade::probe::Probe,
+    plans: &[StagePlan],
+) -> Option<Vec<std::ffi::OsString>> {
+    let firmware = matches!(&probe.firmware, Some(Ok(l)) if !l.is_empty());
+    let picked = upgrade_select::ask(
+        upgrade_select::choices(plans, firmware),
+        &mut std::io::stdin().lock(),
+        &mut std::io::stdout(),
+    )?;
+    opts.skip.extend(picked.skip.iter().copied());
+    opts.firmware = picked.firmware;
+    opts.remove_orphans = picked.remove_orphans;
+    // Questions whose answer is "no" unless the user says otherwise (an Arch
+    // news post asking for a manual step, upgrading on battery) are asked
+    // now, while they are here, not in the middle of the run.
+    for p in plans.iter().filter(|p| !p.runs() && !p.stops.is_empty()) {
+        let Some((question, false)) = &p.ask else { continue };
+        let live = |s: &Stage| !picked.skip.contains(s) && plans.iter().any(|q| q.stage == *s && q.runs());
+        if !p.stops.iter().any(live) {
+            continue;
+        }
+        println!("\n{}: {}", p.stage.title(), p.summary);
+        report::details(p).iter().for_each(|l| println!("{l}"));
+        if crate::apply::confirm(question, false) {
+            match p.stage {
+                Stage::News => opts.ignore_news = true,
+                Stage::Preflight => opts.on_battery = true,
+                _ => {}
+            }
+        }
+    }
+    opts.yes = true;
+    opts.interactive = false;
+    println!("\nThe password is asked once; then it runs by itself. Problems are listed at the end.");
+    let ids = |set: &BTreeSet<Stage>| set.iter().map(|s| s.id()).collect::<Vec<_>>().join(",");
+    let mut args: Vec<std::ffi::OsString> = vec!["upgrade".into(), "--yes".into()];
+    if !opts.skip.is_empty() {
+        args.extend(["--skip".into(), ids(&opts.skip).into()]);
+    }
+    if !opts.only.is_empty() {
+        args.extend(["--only".into(), ids(&opts.only).into()]);
+    }
+    for (on, flag) in [
+        (opts.firmware, "--firmware"),
+        (opts.remove_orphans, "--remove-orphans"),
+        (opts.ignore_news, "--ignore-news"),
+        (opts.on_battery, "--on-battery"),
+    ] {
+        if on {
+            args.push(flag.into());
+        }
+    }
+    Some(args)
 }
 
 /// After a self-update: the release notes once, then What's new. On a
@@ -218,9 +292,10 @@ fn whats_new_next(interactive: bool, exe: &std::path::Path, items: usize) {
 
 /// Run the rest with the new Bindle (same path, new file), the same
 /// arguments, and `UPDATED_ENV` set so it doesn't update itself again.
-fn relaunch(exe: &std::path::Path) -> Result<()> {
+fn relaunch(exe: &std::path::Path, chosen: Option<Vec<std::ffi::OsString>>) -> Result<()> {
     use std::os::unix::process::CommandExt;
-    let mut args: Vec<std::ffi::OsString> = std::env::args_os().skip(1).collect();
+    // After the one question, the new Bindle gets the answers as flags, so it doesn't ask again.
+    let mut args: Vec<std::ffi::OsString> = chosen.unwrap_or_else(|| std::env::args_os().skip(1).collect());
     if args.first().is_none_or(|a| a != "upgrade") {
         args.insert(0, "upgrade".into());
     }
