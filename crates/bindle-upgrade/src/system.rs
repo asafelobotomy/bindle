@@ -99,6 +99,25 @@ pub fn images_missing(kernels: &[Kernel], boot: &[String]) -> Vec<String> {
         .collect()
 }
 
+/// Any mkinitcpio preset in `dir` that writes a unified kernel image
+/// (an uncommented `<preset>_uki=` line).
+pub fn uki_presets(dir: &std::path::Path) -> bool {
+    let Ok(entries) = std::fs::read_dir(dir) else { return false };
+    entries
+        .flatten()
+        .filter(|e| e.path().extension().is_some_and(|x| x == "preset"))
+        .filter_map(|e| std::fs::read_to_string(e.path()).ok())
+        .any(|t| preset_writes_uki(&t))
+}
+
+pub fn preset_writes_uki(text: &str) -> bool {
+    text.lines().map(str::trim_start).any(|l| {
+        !l.starts_with('#')
+            && l.split_once('=')
+                .is_some_and(|(k, v)| k.ends_with("_uki") && !v.trim().trim_matches(['"', '\'']).is_empty())
+    })
+}
+
 /// Unit names from `systemctl --failed --plain --no-legend`.
 pub fn failed_units(text: &str) -> Vec<String> {
     text.lines()

@@ -108,3 +108,12 @@ fn metadata_refresh_age() {
     assert!(stale(None, 7) && stale(Some(9), 7));
     assert!(!stale(Some(2), 7));
 }
+
+#[test]
+fn presets_that_write_ukis() {
+    assert!(preset_writes_uki("ALL_kver=x\nPRESETS=('default')\ndefault_uki=\"/boot/EFI/Linux/arch-linux-zen.efi\"\n"));
+    assert!(!preset_writes_uki(
+        "#default_uki=\"/efi/EFI/Linux/arch-linux.efi\"\ndefault_image=\"/boot/initramfs-linux.img\"\n"
+    ));
+    assert!(!preset_writes_uki("default_uki=\n"));
+}

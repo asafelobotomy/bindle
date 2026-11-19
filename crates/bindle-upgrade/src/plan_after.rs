@@ -67,13 +67,17 @@ pub(super) fn rebuild(now: &After, updated: &[String], o: &Options, pending: boo
         )
         .details(details);
     };
-    if pending || o.windowed {
-        let how = if o.windowed { "in a terminal" } else { "after the upgrade" };
-        return StagePlan::new(s, Todo::Report, format!("{n} a rebuild: {helper} rebuilds them {how}"))
-            .details(details);
+    let names = name_list(&foreign);
+    if pending {
+        return StagePlan::new(
+            s,
+            Todo::Report,
+            format!("{n} a rebuild ({names}): {helper} rebuilds them after the upgrade"),
+        )
+        .details(details);
     }
     let mut argv = vec![helper, "-S", "--rebuild"];
-    if o.yes {
+    if o.yes || o.windowed {
         argv.extend(if helper == "yay" {
             &["--noconfirm", "--answerdiff", "None"][..]
         } else {
@@ -83,9 +87,18 @@ pub(super) fn rebuild(now: &After, updated: &[String], o: &Options, pending: boo
     argv.push("--");
     argv.extend(foreign.iter().map(String::as_str));
     let action = user_elevated(&argv);
-    StagePlan::new(s, Todo::Run(vec![action]), format!("{n} a rebuild after the library updates"))
+    StagePlan::new(s, Todo::Run(vec![action]), format!("rebuilding {names} with {helper} after the library updates"))
         .details(details)
-        .ask(format!("Rebuild {}?", plural(foreign.len(), "AUR package", "AUR packages")), true)
+}
+
+/// `a, b and c`, or the first three and how many more.
+fn name_list(names: &[String]) -> String {
+    match names {
+        [] => String::new(),
+        [one] => one.clone(),
+        [rest @ .., last] if names.len() <= 4 => format!("{} and {last}", rest.join(", ")),
+        _ => format!("{} and {} more", names[..3].join(", "), names.len() - 3),
+    }
 }
 
 /// uQ was upgraded: its per-user setup again (`uqctl setup --apps`, which

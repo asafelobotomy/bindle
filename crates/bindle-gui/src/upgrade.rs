@@ -142,11 +142,6 @@ impl Upgrade {
         out
     }
 
-    /// The AUR has updates that only a terminal can install.
-    pub fn aur_in_terminal(&self) -> bool {
-        matches!(&self.probe.aur, Ok(l) if !l.is_empty()) && self.probe.aur_helper.is_some()
-    }
-
     /// The Check page: one row per stage, the new Arch news, and what the
     /// run costs.
     pub fn check(&self) -> Value {
@@ -206,7 +201,6 @@ impl Upgrade {
             "restartBlocked": restart_blocked,
             "snapper": self.probe.snapper_root,
             "snapshot": run.iter().any(|p| p.stage == Stage::Snapshot && p.runs()),
-            "aurTerminal": self.aur_in_terminal(),
         })
     }
 }
@@ -257,8 +251,7 @@ mod tests {
         assert_eq!(row(&c, "news")["on"], false, "news asking for a manual step must be read first");
         assert_eq!(row(&c, "news")["switch"], "I've read it and done what it says");
         assert_eq!(row(&c, "firmware")["switch"], "Install them");
-        assert_eq!(row(&c, "aur")["kind"], "report", "the window leaves the AUR to a terminal");
-        assert_eq!(c["aurTerminal"], true);
+        assert_eq!(row(&c, "aur")["kind"], "hold", "the window updates the AUR itself, after the news");
         assert_eq!(c["password"], true);
         assert_eq!(c["news"][0]["manual"], true);
     }
@@ -267,7 +260,7 @@ mod tests {
     fn unread_news_shows_the_upgrades_held() {
         let mut u = upgrade();
         let c = u.check();
-        for id in ["pacman", "releases"] {
+        for id in ["pacman", "aur", "releases"] {
             assert_eq!(row(&c, id)["kind"], "hold", "{id}");
             assert_eq!(row(&c, id)["held"], "held until you confirm you've read the news");
         }
@@ -275,8 +268,13 @@ mod tests {
         u.toggle("news");
         let c = u.check();
         assert_eq!(row(&c, "pacman")["kind"], "run");
+        assert_eq!(row(&c, "aur")["kind"], "run", "the window updates the AUR itself");
         assert!(row(&c, "pacman")["held"].is_null());
-        assert_eq!(c["work"].as_u64().unwrap(), held_work + 3, "the snapshot, packages and Bindle apps count again");
+        assert_eq!(
+            c["work"].as_u64().unwrap(),
+            held_work + 4,
+            "the snapshot, packages, AUR and Bindle apps count again"
+        );
     }
 
     #[test]

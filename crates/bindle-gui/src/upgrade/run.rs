@@ -32,8 +32,6 @@ pub struct RunState {
     pub new_features: usize,
     /// Bindle replaced itself: the new one does the rest (offer to reopen).
     pub relaunch: bool,
-    /// The AUR has updates: offer to run them in a terminal.
-    pub aur_terminal: bool,
     /// The system upgrade failed: offer to run it in a terminal, where pacman can ask.
     pub retry_terminal: bool,
     /// pkexec found no polkit agent: offer the terminal instead.
@@ -93,12 +91,16 @@ impl RunState {
         // Restart: recommended, blocked (a DKMS module or boot image is
         // missing and wasn't built), or fine again once the fix ran.
         let reboot = results.iter().find(|r| r.stage == Stage::Reboot);
-        let unsafe_now = |summary: &str| summary.split("; building").next().unwrap_or(summary).to_string();
+        // "builds the missing … (what is missing); then restart": what is missing, as the hold says it.
+        let unsafe_now = |summary: &str| match (summary.find('('), summary.rfind(')')) {
+            (Some(a), Some(b)) if a < b => format!("don't restart yet: {}", &summary[a + 1..b]),
+            _ => summary.to_string(),
+        };
         (self.reboot, self.restart_blocked) = match reboot.map(|r| (&r.outcome, r.summary.as_str())) {
             Some((Outcome::Reported, summary)) => (Some(summary.to_string()), None),
             Some((Outcome::Held(why), _)) => (None, Some(why.clone())),
             Some((Outcome::Done, _)) => (Some("the missing modules and boot images are built".into()), None),
-            Some((Outcome::Failed(_) | Outcome::Skipped(_), summary)) if summary.starts_with("don't restart yet") => {
+            Some((Outcome::Failed(_) | Outcome::Skipped(_), summary)) if summary.starts_with("builds the missing") => {
                 (None, Some(unsafe_now(summary)))
             }
             _ => (None, None),
@@ -155,7 +157,6 @@ impl<F: FnMut(&RunState)> Ui for Window<F> {
 pub struct How {
     pub dry_run: bool,
     pub sandbox: Option<PathBuf>,
-    pub aur_terminal: bool,
     pub new_features: usize,
 }
 
@@ -169,7 +170,6 @@ pub fn run(
 ) -> RunState {
     let rehearsal = how.dry_run || how.sandbox.is_some();
     let mut w = Window { state: RunState::starting(&plans, rehearsal), answers, current: None, all: vec![], publish };
-    w.state.aur_terminal = how.aur_terminal;
     w.state.new_features = how.new_features;
     let exe = crate::apply::helper_exe();
     if exe.is_none() && !how.dry_run {
@@ -240,15 +240,15 @@ mod tests {
         let mut after = |up: &[String], _: bindle_upgrade::run::BootView| {
             after_plans(&after_data, &after_data, up, &Default::default(), false)
         };
-        let how = How { dry_run: true, sandbox: None, aur_terminal: u.aur_in_terminal(), new_features: 1 };
+        let how = How { dry_run: true, sandbox: None, new_features: 1 };
         let end = run(u.plans(), u.answers(), &mut after, how, |_| seen += 1);
         let status = |id: &str| end.stages.iter().find(|s| s.id == id).unwrap().status.clone();
         assert_eq!(status("pacman"), "done");
-        assert_eq!(status("aur"), "note", "left to the terminal");
+        assert_eq!(status("aur"), "done", "built in the window, no terminal");
         assert_eq!(status("orphans"), "skipped", "its switch starts off");
         assert_eq!(end.stages.iter().find(|s| s.id == "orphans").unwrap().detail, "switched off");
         assert_eq!(end.state, "done");
-        assert!(end.rehearsal && end.aur_terminal);
+        assert!(end.rehearsal);
         assert!(end.log.iter().any(|l| l == "would run as root: pacman -Syu --noconfirm"));
         assert_eq!(end.reboot.as_deref(), Some("recommended: updated linux, mesa"));
         assert!(seen > 5);
@@ -257,7 +257,7 @@ mod tests {
     #[test]
     fn unread_news_holds_the_upgrade() {
         let u = Upgrade::new(sample::probe(), Prefs::default());
-        let how = How { dry_run: true, sandbox: None, aur_terminal: false, new_features: 0 };
+        let how = How { dry_run: true, sandbox: None, new_features: 0 };
         let end = run(u.plans(), u.answers(), &mut |_, _| vec![], how, |_| {});
         let pacman = end.stages.iter().find(|s| s.id == "pacman").unwrap();
         assert_eq!(pacman.status, "held");
@@ -271,7 +271,7 @@ mod tests {
         let mut after = |up: &[String], _: bindle_upgrade::run::BootView| {
             after_plans(&after_data, &after_data, up, &u.run_options(), false)
         };
-        let how = How { dry_run: true, sandbox: None, aur_terminal: false, new_features: 0 };
+        let how = How { dry_run: true, sandbox: None, new_features: 0 };
         let end = run(u.plans(), u.answers(), &mut after, how, |_| {});
         assert!(end.log.iter().any(|l| l == "would run as root: dkms autoinstall -k 7.3.5-zen1-1-zen"));
         assert_eq!(end.reboot.as_deref(), Some("the missing modules and boot images are built"));
