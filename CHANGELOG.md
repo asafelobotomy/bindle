@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- **Newer romforge.** Pinned to romforge 0.19.1. Its uQ window rules now match DuckStation, Azahar and PPSSPP by the app IDs they set (plus a second rule for six more emulators), and the AppImage can add its games to uQ's search from Settings (your own files, removable).
+- **Newer romforge.** Pinned to romforge 0.20.0, which also opens ROMs from your file manager and brings the command line and app closer together. Its uQ window rules match DuckStation, Azahar and PPSSPP by the app IDs they set (plus a second rule for six more emulators), and the AppImage can add its games to uQ search from Settings (your own files, removable).
 
 ## 0.1.23 — 2026-11-18
 
