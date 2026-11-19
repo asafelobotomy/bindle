@@ -184,3 +184,19 @@ fn optional_clean_ups_follow_their_answer() {
     run(vec![pl], &mut |_, _| vec![], &dry(false), &mut ui);
     assert_eq!(ui.lines, ["would run: flatpak uninstall --unused"]);
 }
+
+#[test]
+fn an_unattended_run_waits_when_no_snapshot_could_be_taken() {
+    let mut ui = Script::default();
+    let opts = dry(true);
+    let mut ex = Exec {
+        opts: &opts,
+        ui: &mut ui,
+        session: Session::new(String::new(), opts.dry_run, None, &opts.launch),
+        blocked: BTreeMap::new(),
+        updated: vec![],
+    };
+    ex.failed(Stage::Snapshot);
+    assert!(ex.blocked.contains_key(&Stage::Pacman) && ex.blocked.contains_key(&Stage::Aur));
+    assert!(ui.asked.is_empty(), "nobody is there to answer");
+}

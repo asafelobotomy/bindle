@@ -195,13 +195,14 @@ impl Exec<'_> {
     fn failed(&mut self, stage: Stage) {
         match stage {
             Stage::Pacman => {
-                if self.opts.tty.is_none() || self.opts.yes {
-                    self.ui.line("pacman may have needed an answer: run bindleup in a terminal, without --yes.");
+                if self.opts.yes {
+                    self.ui.line("pacman may have needed an answer it can't default (a conflict?): run `sudo pacman -Syu` yourself.");
                 }
                 self.block(&[Stage::Aur, Stage::Releases], "the system upgrade failed; fix that first")
             }
             Stage::Snapshot => {
-                let go_on = self.opts.yes || self.ui.ask("No snapshot was taken. Upgrade anyway?", false);
+                // Unattended, nobody can say "anyway": the upgrade waits.
+                let go_on = !self.opts.yes && self.ui.ask("No snapshot was taken. Upgrade anyway?", false);
                 if !go_on {
                     self.block(&[Stage::Pacman, Stage::Aur, Stage::Releases], "no snapshot was taken");
                 }
