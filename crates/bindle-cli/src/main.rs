@@ -24,6 +24,7 @@ mod terminal;
 mod tui;
 mod undo_json;
 mod upgrade_cmd;
+mod upgrade_select;
 mod upgrade_stream;
 mod uq_handoff;
 mod welcome;

@@ -1,7 +1,7 @@
 # bindleUP: update everything in one run
 
 ```bash
-bindleup                 # guided: shows each stage, asks before the big ones
+bindleup                 # asks once what to update, then the password once, then runs by itself
 bindleup --check         # report what is available; change nothing, no password
 bindleup --check --json  # the same plan as JSON
 bindleup --yes           # unattended
@@ -43,6 +43,13 @@ In order; each can be left out with `--skip <id>` or picked with `--only`.
 | `services` | Services | `systemctl --failed` (system and user) before and after; units that newly failed are reported with `systemctl status`. |
 | `setup` | Bindle setup | What's new ([UPGRADE-PATH.md](UPGRADE-PATH.md)): what this Bindle would add, change or retire compared with earlier applies, reviewed with `bindle whats-new` or the window's What's new button; after Bindle updated itself, offered right after the run. Also files Bindle wrote that changed by hand since (for modules whose catalog content didn't change), and drives in Bindle's fstab block that aren't connected. Reported only. |
 | `reboot` | Reboot | Recommended when the running kernel's modules are gone (a kernel upgrade), or a kernel, microcode, NVIDIA driver, Mesa, systemd, glibc or D-Bus was upgraded. "Don't restart yet" when a DKMS module (`dkms status`) isn't built for an installed kernel, or a kernel's `vmlinuz-`/`initramfs-` image is missing from /boot. After an upgrade it offers to fix it (asked, default yes): `dkms autoinstall -k <version>` for each kernel, then `mkinitcpio -P`, as root; until that succeeds the window shows no Restart button. `--check` reports it with the commands. /boot is often root-only: a run that started the root helper has it list /boot's file names; otherwise the images aren't checked, and it says so. On a system that boots unified kernel images (UKIs in `EFI/Linux` on the EFI partition) it reads the kernel version inside each one (its `.uname` section, straight from the file, no `objcopy`) and compares them with the installed kernels (those a package owns: the copy kernel-modules-hook keeps of the running kernel is not one). An image holding a kernel that is no longer installed (a leftover "previous" image, which can be first in the boot menu and start without its modules) is reported with the file's path and what to do; an installed kernel no image holds is "don't restart yet", fixed by `mkinitcpio -P` as above. The same rule as Bindle's boot-guard pacman hook. |
+
+At a terminal `bindleup` starts with one list of what it would do (each item on; Enter starts,
+numbers switch items off), plus the questions that default to "no" (Arch news asking for a manual
+step, upgrading on battery). Then the password is asked once and the run goes to the end without
+y/n questions, pacman prompts (pacman takes its default answers, as with `--yes`) or AUR
+build-file review; anything that failed or was held is listed at the end. A failed snapshot holds
+the upgrade rather than upgrading without one. `--yes` skips the list and takes the defaults.
 
 Each stage prints `==> [n/N] Title: summary` and its details (up to 12
 lines). The run ends with one row per stage: done, current, note, skipped,

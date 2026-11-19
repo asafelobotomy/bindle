@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **bindleUP asks once, then runs by itself.** At a terminal it first lists what it would update (packages, AUR, apps, Flatpak, rebuilds, firmware, orphan clean-up), all switched on: Enter starts, numbers switch items off. Questions that default to "no" (an Arch news post asking for a manual step, upgrading on battery) are asked in the same place. After that comes the one password and no more y/n, no pacman prompts and no AUR build-file review; problems are listed at the end. An unattended run now waits when the snapshot failed, instead of upgrading without one. `--yes` still skips the list.
 - **Newer romforge.** Pinned to romforge 0.20.0, which also opens ROMs from your file manager and brings the command line and app closer together. Its uQ window rules match DuckStation, Azahar and PPSSPP by the app IDs they set (plus a second rule for six more emulators), and the AppImage can add its games to uQ search from Settings (your own files, removable).
 
 ## 0.1.23 — 2026-11-18
