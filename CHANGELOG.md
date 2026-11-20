@@ -2,9 +2,13 @@
 
 ## Unreleased
 
-## 0.1.30 — 2026-11-20
+## 0.1.31 — 2026-11-20
 
 - **AUR updates finish in the update window again.** When the window updated AUR packages, paru's password-free `sudo` started a second Bindle window instead of passing the pacman command on, so the AUR step sat waiting for that window, and its Qt messages ("Failed to register with host portal", "QWaylandTextInputv3::disableSurface") filled the window's output. paru's `sudo` now runs `bindle` itself, and `bindle-gui` never opens a window when started that way.
+
+## 0.1.30 — 2026-11-20
+
+- **reelo is uQ's media player.** uQ pre-selects reelo (from the AUR) instead of VLC and mpv, and makes it the default for video and music unless another player was chosen. What's new offers it to uQ users upgrading. Other desktops keep the VLC and mpv module.
 
 ## 0.1.29 — 2026-11-20
 
