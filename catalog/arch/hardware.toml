@@ -150,9 +150,9 @@ description = "CUPS with network printer discovery (Avahi, cups-browsed) and dri
 notes = ["HP printers may also want hplip. Scanners: see the Scanning modules."]
 profiles = ["desktop", "gaming", "developer"]
 # cups-browsed + Avahi find network (IPP Everywhere) printers; ipp-usb drives
-# driverless USB printers. Gutenprint and Foomatic drive older printers;
-# system-config-printer is the settings window outside Plasma and GNOME.
-packages = ["cups", "cups-pdf", "cups-browsed", "avahi", "ipp-usb", "gutenprint", "foomatic-db", "foomatic-db-engine", "system-config-printer"]
+# driverless USB printers. Gutenprint and Foomatic drive older printers.
+# The settings window comes from printing-settings below (or the desktop's own).
+packages = ["cups", "cups-pdf", "cups-browsed", "avahi", "ipp-usb", "gutenprint", "foomatic-db", "foomatic-db-engine"]
 enable = ["cups.socket", "cups-browsed.service", "avahi-daemon.socket"]
 
 [[module.recipe]]
@@ -167,6 +167,19 @@ category = "Maintenance"
 description = "Restart the printing service (stuck jobs, a printer gone missing)"
 admin = true
 run = 'systemctl restart cups.service cups-browsed.service'
+
+# A window to add and set up printers, for desktops without their own: Plasma
+# (print-manager), GNOME (its Settings) and uQ (Settings › Printers, uQ 0.3.22+)
+# have one, and system-config-printer ignores uQ's theme.
+[[module]]
+id = "printing-settings"
+group = "Printing & scanning"
+name = "Printer settings window"
+description = "system-config-printer: add printers, set the default and manage what's waiting to print."
+profiles = ["desktop", "gaming", "developer"]
+when = ["desktop", "!desktop:plasma", "!desktop:gnome", "!desktop:uq"]
+requires = ["printing"]
+packages = ["system-config-printer"]
 
 [[module]]
 id = "scanning-qt"
