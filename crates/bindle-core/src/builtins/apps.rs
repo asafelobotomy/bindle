@@ -68,8 +68,9 @@ const QT: &[&str] = &[
     "usbmuxd",
 ];
 /// Everyday apps a desktop already has a native one for: uQ's launcher
-/// (LookSeeDo) is its calculator.
-const NATIVE: &[(&str, &[&str])] = &[("uq", &["kcalc"])];
+/// (LookSeeDo) is its calculator, and uQview (the `uqview` module, one of uQ's
+/// `apps`) its picture viewer.
+const NATIVE: &[(&str, &[&str])] = &[("uq", &["kcalc", "gwenview"])];
 const GTK: &[&str] = &[
     "nautilus",
     "file-roller",
@@ -148,10 +149,13 @@ mod tests {
         let sway = everyday(&facts(&["sway"], ""));
         assert!(sway.packages.contains(&"nautilus".to_string()), "{:?}", sway.packages);
         let uq = everyday(&facts(&["uq"], ""));
-        assert!(uq.packages.contains(&"gwenview".to_string()) && !uq.packages.contains(&"nautilus".to_string()));
-        // uQ's launcher is its calculator; plain Hyprland keeps KCalc.
-        assert!(!uq.packages.contains(&"kcalc".to_string()), "{:?}", uq.packages);
-        assert!(everyday(&facts(&["hyprland"], "")).packages.contains(&"kcalc".to_string()));
+        assert!(uq.packages.contains(&"dolphin".to_string()) && !uq.packages.contains(&"nautilus".to_string()));
+        // uQ's launcher is its calculator and uQview its picture viewer; plain Hyprland keeps
+        // KCalc and Gwenview.
+        for native in ["kcalc", "gwenview"] {
+            assert!(!uq.packages.contains(&native.to_string()), "{:?}", uq.packages);
+            assert!(everyday(&facts(&["hyprland"], "")).packages.contains(&native.to_string()));
+        }
         assert!(everyday(&facts(&["plasma"], "")).packages.is_empty());
         assert!(everyday(&facts(&["gnome"], "")).packages.is_empty());
         // Two bare desktops of one toolkit: each package once.

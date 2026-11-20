@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.1.31 — 2026-11-20
+
+- **uQview is uQ's picture viewer.** A new `uqview` module (from the AUR) is one of uQ's apps, pre-selected on first login: it views pictures in uQ's theme, marks up screenshots and sets a picture as the wallpaper, and becomes the app for pictures unless you already chose one. On uQ the everyday apps no longer include Gwenview. A Gwenview Bindle installed earlier stays; remove it with crumBS if you don't want it.
+
 ## 0.1.30 — 2026-11-20
 
 - **reelo is uQ's media player.** uQ pre-selects reelo (from the AUR) instead of VLC and mpv, and makes it the default for video and music unless another player was chosen. What's new offers it to uQ users upgrading. Other desktops keep the VLC and mpv module.
