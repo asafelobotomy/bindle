@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **asafelobotomy's apps come from the AUR.** emobie, appOFholding, hauler, AV Morning Star, romforge (`romforge-bin`), scale_tail and XZram are installed from the AUR like uQ, noti-fi, scdr and crumBS already were, so the AUR stage of bindleUP keeps them up to date and Bindle no longer pins their GitHub releases. appOFholding, hauler and XZram keep their package names, so the copies Bindle installed update in place. What's new offers the change for each; the emobie, romforge, AV Morning Star and scale_tail AppImages Bindle put in `~/.local/bin` are removed once the package is in (only while Bindle's own menu entry for them is still there).
+
 ## 0.1.26 — 2026-11-19
 
 - **bindleUP rebuilds AUR packages by itself.** Packages a library update broke are rebuilt with paru (no review, no question), named in the Rebuilds row, in the terminal, the window and uQ Settings alike; the window and uQ Settings now update the AUR too, instead of leaving it to a terminal.

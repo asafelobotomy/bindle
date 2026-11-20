@@ -205,6 +205,8 @@ mod desktop_tools_tests;
 mod emit;
 mod gather;
 mod mounts;
+#[cfg(test)]
+mod release_tests;
 pub mod retire;
 #[cfg(test)]
 mod retired_selection_tests;
