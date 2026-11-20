@@ -33,7 +33,8 @@ base = "hyprland"
 includes = ["hyprland"]
 module = "uq"
 # uQ's own apps and Marknote (notes): pre-selected with it on first login, each one can be unticked.
-apps = ["scdr", "crumbs", "noti-fi", "text-editor", "marknote"]
+# Qview is uQ's picture viewer (everyday-apps leaves Gwenview out on uQ).
+apps = ["scdr", "crumbs", "noti-fi", "qview", "text-editor", "marknote"]
 # archinstall can't install uQ's own login screen (greetd + uq), so the install
 # boots into sddm once; the uq module then switches to uQ's (`uqctl greeter enable`).
 greeter = "sddm"

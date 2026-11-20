@@ -77,6 +77,17 @@ unless = [{ path = "~/.local/state/notifd/takeover.json" }]
 manual = { 1 = "notifd could not take over notifications yet. Log in to your desktop and run `notify takeover --now`." }
 
 [[module]]
+id = "qview"
+group = "uQ desktop"
+name = "Qview (picture viewer)"
+description = "Opens pictures fast in uQ's theme, marks up screenshots (arrows, boxes, text, numbers, pixelate, crop) and sets a picture as the wallpaper. By asafelobotomy."
+notes = ["Qview opens pictures unless you already chose an app for them; its page in uQ Settings switches it."]
+requires = ["aur-helper"]
+aur = ["qview"]
+# The app for pictures, unless one was chosen already (a PNG default in mimeapps.list).
+user_commands = [{ argv = ["qview", "default", "set"], unless = [{ path = "~/.config/mimeapps.list", contains = "image/png=" }] }]
+
+[[module]]
 id = "crumbs"
 group = "Utilities"
 name = "crumBS (uninstaller and cleaner)"

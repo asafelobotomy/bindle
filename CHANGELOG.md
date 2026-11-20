@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Qview is uQ's picture viewer.** A new `qview` module (from the AUR) is one of uQ's apps, pre-selected on first login: it views pictures in uQ's theme, marks up screenshots and sets a picture as the wallpaper, and becomes the app for pictures unless you already chose one. On uQ the everyday apps no longer include Gwenview. A Gwenview Bindle installed earlier stays; remove it with crumBS if you don't want it.
+
 ## 0.1.28 — 2026-11-20
 
 - **bindleUP in uQ's bar.** A bindleUP icon in the Status island shows how many updates are ready; click it for the list, Update… and Check now (a middle click opens the update window). A new preference, "Show the bindleUP icon" (Preferences → uQ bar in uQ Settings, `bar_icon` in upgrade.toml), shows it only when updates are ready (the default) or always. Every check now saves what it found, and `bindle updates` reads it without the network. Hiding the icon needs uQ 0.3.22; an older uQ always shows it.
