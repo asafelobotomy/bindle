@@ -53,6 +53,10 @@ pub struct UpgradeArgs {
     /// Open the update window (Bindle's desktop look) instead of the terminal.
     #[arg(long, conflicts_with_all = ["check", "yes", "json"])]
     gui: bool,
+    /// With --gui: start it in its own session and return at once (uQ's bar
+    /// icon); bindleup in a terminal where the window can't start.
+    #[arg(long, requires = "gui", hide = true)]
+    detach: bool,
     /// Print the preferences in effect, as a file to save (see `bindo upgrade-prefs`).
     #[arg(long, conflicts_with_all = ["check", "dry_run"])]
     prefs: bool,
@@ -89,6 +93,9 @@ pub fn main(mut a: UpgradeArgs) -> Result<()> {
     if a.prefs {
         print!("{}", prefs.to_toml());
         return Ok(());
+    }
+    if a.gui && a.detach {
+        return crate::gui::upgrade_detached();
     }
     if a.gui {
         return crate::gui::upgrade(a.dry_run, a.sandbox.as_deref());
@@ -129,6 +136,10 @@ pub fn main(mut a: UpgradeArgs) -> Result<()> {
         }
     });
     let mut plans = plan(&probe, &opts);
+    // uQ's bar shows what a whole check found (`bindle updates`).
+    if a.check && !rehearsal && opts.only.is_empty() && opts.skip.is_empty() {
+        bindle_upgrade::status::save(&plans);
+    }
     if a.ndjson && a.check {
         upgrade_stream::plan_event(&plans);
         return Ok(());
@@ -176,6 +187,9 @@ pub fn main(mut a: UpgradeArgs) -> Result<()> {
     let mut stream = upgrade_stream::Stream;
     let ui: &mut dyn Ui = if a.ndjson { &mut stream } else { &mut printer };
     let results = run(plans, &mut after, &run_opts, ui);
+    if !rehearsal {
+        bindle_upgrade::status::clear();
+    }
     if a.ndjson {
         results.iter().for_each(upgrade_stream::result_event);
     }

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **bindleUP in uQ's bar.** A bindleUP icon in the Status island shows how many updates are ready; click it for the list, Update… and Check now (a middle click opens the update window). A new preference, "Show the bindleUP icon" (Preferences → uQ bar in uQ Settings, `bar_icon` in upgrade.toml), shows it only when updates are ready (the default) or always. Every check now saves what it found, and `bindle updates` reads it without the network. Hiding the icon needs uQ 0.3.22; an older uQ always shows it.
+
 ## 0.1.27 — 2026-11-20
 
 - **asafelobotomy's apps come from the AUR.** emobie, appOFholding, hauler, AV Morning Star, romforge (`romforge-bin`), scale_tail and XZram are installed from the AUR like uQ, noti-fi, scdr and crumBS already were, so the AUR stage of bindleUP keeps them up to date and Bindle no longer pins their GitHub releases. appOFholding, hauler and XZram keep their package names, so the copies Bindle installed update in place. What's new offers the change for each; the emobie, romforge, AV Morning Star and scale_tail AppImages Bindle put in `~/.local/bin` are removed once the package is in (only while Bindle's own menu entry for them is still there).

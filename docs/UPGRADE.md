@@ -68,6 +68,7 @@ news_days = 30             # news shown when pacman.log has no past upgrade
 firmware_refresh_days = 7  # refresh fwupd's metadata when it is this old
 battery_min_percent = 40   # on battery: below this, package upgrades wait
 battery_max_packages = 30  # on battery: this many packages (or a kernel) wait too
+bar_icon = "updates"       # uQ's bar: the bindleUP icon only when updates are ready, or "always"
 
 [space]                    # free MB the package stages need
 root_mb = 3072
@@ -128,6 +129,25 @@ uQ Settings' Bindle page ([GUI.md](GUI.md#uq-integration)) uses only the command
 ## Checks in the background
 
 `bindo update-notify on` installs a user timer (`~/.config/systemd/user/bindle-update-check.timer`: daily and 15 minutes after login) that runs `bindleup --check --notify`. When there is work, a notification (through the desktop's notification server: on uQ, noti-fi) lists it with Update and Later; Update opens `bindleup --gui`, or bindleup in a terminal where the window can't start. `bindo update-notify off` removes the timer.
+
+## In uQ's bar
+
+On uQ, Bindle's package installs a bar widget (`uq/widgets/bindleup/`, to
+`/usr/share/uq/shell/widgets/bindleup/`): an icon in the Status island with the
+number of updates ready. Click it for the list, **Update…** (the update window,
+`bindleup --gui`, or bindleup in a terminal where the window can't start) and
+**Check now**; a middle click opens the window straight away. With
+`bar_icon = "updates"` (the default) the icon shows only while something is
+ready; with `"always"` it stays. Bindle's page in uQ Settings has the choice
+under Preferences → uQ bar.
+
+Every check (`bindleup --check` in any form, the daily timer, uQ Settings, the
+window) saves what it found to `~/.local/state/bindle/updates.json`; a real run
+removes it. `bindle updates [--json]` reads it, without the network. The icon
+reads that every minute while the bar shows, and runs a check itself when the
+last one is more than six hours old (at most every 30 minutes after one fails).
+Only the stages that update something count: Bindle, packages, AUR, Bindle
+apps, Flatpak, firmware and rebuilds, held ones included.
 
 ## The window
 

@@ -23,6 +23,7 @@ mod status;
 mod terminal;
 mod tui;
 mod undo_json;
+mod updates_cmd;
 mod upgrade_cmd;
 mod upgrade_select;
 mod upgrade_stream;
@@ -134,6 +135,8 @@ enum Cmd {
     /// Flatpak, firmware, Bindle's apps, then leftovers and reboot.
     #[command(visible_alias = "bindleup")]
     Upgrade(upgrade_cmd::UpgradeArgs),
+    /// What the last update check found (no network): uQ's bar icon reads it.
+    Updates(updates_cmd::UpdatesArgs),
     /// bindleup's preferences and daily update check.
     Config {
         #[command(subcommand)]
@@ -273,6 +276,7 @@ fn main() -> Result<()> {
         Cmd::Bindo { args } => return bindo_cmd::main(args),
         Cmd::Upgrade(args) => return upgrade_cmd::main(args),
         Cmd::Config { cmd } => return config_cmd::main(cmd),
+        Cmd::Updates(a) => return updates_cmd::main(a.json),
         Cmd::Recover(cmd) => return recover_cmd::main(cmd),
         // The plain catalog needs no detection, so it prints at once.
         Cmd::List { here: false } => {
@@ -380,6 +384,7 @@ fn main() -> Result<()> {
         | Cmd::Bindo { .. }
         | Cmd::Upgrade(_)
         | Cmd::Config { .. }
+        | Cmd::Updates(_)
         | Cmd::Recover(_)
         | Cmd::FirstLogin { .. } => {
             unreachable!("handled above")

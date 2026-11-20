@@ -9,7 +9,7 @@ var MESSAGE_LIMIT = 400;
 var LIST_LIMIT = 300;
 var DETAIL_LIMIT = 40;
 
-var KEY_PATTERN = "^(news_days|mirror_max_age_days|firmware_refresh_days|space\\.(root|boot|efi)_mb|battery_min_percent|battery_max_packages|releases\\.follow|releases\\.apps\\.[A-Za-z0-9_-]{1,64}|update_notify)$";
+var KEY_PATTERN = "^(news_days|mirror_max_age_days|firmware_refresh_days|space\\.(root|boot|efi)_mb|battery_min_percent|battery_max_packages|releases\\.follow|releases\\.apps\\.[A-Za-z0-9_-]{1,64}|update_notify|bar_icon)$";
 var ID_PATTERN = "^[0-9A-Za-z_-]{1,64}$";
 var STAGES = ["bindle", "news", "preflight", "snapshot", "mirrors", "pacman", "aur", "releases", "flatpak", "firmware", "rebuild", "uq", "pacnew", "orphans", "services", "setup", "reboot"];
 var STAGE_PATTERN = "^(" + STAGES.join("|") + ")$";
@@ -349,6 +349,7 @@ function configView(result) {
         max: num(k.max, 100000),
         unit: str(k.unit, "", 20),
         choices: Array.isArray(k.choices) ? k.choices.filter(c => typeof c === "string").slice(0, 8) : [],
+        labels: choiceLabels(k),
         source: ["user", "system"].indexOf(k.source) >= 0 ? k.source : "default"
     }));
     const titles = [];
@@ -357,6 +358,15 @@ function configView(result) {
             titles.push(k.group);
     const apps = Array.isArray(o.apps) ? o.apps.slice(0, 100).filter(a => a && typeof a.app === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(a.app) && (a.value === "source" || a.value === "bindle")).map(a => ({ app: a.app, value: a.value, source: a.source === "user" ? "user" : "system" })) : [];
     return { groups: titles.map(t => ({ title: t, keys: keys.filter(k => k.group === t) })), apps: apps, notify: o.update_notify === true, path: str(o.path, ""), problem: "" };
+}
+
+/// What the page shows for each of a choice's values: bindle's own names when it gives one for each.
+function choiceLabels(k) {
+    const choices = Array.isArray(k.choices) ? k.choices.filter(c => typeof c === "string").slice(0, 8) : [];
+    const labels = Array.isArray(k.choice_labels) ? k.choice_labels.slice(0, 8) : [];
+    if (labels.length === choices.length && labels.every(l => typeof l === "string" && l !== ""))
+        return labels.map(l => str(l, ""));
+    return choices;
 }
 
 function sourceNote(k) {

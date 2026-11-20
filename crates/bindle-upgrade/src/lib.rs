@@ -27,6 +27,7 @@ pub mod run;
 pub mod selfupdate;
 pub mod setup;
 pub mod stage;
+pub mod status;
 pub mod system;
 
 pub use plan::{Action, Options, StagePlan, Todo};

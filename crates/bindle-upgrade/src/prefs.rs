@@ -27,6 +27,26 @@ pub enum Follow {
     Bindle,
 }
 
+/// When uQ's bar shows the bindleUP icon (Bindle's widget in the Status island).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum BarIcon {
+    /// Only while the last check found something to update.
+    #[default]
+    Updates,
+    /// All the time, with a mark when there is something to update.
+    Always,
+}
+
+impl BarIcon {
+    pub fn word(self) -> &'static str {
+        match self {
+            BarIcon::Updates => "updates",
+            BarIcon::Always => "always",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct File {
@@ -37,6 +57,7 @@ struct File {
     battery_min_percent: Option<i64>,
     battery_max_packages: Option<i64>,
     firmware_refresh_days: Option<i64>,
+    bar_icon: Option<BarIcon>,
     #[serde(default)]
     releases: ReleasesFile,
 }
@@ -91,6 +112,8 @@ pub struct Prefs {
     pub battery_max_packages: i64,
     /// Refresh fwupd's metadata before checking when it is this many days old.
     pub firmware_refresh_days: i64,
+    /// When uQ's bar shows the bindleUP icon.
+    pub bar_icon: BarIcon,
 }
 
 impl Default for Prefs {
@@ -104,6 +127,7 @@ impl Default for Prefs {
             battery_min_percent: 40,
             battery_max_packages: 30,
             firmware_refresh_days: 7,
+            bar_icon: BarIcon::Updates,
         }
     }
 }
@@ -140,6 +164,7 @@ impl Prefs {
         self.mirror_max_age_days = f.mirror_max_age_days.unwrap_or(self.mirror_max_age_days);
         self.news_days = f.news_days.unwrap_or(self.news_days);
         self.follow = f.releases.follow.unwrap_or(self.follow);
+        self.bar_icon = f.bar_icon.unwrap_or(self.bar_icon);
         self.apps.extend(f.releases.apps);
         Ok(())
     }
@@ -158,7 +183,10 @@ impl Prefs {
              # On battery, package upgrades wait for mains power below this charge, or\n\
              # when they are this big or bring a kernel or driver.\n\
              battery_min_percent = {}\n\
-             battery_max_packages = {}\n\n\
+             battery_max_packages = {}\n\
+             # uQ's bar shows the bindleUP icon: \"updates\" only when there is something\n\
+             # to update, \"always\" all the time.\n\
+             bar_icon = \"{}\"\n\n\
              [space]\n\
              # Free space (MB) the package upgrades need; less holds them back.\n\
              root_mb = {}\n\
@@ -177,6 +205,7 @@ impl Prefs {
             self.firmware_refresh_days,
             self.battery_min_percent,
             self.battery_max_packages,
+            self.bar_icon.word(),
             self.space.root_mb,
             self.space.boot_mb,
             self.space.efi_mb,
@@ -234,12 +263,19 @@ mod tests {
         assert!(p.merge("battery_min_percent = 101").is_err());
         assert!(p.merge("[space]\nboot = 3").is_err());
         assert!(p.merge("[releases]\nfollow = \"aur\"").is_err());
+        assert!(p.merge("bar_icon = \"never\"").is_err());
         assert_eq!(p, Prefs::default());
     }
 
     #[test]
     fn the_printed_file_reads_back_the_same() {
-        let mut p = Prefs { news_days: 10, follow: Follow::Bindle, battery_min_percent: 20, ..Default::default() };
+        let mut p = Prefs {
+            news_days: 10,
+            follow: Follow::Bindle,
+            battery_min_percent: 20,
+            bar_icon: BarIcon::Always,
+            ..Default::default()
+        };
         p.space.boot_mb = 500;
         p.apps.insert("kyko".into(), Follow::Source);
         let mut back = Prefs::default();
