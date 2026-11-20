@@ -237,7 +237,8 @@ fn uq_module_builds_from_the_aur_then_runs_setup_as_the_user() {
         _ => None,
     });
     let pkgs = pkgs.unwrap();
-    assert!(pkgs.contains(&"papirus-icon-theme".into()) && pkgs.contains(&"kitty".into()));
+    // kyko (a module, from the AUR) is uQ's terminal now, not kitty.
+    assert!(pkgs.contains(&"papirus-icon-theme".into()) && !pkgs.contains(&"kitty".into()));
     assert!(!pkgs.contains(&"waybar".into()));
     // The stub alone (an install from before --apps): setup runs again to theme the apps.
     let stub = "require(\"/usr/share/uq/hypr/base.lua\")\nrequire(\"./uq/generated.lua\")\n";

@@ -32,8 +32,8 @@ status = "recommended"
 base = "hyprland"
 includes = ["hyprland"]
 module = "uq"
-# uQ's own apps and Marknote (notes): pre-selected with it on first login, each one can be unticked.
-apps = ["scdr", "crumbs", "noti-fi", "text-editor", "marknote"]
+# uQ's own apps (kyko is its terminal, in place of kitty) and Marknote (notes): pre-selected with it on first login, each one can be unticked.
+apps = ["kyko", "scdr", "crumbs", "noti-fi", "text-editor", "marknote"]
 # archinstall can't install uQ's own login screen (greetd + uq), so the install
 # boots into sddm once; the uq module then switches to uQ's (`uqctl greeter enable`).
 greeter = "sddm"
@@ -44,7 +44,7 @@ everyday = "qt"
 # recovery bind, and sound-theme-freedesktop the Sound page's test sound (both optdepends of
 # uq; Hyprland's essentials, which have hyprlock, are replaced by these). The text editor is
 # its own module (`apps` above).
-essentials = ["kitty", "papirus-icon-theme", "ttf-jetbrains-mono", "inter-font", "wireplumber", "playerctl", "networkmanager", "grim", "slurp", "wl-clipboard", "gnome-keyring", "hyprlock", "sound-theme-freedesktop"]
+essentials = ["papirus-icon-theme", "ttf-jetbrains-mono", "inter-font", "wireplumber", "playerctl", "networkmanager", "grim", "slurp", "wl-clipboard", "gnome-keyring", "hyprlock", "sound-theme-freedesktop"]
 bt = ["bluez"]
 notes = ["uQ comes from the AUR; Bindle then runs `uqctl setup --apps` as you and turns on uQ's login screen. Restart to log in to uQ."]
 
