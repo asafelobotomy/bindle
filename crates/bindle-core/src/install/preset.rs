@@ -228,7 +228,7 @@ mod tests {
         let pick = |d: Option<&str>| IsoChoice { desktop: d.map(String::from), profile: "desktop".into() };
         let sel = first_login_selection(&data, &pick(Some("uq")));
         let include =
-            ["uq", "scdr", "crumbs", "noti-fi", "qview", "text-editor", "marknote"].map(String::from).to_vec();
+            ["uq", "scdr", "crumbs", "noti-fi", "uqview", "text-editor", "marknote"].map(String::from).to_vec();
         assert_eq!((sel.profile.as_deref(), sel.include), (Some("desktop"), include));
         assert!(first_login_selection(&data, &pick(Some("plasma"))).include.is_empty());
         assert!(first_login_selection(&data, &pick(None)).include.is_empty());

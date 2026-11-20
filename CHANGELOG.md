@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- **Qview is uQ's picture viewer.** A new `qview` module (from the AUR) is one of uQ's apps, pre-selected on first login: it views pictures in uQ's theme, marks up screenshots and sets a picture as the wallpaper, and becomes the app for pictures unless you already chose one. On uQ the everyday apps no longer include Gwenview. A Gwenview Bindle installed earlier stays; remove it with crumBS if you don't want it.
+- **uQview is uQ's picture viewer.** A new `uqview` module (from the AUR) is one of uQ's apps, pre-selected on first login: it views pictures in uQ's theme, marks up screenshots and sets a picture as the wallpaper, and becomes the app for pictures unless you already chose one. On uQ the everyday apps no longer include Gwenview. A Gwenview Bindle installed earlier stays; remove it with crumBS if you don't want it.
 
 ## 0.1.28 — 2026-11-20
 

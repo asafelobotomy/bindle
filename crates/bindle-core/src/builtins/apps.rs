@@ -68,7 +68,7 @@ const QT: &[&str] = &[
     "usbmuxd",
 ];
 /// Everyday apps a desktop already has a native one for: uQ's launcher
-/// (LookSeeDo) is its calculator, and Qview (the `qview` module, one of uQ's
+/// (LookSeeDo) is its calculator, and uQview (the `uqview` module, one of uQ's
 /// `apps`) its picture viewer.
 const NATIVE: &[(&str, &[&str])] = &[("uq", &["kcalc", "gwenview"])];
 const GTK: &[&str] = &[
@@ -150,7 +150,7 @@ mod tests {
         assert!(sway.packages.contains(&"nautilus".to_string()), "{:?}", sway.packages);
         let uq = everyday(&facts(&["uq"], ""));
         assert!(uq.packages.contains(&"dolphin".to_string()) && !uq.packages.contains(&"nautilus".to_string()));
-        // uQ's launcher is its calculator and Qview its picture viewer; plain Hyprland keeps
+        // uQ's launcher is its calculator and uQview its picture viewer; plain Hyprland keeps
         // KCalc and Gwenview.
         for native in ["kcalc", "gwenview"] {
             assert!(!uq.packages.contains(&native.to_string()), "{:?}", uq.packages);
