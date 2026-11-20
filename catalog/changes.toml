@@ -91,6 +91,6 @@ modules = ["boot-guard"]
 why = "New in Bindle 0.1.13: a guard for kernel updates. It refuses a kernel update while the boot partition isn't mounted, and warns when a boot image holds a kernel that is no longer installed, which can leave you at an emergency prompt after a restart."
 
 [[added]]
-version = "0.1.29"
+version = "0.1.30"
 modules = ["reelo"]
-why = "New in Bindle 0.1.29: reelo, uQ's own media player. It plays video, music and streams with mpv's engine, follows the uQ theme, shows in uQ's media controls and lists your newest downloads. It becomes the default player unless you picked one other than VLC or mpv."
+why = "New in Bindle 0.1.30: reelo, uQ's own media player. It plays video, music and streams with mpv's engine, follows the uQ theme, shows in uQ's media controls and lists your newest downloads. It becomes the default player unless you picked one other than VLC or mpv."

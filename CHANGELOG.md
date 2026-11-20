@@ -2,7 +2,13 @@
 
 ## Unreleased
 
+## 0.1.30 — 2026-11-20
+
 - **reelo is uQ's media player.** uQ pre-selects reelo (from the AUR) instead of VLC and mpv, and makes it the default for video and music unless another player was chosen. What's new offers it to uQ users upgrading. Other desktops keep the VLC and mpv module.
+
+## 0.1.29 — 2026-11-20
+
+- **No system-config-printer on uQ.** uQ's Settings now has its own Printers page, so the printer settings window is its own module (Printing & scanning), installed with Printing only on desktops without one: not on uQ, Plasma or GNOME. Systems that already have it keep it. The Printers page comes with uQ 0.3.25.
 
 ## 0.1.28 — 2026-11-20
 
