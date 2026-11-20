@@ -183,6 +183,8 @@ impl UpgradeBackend {
                     let _ = qt.queue(move |b| b.set_check_json(QString::from(&text)));
                 });
                 let u = Upgrade::new(probe, prefs);
+                // uQ's bar shows what this look found (`bindle updates`).
+                bindle_upgrade::status::save(&u.plans());
                 let text = u.check().to_string();
                 let _ = qt.queue(move |mut b| {
                     b.as_mut().rust_mut().get_mut().upgrade = Some(u);
@@ -231,6 +233,9 @@ impl UpgradeBackend {
                     let _ = qt.queue(move |b| b.set_run_json(QString::from(&text)));
                 };
                 let last = crate::upgrade::run::run(plans, answers, &mut after, how, publish);
+                if !rehearsal {
+                    bindle_upgrade::status::clear();
+                }
                 let text = serde_json::to_string(&last).unwrap_or_default();
                 let _ = qt.queue(move |mut b| {
                     b.as_mut().rust_mut().get_mut().busy = false;

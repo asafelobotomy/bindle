@@ -220,6 +220,17 @@ test("configView groups keys, keeps only known keys and says where a value comes
   assert.equal(L.sourceNote({ ...boot, source: "user" }), "Your setting. The default is 200 MB.");
   assert.equal(L.sourceNote({ ...boot, source: "default" }), "");
   assert.match(L.configView({ error: "boom" }).problem, /^Couldn't read the update preferences: boom$/);
+  assert.deepEqual(v.groups[2].keys[0].labels, ["source", "bindle"], "no names: the values");
+});
+
+test("configView names a choice's values the way bindle does", () => {
+  const key = { key: "bar_icon", group: "uQ bar", label: "L", help: "", kind: "choice", value: "always", default: "updates", choices: ["updates", "always"], choice_labels: ["When updates are ready", "Always"], source: "user" };
+  const v = L.configView({ code: 0, output: { keys: [key, { ...key, key: "releases.follow", choice_labels: ["one"] }] } });
+  const bar = v.groups[0].keys[0];
+  assert.deepEqual(bar.labels, ["When updates are ready", "Always"]);
+  assert.equal(L.indexOfKey(bar.choices, bar.value, 0), 1);
+  assert.deepEqual(v.groups[0].keys[1].labels, ["updates", "always"], "names that don't match the values aren't used");
+  assert.equal(L.sourceNote(bar), "Your setting. The default is “When updates are ready”.");
 });
 
 test("outcomes: a refusal shows its reason and the command's last lines", () => {

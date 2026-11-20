@@ -35,7 +35,8 @@ Item {
             config: { code: 0, output: { path: "/home/u/.config/bindle/upgrade.toml", update_notify: false, apps: [{ app: "kyko", value: "bindle", source: "user" }], keys: [
                         { key: "news_days", group: "Checks", label: "Arch news window", help: "h", kind: "int", value: 30, default: 30, min: 0, max: 3650, unit: "days", source: "default" },
                         { key: "space.boot_mb", group: "Free space", label: "Needed on /boot", help: "h", kind: "int", value: 500, default: 200, min: 0, max: 1000000, unit: "MB", source: "user" },
-                        { key: "releases.follow", group: "Apps", label: "Where pinned apps update from", help: "h", kind: "choice", value: "source", default: "source", choices: ["source", "bindle"], source: "system" }
+                        { key: "releases.follow", group: "Apps", label: "Where pinned apps update from", help: "h", kind: "choice", value: "source", default: "source", choices: ["source", "bindle"], source: "system" },
+                        { key: "bar_icon", group: "uQ bar", label: "Show the bindleUP icon", help: "h", kind: "choice", value: "updates", default: "updates", choices: ["updates", "always"], choice_labels: ["When updates are ready", "Always"], source: "default" }
                     ] } },
             open: { code: 0, output: null },
             check: { code: 0, output: null },
@@ -261,6 +262,17 @@ Item {
             spin.valueModified();
             tryVerify(() => ran("config-set").length === 1, 3000);
             compare(ran("config-set")[0], ["run", "config-set", ["news_days", "7"]]);
+        }
+
+        function test_the_bar_icon_choice_writes_its_value() {
+            openTab("Preferences");
+            hasText("Show the bindleUP icon");
+            const combo = root.find(loader.item, i => i.hasOwnProperty("currentIndex") && i.hasOwnProperty("activated") && i.visible && !!i.model && i.model[0] === "When updates are ready");
+            verify(combo !== null, "the bar icon's choice");
+            compare(combo.currentIndex, 0);
+            combo.activated(1);
+            tryVerify(() => ran("config-set").length === 1, 3000);
+            compare(ran("config-set")[0], ["run", "config-set", ["bar_icon", "always"]]);
         }
 
         function test_reset_goes_back_to_the_default() {

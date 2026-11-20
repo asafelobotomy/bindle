@@ -79,6 +79,8 @@ DESKTOP
   # uQ Settings' Bindle page (inert without uQ). Its commands run
   # /usr/lib/bindle/bindle, since a page may only run programs under /usr/lib or /usr/bin.
   install -Dm644 -t "$pkgdir/usr/share/uq/settings/pages/bindle" uq/pages/bindle/*
+  # bindleUP's icon in uQ's bar (a widget; inert without uQ).
+  install -Dm644 -t "$pkgdir/usr/share/uq/shell/widgets/bindleup" uq/widgets/bindleup/*
   install -d "$pkgdir/usr/lib/bindle"
   ln -s /usr/bin/bindle "$pkgdir/usr/lib/bindle/bindle"
 

@@ -86,7 +86,7 @@ ColumnLayout {
             required property var modelData
 
             title: group.modelData.title
-            iconName: group.modelData.title === "Free space" ? "drive-harddisk" : (group.modelData.title === "Battery" ? "battery" : (group.modelData.title === "Apps" ? "applications-all" : "preferences-system-time"))
+            iconName: group.modelData.title === "Free space" ? "drive-harddisk" : (group.modelData.title === "Battery" ? "battery" : (group.modelData.title === "Apps" ? "applications-all" : (group.modelData.title === "uQ bar" ? "system-software-update" : "preferences-system-time")))
             Layout.fillWidth: true
 
             Repeater {
@@ -101,7 +101,7 @@ ColumnLayout {
                     Layout.fillWidth: true
 
                     SettingRow {
-                        settingId: pref.modelData.key === "space.root_mb" ? "space" : (pref.modelData.key === "battery_min_percent" ? "battery" : (pref.modelData.key === "releases.follow" ? "follow" : pref.modelData.key))
+                        settingId: pref.modelData.key === "space.root_mb" ? "space" : (pref.modelData.key === "battery_min_percent" ? "battery" : (pref.modelData.key === "releases.follow" ? "follow" : (pref.modelData.key === "bar_icon" ? "bar-icon" : pref.modelData.key)))
                         label: pref.modelData.label + (pref.modelData.unit !== "" && pref.modelData.kind === "int" ? " (" + pref.modelData.unit + ")" : "")
                         highlight: tab.host ? tab.host.highlight : ""
                         Layout.fillWidth: true
@@ -133,13 +133,13 @@ ColumnLayout {
                         UqComboBox {
                             id: combo
                             visible: pref.modelData.kind === "choice"
-                            model: Logic.FOLLOW_NAMES
+                            model: pref.modelData.labels
                             implicitWidth: 260
                             enabled: tab.idle
-                            currentIndex: Logic.indexOfKey(Logic.FOLLOW_KEYS, pref.modelData.value, 0)
+                            currentIndex: Logic.indexOfKey(pref.modelData.choices, pref.modelData.value, 0)
                             onActivated: index => {
-                                combo.currentIndex = Qt.binding(() => Logic.indexOfKey(Logic.FOLLOW_KEYS, pref.modelData.value, 0));
-                                tab.save(pref.modelData.key, Logic.FOLLOW_KEYS[index]);
+                                combo.currentIndex = Qt.binding(() => Logic.indexOfKey(pref.modelData.choices, pref.modelData.value, 0));
+                                tab.save(pref.modelData.key, pref.modelData.choices[index]);
                             }
                         }
                         QQC2.Button {

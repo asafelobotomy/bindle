@@ -1,0 +1,34 @@
+# bindleUP's icon for uQ's bar: shows when updates are ready (or always, by the `bar_icon`
+# preference on Bindle's Settings page), lists them on click and opens the update window.
+# Installed to /usr/share/uq/shell/widgets/bindleup/ by Bindle's package (and by
+# `bindle first-login install`). Reference: docs/integrating.md in the uQ repository.
+uq_api = 1
+id = "bindleup"
+name = "bindleUP"
+slot = "bar"
+qml = "Widget.qml"
+order = 20
+
+[requires]
+bins = ["bindle"]
+
+# What the last check found and the bar_icon preference: files only, no network.
+[[command]]
+id = "state"
+argv = ["/usr/lib/bindle/bindle", "updates", "--json"]
+output = "json"
+timeout_ms = 10000
+
+# Look at every source again (no password; saves what it finds for `state`).
+[[command]]
+id = "check"
+argv = ["/usr/lib/bindle/bindle", "upgrade", "--check", "--json"]
+output = "none"
+timeout_ms = 300000
+
+# The update window, in its own session (bindleup in a terminal where it can't start).
+[[command]]
+id = "open"
+argv = ["/usr/lib/bindle/bindle", "upgrade", "--gui", "--detach"]
+output = "none"
+timeout_ms = 10000

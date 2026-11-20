@@ -125,10 +125,24 @@ pub fn open() -> Result<()> {
 /// `bindle open` in a new session, not waited for: it outlives the caller and
 /// anything that ends the caller's process group.
 pub fn open_detached() -> Result<()> {
+    spawn_detached(&["open"])
+}
+
+/// `bindleup --gui --detach` (uQ's bar icon): the update window in a new
+/// session, or bindleup in a terminal where the window can't start.
+pub fn upgrade_detached() -> Result<()> {
+    if available().is_some() {
+        spawn_detached(&["upgrade", "--gui"])
+    } else {
+        spawn_detached(&["in-terminal", "upgrade"])
+    }
+}
+
+fn spawn_detached(args: &[&str]) -> Result<()> {
     use std::os::unix::process::CommandExt;
     let exe = std::env::current_exe()?;
     let mut cmd = std::process::Command::new(exe);
-    cmd.arg("open")
+    cmd.args(args)
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null());

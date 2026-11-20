@@ -59,6 +59,11 @@ label = "Updating on battery"
 keywords = ["power", "laptop", "charge"]
 
 [[setting]]
+id = "bar-icon"
+label = "Show the bindleUP icon in the bar"
+keywords = ["bar", "icon", "tray", "status", "updates", "bindleup", "always"]
+
+[[setting]]
 id = "follow"
 label = "Where pinned apps update from"
 keywords = ["releases", "pins", "source", "aur"]
@@ -180,11 +185,11 @@ id = "config-set"
 argv = ["/usr/lib/bindle/bindle", "config", "set", "--json"]
 output = "json"
 timeout_ms = 30000
-args = [{ name = "key", pattern = "^(news_days|mirror_max_age_days|firmware_refresh_days|space\\.(root|boot|efi)_mb|battery_min_percent|battery_max_packages|releases\\.follow|releases\\.apps\\.[A-Za-z0-9_-]{1,64}|update_notify)$" }, { name = "value", pattern = "^[a-z0-9]{1,16}$" }]
+args = [{ name = "key", pattern = "^(news_days|mirror_max_age_days|firmware_refresh_days|space\\.(root|boot|efi)_mb|battery_min_percent|battery_max_packages|releases\\.follow|releases\\.apps\\.[A-Za-z0-9_-]{1,64}|update_notify|bar_icon)$" }, { name = "value", pattern = "^[a-z0-9]{1,16}$" }]
 
 [[command]]
 id = "config-reset"
 argv = ["/usr/lib/bindle/bindle", "config", "reset", "--json"]
 output = "json"
 timeout_ms = 30000
-args = [{ name = "key", pattern = "^(news_days|mirror_max_age_days|firmware_refresh_days|space\\.(root|boot|efi)_mb|battery_min_percent|battery_max_packages|releases\\.follow|releases\\.apps\\.[A-Za-z0-9_-]{1,64}|update_notify)$" }]
+args = [{ name = "key", pattern = "^(news_days|mirror_max_age_days|firmware_refresh_days|space\\.(root|boot|efi)_mb|battery_min_percent|battery_max_packages|releases\\.follow|releases\\.apps\\.[A-Za-z0-9_-]{1,64}|update_notify|bar_icon)$" }]

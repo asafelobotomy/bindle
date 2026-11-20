@@ -134,10 +134,11 @@ pub fn install(root: &Path, tty_hook: bool) -> Result<Vec<String>> {
         write_atomic_system(&host(root, path), content.as_bytes(), 0o644)?;
         done.push(format!("wrote {path}"));
     }
-    for ((_, content), path) in uq_page::FILES.iter().zip(uq_page::paths()) {
+    for (path, content) in uq_page::installed() {
         write_atomic_system(&host(root, &path), content.as_bytes(), 0o644)?;
     }
     done.push(format!("wrote uQ Settings' Bindle page ({} files) to {UQ_PAGE_DIR}", uq_page::FILES.len()));
+    done.push(format!("wrote bindleUP's bar icon to {}", uq_page::WIDGET_DIR));
     let icons = crate::icons::files();
     for (path, data) in &icons {
         write_atomic_system(&host(root, path), data, 0o644)?;
@@ -179,7 +180,7 @@ pub fn remove(root: &Path, purge: bool) -> Result<Vec<String>> {
     }
     if purge {
         // Only once empty: never anything someone else put there.
-        for dir in [UQ_PAGE_DIR, "/usr/lib/bindle"] {
+        for dir in [UQ_PAGE_DIR, uq_page::WIDGET_DIR, "/usr/lib/bindle"] {
             let _ = fs::remove_dir(host(root, dir));
         }
     }

@@ -26,6 +26,8 @@ pub struct Def {
     pub kind: Kind,
     pub max: i64,
     pub unit: &'static str,
+    /// A choice's values and how the page names them.
+    pub choices: &'static [(&'static str, &'static str)],
 }
 
 const fn int(
@@ -36,10 +38,21 @@ const fn int(
     max: i64,
     help: &'static str,
 ) -> Def {
-    Def { key, group, label, help, kind: Kind::Int, max, unit }
+    Def { key, group, label, help, kind: Kind::Int, max, unit, choices: &[] }
 }
 
 pub const DEFS: &[Def] = &[
+    // First: on uQ Settings' page its card comes right after the background checks.
+    Def {
+        key: "bar_icon",
+        group: "uQ bar",
+        label: "Show the bindleUP icon",
+        help: "An icon in the Status island of uQ's bar. Click it to see what is ready and open the update window.",
+        kind: Kind::Choice,
+        max: 0,
+        unit: "",
+        choices: &[("updates", "When updates are ready"), ("always", "Always")],
+    },
     int(
         "news_days",
         "Checks",
@@ -112,6 +125,7 @@ pub const DEFS: &[Def] = &[
         kind: Kind::Choice,
         max: 0,
         unit: "",
+        choices: &[("source", "Only copies Bindle installed"), ("bindle", "Bindle's release replaces any copy")],
     },
 ];
 
@@ -177,6 +191,9 @@ pub struct Entry {
     pub unit: String,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub choices: Vec<String>,
+    /// How the page names each of `choices`.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub choice_labels: Vec<String>,
     /// Which file sets it: default, system or user.
     pub source: &'static str,
 }
@@ -207,6 +224,7 @@ fn value_of(p: &Prefs, key: &str) -> Value {
         "space.efi_mb" => n(p.space.efi_mb),
         "battery_min_percent" => n(p.battery_min_percent),
         "battery_max_packages" => n(p.battery_max_packages),
+        "bar_icon" => Value::String(p.bar_icon.word().into()),
         _ => Value::String(word(p.follow).into()),
     }
 }
@@ -250,7 +268,8 @@ pub fn show(system: Option<&str>, user: Option<&str>, user_path: &str) -> Shown 
             min: (d.kind == Kind::Int).then_some(0),
             max: (d.kind == Kind::Int).then_some(d.max),
             unit: d.unit.into(),
-            choices: if d.kind == Kind::Choice { FOLLOW_CHOICES.map(String::from).to_vec() } else { vec![] },
+            choices: d.choices.iter().map(|(v, _)| v.to_string()).collect(),
+            choice_labels: d.choices.iter().map(|(_, l)| l.to_string()).collect(),
             source: source(d.key),
         })
         .collect();
@@ -271,11 +290,18 @@ fn known(key: &str) -> bool {
 }
 
 fn parse_value(key: &str, raw: &str) -> Result<Value, String> {
-    if app_name(key).is_some() || DEFS.iter().any(|d| d.key == key && d.kind == Kind::Choice) {
-        return if FOLLOW_CHOICES.contains(&raw) {
+    let choices: Option<Vec<&str>> = if app_name(key).is_some() {
+        Some(FOLLOW_CHOICES.to_vec())
+    } else {
+        DEFS.iter()
+            .find(|d| d.key == key && d.kind == Kind::Choice)
+            .map(|d| d.choices.iter().map(|(v, _)| *v).collect())
+    };
+    if let Some(choices) = choices {
+        return if choices.contains(&raw) {
             Ok(Value::String(raw.into()))
         } else {
-            Err(format!("{key} is source or bindle"))
+            Err(format!("{key} is {}", choices.join(" or ")))
         };
     }
     raw.parse::<i64>().map(Value::Integer).map_err(|_| format!("{key} is a whole number"))
@@ -328,6 +354,9 @@ mod tests {
         assert_eq!((get("space.root_mb").source, get("space.root_mb").value.as_integer()), ("user", Some(4000)));
         assert_eq!(get("space.boot_mb").source, "default");
         assert_eq!(get("releases.follow").choices, ["source", "bindle"]);
+        assert_eq!(get("bar_icon").choices, ["updates", "always"]);
+        assert_eq!(get("bar_icon").choice_labels.len(), 2);
+        assert_eq!(get("bar_icon").value.as_str(), Some("updates"));
     }
 
     #[test]
@@ -339,6 +368,11 @@ mod tests {
         assert!(edited(None, "battery_min_percent", Some("101")).is_err());
         assert!(edited(None, "news_days", Some("many")).is_err());
         assert!(edited(None, "releases.follow", Some("aur")).is_err());
+        assert!(edited(None, "bar_icon", Some("never")).unwrap_err().contains("updates or always"));
+        let always = edited(None, "bar_icon", Some("always")).unwrap();
+        let mut b = Prefs::default();
+        b.merge(&always).unwrap();
+        assert_eq!(b.bar_icon, crate::prefs::BarIcon::Always);
         assert!(edited(None, "bogus", Some("1")).unwrap_err().contains("no preference"));
         assert!(edited(Some("not toml ["), "news_days", Some("1")).unwrap_err().contains("can't be read"));
     }
