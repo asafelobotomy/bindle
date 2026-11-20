@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.1.30 — 2026-11-20
+
+- **AUR updates finish in the update window again.** When the window updated AUR packages, paru's password-free `sudo` started a second Bindle window instead of passing the pacman command on, so the AUR step sat waiting for that window, and its Qt messages ("Failed to register with host portal", "QWaylandTextInputv3::disableSurface") filled the window's output. paru's `sudo` now runs `bindle` itself, and `bindle-gui` never opens a window when started that way.
+
 ## 0.1.29 — 2026-11-20
 
 - **No system-config-printer on uQ.** uQ's Settings now has its own Printers page, so the printer settings window is its own module (Printing & scanning), installed with Printing only on desktops without one: not on uQ, Plasma or GNOME. Systems that already have it keep it. The Printers page comes with uQ 0.3.25.

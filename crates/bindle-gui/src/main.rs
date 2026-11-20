@@ -46,6 +46,12 @@ pub fn flag(name: &str) -> bool {
 }
 
 fn main() {
+    // Bindle's `sudo` for paru, should it ever be pointed at this program:
+    // forward the pacman command, never open a window.
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    if args.first().is_some_and(|a| a == "elev-shim") {
+        std::process::exit(bindle_run::bridge::shim(&args[1..]));
+    }
     if arg("--screenshots").is_some() && std::env::var_os("QT_QPA_PLATFORM").is_none() {
         // SAFETY: single-threaded here, before Qt or any other thread starts.
         unsafe { std::env::set_var("QT_QPA_PLATFORM", "offscreen") };
