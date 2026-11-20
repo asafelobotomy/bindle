@@ -392,13 +392,13 @@ id = "emobie"
 group = "Utilities"
 name = "emobie (emoji palette)"
 description = "Compact emoji palette with a global hotkey, favourites and text macros. By asafelobotomy."
-packages = ["fuse2"]
-[[module.release]]
-repo = "asafelobotomy/emobie"
-tag = "v0.9.2"
-asset = "emobie_0.9.2_amd64.AppImage"
-sha256 = "a30d089687796b065934a17d0ef40c9956be943912cc4d700d2981fe533a6dd7"
-name = "emobie"
+requires = ["aur-helper"]
+aur = ["emobie"]
+# Bindle installed it as an AppImage before it came from the AUR: that copy goes once the
+# package is in (only when Bindle's own desktop entry for it is still there).
+[[module.user_commands]]
+argv = ["sh", "-c", "e=\"$HOME/.local/share/applications/bindle-$0.desktop\"; if grep -qs '^X-Bindle-Asset=' \"$e\"; then rm -f \"$HOME/.local/bin/$0\" \"$e\"; fi", "emobie"]
+unless = [{ path = "/usr/bin/emobie" }]
 
 [[module]]
 id = "appofholding"
@@ -406,9 +406,6 @@ group = "Utilities"
 name = "appOFholding (AppImage manager)"
 description = "Adds AppImages to your application menu, keeps them up to date from GitHub and GitLab, and sandboxes them. By asafelobotomy."
 notes = ["Once it is in use, crumBS leaves the AppImages in ~/Applications to it."]
-[[module.release]]
-repo = "asafelobotomy/appofholding"
-tag = "v0.12.2"
-asset = "appofholding-0.12.2-1-x86_64.pkg.tar.zst"
-sha256 = "2223411fcc8ec52edf6e5dc5e8d2fe3f4fb386d8c369efbc29e979005578b840"
-name = "appofholding"
+requires = ["aur-helper"]
+# The same package name as the release package Bindle installed before, so that one updates in place.
+aur = ["appofholding"]

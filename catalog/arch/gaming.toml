@@ -169,13 +169,14 @@ id = "romforge"
 group = "Emulation & streaming"
 name = "romforge (ROM library)"
 description = "Identifies, tidies, enriches and plays your ROM collection. By asafelobotomy."
-packages = ["fuse2"]
-[[module.release]]
-repo = "asafelobotomy/romforge"
-tag = "v0.20.0"
-asset = "romforge_0.20.0_amd64.AppImage"
-sha256 = "bd5762c3fb256d58fccae74054394aa02f3581540dd59bca9634a8d1749db42e"
-name = "romforge"
+requires = ["aur-helper"]
+# -bin: the release's own build, so no Node or Rust toolchain is needed.
+aur = ["romforge-bin"]
+# Bindle installed it as an AppImage before it came from the AUR: that copy goes once the
+# package is in (only when Bindle's own desktop entry for it is still there).
+[[module.user_commands]]
+argv = ["sh", "-c", "e=\"$HOME/.local/share/applications/bindle-$0.desktop\"; if grep -qs '^X-Bindle-Asset=' \"$e\"; then rm -f \"$HOME/.local/bin/$0\" \"$e\"; fi", "romforge"]
+unless = [{ path = "/usr/bin/romforge-app" }]
 
 [[module]]
 id = "reshadelinux"
