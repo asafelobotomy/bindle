@@ -67,6 +67,9 @@ const QT: &[&str] = &[
     "libappimage",
     "usbmuxd",
 ];
+/// Everyday apps a desktop already has a native one for: uQ's launcher
+/// (LookSeeDo) is its calculator.
+const NATIVE: &[(&str, &[&str])] = &[("uq", &["kcalc"])];
 const GTK: &[&str] = &[
     "nautilus",
     "file-roller",
@@ -89,7 +92,8 @@ pub(super) fn everyday(f: &Facts) -> Expansion {
             Some("gtk") => GTK,
             _ => continue,
         };
-        for p in set {
+        let native = NATIVE.iter().find(|(id, _)| *id == d.id).map_or(&[][..], |(_, n)| *n);
+        for p in set.iter().filter(|p| !native.contains(*p)) {
             if !e.packages.iter().any(|x| x == p) {
                 e.packages.push((*p).into());
             }
@@ -145,6 +149,9 @@ mod tests {
         assert!(sway.packages.contains(&"nautilus".to_string()), "{:?}", sway.packages);
         let uq = everyday(&facts(&["uq"], ""));
         assert!(uq.packages.contains(&"gwenview".to_string()) && !uq.packages.contains(&"nautilus".to_string()));
+        // uQ's launcher is its calculator; plain Hyprland keeps KCalc.
+        assert!(!uq.packages.contains(&"kcalc".to_string()), "{:?}", uq.packages);
+        assert!(everyday(&facts(&["hyprland"], "")).packages.contains(&"kcalc".to_string()));
         assert!(everyday(&facts(&["plasma"], "")).packages.is_empty());
         assert!(everyday(&facts(&["gnome"], "")).packages.is_empty());
         // Two bare desktops of one toolkit: each package once.
