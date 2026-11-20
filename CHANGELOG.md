@@ -2,7 +2,9 @@
 
 ## Unreleased
 
-- **No system-config-printer on uQ.** uQ's Settings now has its own Printers page, so the printer settings window is its own module (Printing & scanning), installed with Printing only on desktops without one: not on uQ, Plasma or GNOME. Systems that already have it keep it.
+## 0.1.29 — 2026-11-20
+
+- **No system-config-printer on uQ.** uQ's Settings now has its own Printers page, so the printer settings window is its own module (Printing & scanning), installed with Printing only on desktops without one: not on uQ, Plasma or GNOME. Systems that already have it keep it. The Printers page comes with uQ 0.3.25.
 
 ## 0.1.28 — 2026-11-20
 
