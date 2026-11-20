@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **reelo is uQ's media player.** uQ pre-selects reelo (from the AUR) instead of VLC and mpv, and makes it the default for video and music unless another player was chosen. What's new offers it to uQ users upgrading. Other desktops keep the VLC and mpv module.
+
 ## 0.1.28 — 2026-11-20
 
 - **bindleUP in uQ's bar.** A bindleUP icon in the Status island shows how many updates are ready; click it for the list, Update… and Check now (a middle click opens the update window). A new preference, "Show the bindleUP icon" (Preferences → uQ bar in uQ Settings, `bar_icon` in upgrade.toml), shows it only when updates are ready (the default) or always. Every check now saves what it found, and `bindle updates` reads it without the network. Hiding the icon needs uQ 0.3.22; an older uQ always shows it.
