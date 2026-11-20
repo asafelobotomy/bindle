@@ -372,6 +372,11 @@ function choiceLabels(k) {
 function sourceNote(k) {
     if (k.source === "system")
         return "Set for the whole system in /etc/bindle/upgrade.toml. Setting it here overrides it for you.";
+    if (k.source === "user" && k.kind === "choice") {
+        const i = k.choices && k.choices.indexOf ? k.choices.indexOf(k.def) : -1;
+        const name = i >= 0 && k.labels && typeof k.labels[i] === "string" ? k.labels[i] : k.def;
+        return "Your setting. The default is “" + name + "”.";
+    }
     if (k.source === "user")
         return "Your setting. The default is " + k.def + (k.unit !== "" ? " " + k.unit : "") + ".";
     return "";

@@ -230,6 +230,7 @@ test("configView names a choice's values the way bindle does", () => {
   assert.deepEqual(bar.labels, ["When updates are ready", "Always"]);
   assert.equal(L.indexOfKey(bar.choices, bar.value, 0), 1);
   assert.deepEqual(v.groups[0].keys[1].labels, ["updates", "always"], "names that don't match the values aren't used");
+  assert.equal(L.sourceNote(bar), "Your setting. The default is “When updates are ready”.");
 });
 
 test("outcomes: a refusal shows its reason and the command's last lines", () => {

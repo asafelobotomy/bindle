@@ -42,6 +42,17 @@ const fn int(
 }
 
 pub const DEFS: &[Def] = &[
+    // First: on uQ Settings' page its card comes right after the background checks.
+    Def {
+        key: "bar_icon",
+        group: "uQ bar",
+        label: "Show the bindleUP icon",
+        help: "An icon in the Status island of uQ's bar. Click it to see what is ready and open the update window.",
+        kind: Kind::Choice,
+        max: 0,
+        unit: "",
+        choices: &[("updates", "When updates are ready"), ("always", "Always")],
+    },
     int(
         "news_days",
         "Checks",
@@ -115,16 +126,6 @@ pub const DEFS: &[Def] = &[
         max: 0,
         unit: "",
         choices: &[("source", "Only copies Bindle installed"), ("bindle", "Bindle's release replaces any copy")],
-    },
-    Def {
-        key: "bar_icon",
-        group: "uQ bar",
-        label: "Show the bindleUP icon",
-        help: "An icon in the Status island of uQ's bar. Click it to see what is ready and open the update window.",
-        kind: Kind::Choice,
-        max: 0,
-        unit: "",
-        choices: &[("updates", "When updates are ready"), ("always", "Always")],
     },
 ];
 
