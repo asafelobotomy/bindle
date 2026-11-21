@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.35 — 2026-11-21
+
+- **uQbit, uQ's torrent app.** A new `uqbit` module (Downloads, from the AUR) runs qBittorrent's engine (qbittorrent-nox) in the background with a window that follows the uQ theme. It becomes the app for magnet links and .torrent files unless something other than qBittorrent already has them, and can sit beside the qBittorrent modules. What's new offers it on upgrade.
+
 ## 0.1.34 — 2026-11-21
 
 - **The windows follow uQ's theme without polling.** Bindle, bindleUP and Recovery used to check uQ's theme file once a second; they now use uQ's shared uq-theme module (`crates/bindle-gui/src/uq_theme.rs`, uq-theme 1.0.0), which watches the file and also catches uQ swapping the whole theme folder.

@@ -201,6 +201,21 @@ package_conflicts = ["qbittorrent"]
 aur = ["qbittorrent-enhanced"]
 notes = ["Builds from source, which takes a while."]
 
+# uQ's torrent app: qBittorrent's engine (qbittorrent-nox, or the Enhanced fork's nox, which
+# provides it) in the background with a window in uQ's style. It can sit beside either
+# qBittorrent module (its engine keeps its own profile). It becomes the app for .torrent files
+# and magnet links unless something other than qBittorrent already has them.
+[[module]]
+id = "uqbit"
+group = "Downloads"
+name = "uQbit (torrents)"
+description = "Downloads and seeds torrents with qBittorrent's engine in the background, in a window that follows the uQ theme; opens magnet links and .torrent files. By asafelobotomy."
+requires = ["aur-helper"]
+aur = ["uqbit"]
+[[module.user_commands]]
+argv = ["sh", "-c", 'case "$(xdg-mime query default x-scheme-handler/magnet 2>/dev/null)" in ""|org.qbittorrent.qBittorrent.desktop|qbittorrent.desktop) exec uqbit default set ;; esac']
+unless = [{ path = "~/.config/mimeapps.list", contains = "x-scheme-handler/magnet=io.github.asafelobotomy.uqbit.desktop" }]
+
 [[module]]
 id = "qbit-plugin-dl"
 group = "Downloads"
