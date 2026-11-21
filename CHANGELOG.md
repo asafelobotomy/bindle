@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 0.1.33 — 2026-11-21
+
+- **One update window at a time.** Clicking uQ's Bindle bar icon again (or running `bindleup --gui` twice) opened a second update window that could start a second update while the first ran. A second start now brings the open update window forward; the Recovery window works the same way.
+- **uQ developer setup** also clones uQview, kyko and AV Morning Star into `~/Projects`.
+
 ## 0.1.32 — 2026-11-20
 
 - **AUR updates finish in the update window again.** When the window updated AUR packages, paru's password-free `sudo` started a second Bindle window instead of passing the pacman command on, so the AUR step sat waiting for that window, and its Qt messages ("Failed to register with host portal", "QWaylandTextInputv3::disableSurface") filled the window's output. paru's `sudo` now runs `bindle` itself, and `bindle-gui` never opens a window when started that way.

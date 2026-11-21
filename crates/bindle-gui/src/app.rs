@@ -9,5 +9,6 @@ pub mod ffi {
         fn bindle_set_window_icon(svg: &[u8]);
         fn bindle_has_window() -> bool;
         fn bindle_grab_window(path: &str) -> bool;
+        fn bindle_forward_to_running(window: &str) -> bool;
     }
 }

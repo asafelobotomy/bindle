@@ -70,6 +70,21 @@ fn main() {
     let mut app = QGuiApplication::new();
     app::ffi::bindle_describe_application(env!("CARGO_PKG_VERSION"));
     app::ffi::bindle_set_window_icon(include_bytes!("../../../branding/bindle.svg"));
+    // One update window and one Recovery window per session: a second click on uQ's bar icon
+    // (or a second `bindleup --gui`) brings the open one forward instead of opening another that
+    // could start a second transaction.
+    if arg("--screenshots").is_none() {
+        let window = if flag("--upgrade") {
+            Some("upgrade")
+        } else if flag("--recovery") {
+            Some("recovery")
+        } else {
+            None
+        };
+        if window.is_some_and(app::ffi::bindle_forward_to_running) {
+            std::process::exit(EXIT_APPLIED);
+        }
+    }
     let mut engine = QQmlApplicationEngine::new();
     if let Some(engine) = engine.as_mut() {
         let main = if flag("--upgrade") {
