@@ -2,7 +2,7 @@
 
 ## 0.1.35 — 2026-11-21
 
-- **uQbit, uQ's torrent app.** A new `uqbit` module (Downloads, from the AUR) runs qBittorrent's engine (qbittorrent-nox) in the background with a window that follows the uQ theme. It becomes the app for magnet links and .torrent files unless something other than qBittorrent already has them, and can sit beside the qBittorrent modules. What's new offers it on upgrade.
+- **uQbit, uQ's torrent app.** A new `uqbit` module (Downloads, from the AUR) runs qBittorrent Enhanced Edition's headless engine (qbittorrent-enhanced-nox, replacing a plain qbittorrent-nox) in the background with a window that follows the uQ theme; no qBittorrent window is installed. uQ pre-selects it in place of qBittorrent. It becomes the app for magnet links and .torrent files unless something other than qBittorrent already has them, and can sit beside the qBittorrent modules. What's new offers it on upgrade.
 
 ## 0.1.34 — 2026-11-21
 

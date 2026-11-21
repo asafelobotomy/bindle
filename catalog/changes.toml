@@ -98,4 +98,4 @@ why = "New in Bindle 0.1.30: reelo, uQ's own media player. It plays video, music
 [[added]]
 version = "0.1.35"
 modules = ["uqbit"]
-why = "New in Bindle 0.1.35: uQbit, uQ's own torrent app. It runs qBittorrent's engine in the background with a window that follows the uQ theme, and opens magnet links and .torrent files instead of the qBittorrent window."
+why = "New in Bindle 0.1.35: uQbit, uQ's own torrent app. It runs qBittorrent Enhanced Edition's headless engine in the background with a window that follows the uQ theme, and opens magnet links and .torrent files instead of the qBittorrent window."
