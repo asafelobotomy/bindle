@@ -211,9 +211,10 @@ notes = ["Builds from source, which takes a while."]
 id = "uqbit"
 group = "Downloads"
 name = "uQbit (torrents)"
-description = "Downloads and seeds torrents with qBittorrent Enhanced Edition's engine in the background (no qBittorrent window), in a window that follows the uQ theme; opens magnet links and .torrent files. By asafelobotomy."
+description = "Downloads and seeds torrents with qBittorrent Enhanced Edition's engine in the background (no qBittorrent window), in a window that follows the uQ theme; opens magnet links and .torrent files, searches with qBittorrent's search plugins, and keeps torrents private (encryption, a blocklist, optional VPN-only). By asafelobotomy."
 requires = ["aur-helper"]
 package_conflicts = ["qbittorrent-nox"]
+packages = ["python"]
 aur = ["qbittorrent-enhanced-nox", "uqbit"]
 notes = ["The engine (qbittorrent-enhanced-nox) builds from source, which takes a while."]
 [[module.user_commands]]
