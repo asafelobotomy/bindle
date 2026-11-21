@@ -183,7 +183,7 @@ impl cxx_qt::Initialize for Backend {
         self.as_mut().set_release_notes_json(QString::from(&due.to_string()));
 
         let path = theme::tokens_path();
-        self.as_mut().set_theme_json(json(&theme::load(path.as_ref())));
+        self.as_mut().set_theme_json(json(&theme::load(path.as_deref())));
         let qt = self.qt_thread();
         theme::watch(path, move |tokens| qt.queue(move |b| b.set_theme_json(QString::from(&tokens))).is_ok());
     }

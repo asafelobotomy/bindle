@@ -124,7 +124,7 @@ impl cxx_qt::Initialize for UpgradeBackend {
         let real = !self.screenshots() && self.sandbox_dir().is_none() && !self.rust().dry_run;
         self.as_mut().set_release_notes_json(qs(&crate::relnotes::due(real && updated)));
         let path = theme::tokens_path();
-        self.as_mut().set_theme_json(qs(&theme::load(path.as_ref())));
+        self.as_mut().set_theme_json(qs(&theme::load(path.as_deref())));
         let qt = self.qt_thread();
         theme::watch(path, move |tokens| qt.queue(move |b| b.set_theme_json(QString::from(&tokens))).is_ok());
     }

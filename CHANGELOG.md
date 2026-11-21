@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **The windows follow uQ's theme without polling.** Bindle, bindleUP and Recovery used to check uQ's theme file once a second; they now use uQ's shared uq-theme module (`crates/bindle-gui/src/uq_theme.rs`, uq-theme 1.0.0), which watches the file and also catches uQ swapping the whole theme folder.
+- AppStream metadata (`io.github.asafelobotomy.bindle.metainfo.xml`), so software centres show Bindle; the desktop entry lists one main category (`System;`).
+
 ## 0.1.33 — 2026-11-21
 
 - **One update window at a time.** Clicking uQ's Bindle bar icon again (or running `bindleup --gui` twice) opened a second update window that could start a second update while the first ran. A second start now brings the open update window forward; the Recovery window works the same way.
