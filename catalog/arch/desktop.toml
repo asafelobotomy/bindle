@@ -118,7 +118,7 @@ packages = ["github-cli", "jq", "lua", "shellcheck", "qt6-base", "qt6-declarativ
 argv = ["sh", "-ec", """
 mkdir -p "$HOME/Projects"
 failed=""
-for r in uq bindle bindaru noti-fi scdr crumbs appofholding scale_tail romforge hauler emobie oysterAV XZram reelo; do
+for r in uq bindle bindaru noti-fi scdr crumbs appofholding scale_tail romforge hauler emobie oysterAV XZram reelo uqview kyko AV-Morning-Star; do
   [ -d "$HOME/Projects/$r/.git" ] && continue
   git clone -q "https://github.com/asafelobotomy/$r.git" "$HOME/Projects/$r" || failed="$failed $r"
 done
@@ -131,7 +131,8 @@ unless = [
   { path = "~/Projects/scale_tail/.git/HEAD" }, { path = "~/Projects/romforge/.git/HEAD" },
   { path = "~/Projects/hauler/.git/HEAD" }, { path = "~/Projects/emobie/.git/HEAD" },
   { path = "~/Projects/oysterAV/.git/HEAD" }, { path = "~/Projects/XZram/.git/HEAD" },
-  { path = "~/Projects/reelo/.git/HEAD" },
+  { path = "~/Projects/reelo/.git/HEAD" }, { path = "~/Projects/uqview/.git/HEAD" },
+  { path = "~/Projects/kyko/.git/HEAD" }, { path = "~/Projects/AV-Morning-Star/.git/HEAD" },
 ]
 manual = { 3 = "some uQ repos could not be cloned (see above). Clone them into ~/Projects later; uq-dev uses whichever are there." }
 

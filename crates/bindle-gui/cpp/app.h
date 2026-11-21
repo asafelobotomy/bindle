@@ -14,3 +14,7 @@ void bindle_set_window_icon(rust::Slice<const std::uint8_t> svg);
 bool bindle_has_window();
 // Render the first visible Qt Quick window to a PNG (screenshot tests).
 bool bindle_grab_window(rust::Str path);
+// One update (or Recovery) window per session: true when one is already open (it has been
+// asked to come forward, so this start should exit); false when this start now owns it.
+// `window` names it ("upgrade", "recovery"). Call after the QGuiApplication exists.
+bool bindle_forward_to_running(rust::Str window);
