@@ -30,6 +30,9 @@ mod recovery;
 mod recovery_backend;
 mod relnotes;
 mod theme;
+#[allow(dead_code)] // vendored whole; this app uses part of it
+#[rustfmt::skip]
+mod uq_theme;
 mod upgrade;
 mod upgrade_backend;
 
