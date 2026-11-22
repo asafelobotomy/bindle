@@ -198,8 +198,17 @@ packages = ["fish"]
 id = "zsh"
 group = "Terminals & shells"
 name = "Zsh"
-description = "Z shell with extra completions. Installed only; switch with `chsh -s /usr/bin/zsh`."
-packages = ["zsh", "zsh-completions"]
+description = "Z shell with extra completions, suggestions as you type, syntax highlighting and history search on Up and Down (kyko turns these on when your .zshrc doesn't). Installed only; switch with `chsh -s /usr/bin/zsh`."
+packages = ["zsh", "zsh-completions", "zsh-autosuggestions", "zsh-syntax-highlighting", "zsh-history-substring-search"]
+
+[[module]]
+id = "fzf-tab"
+group = "Terminals & shells"
+name = "fzf-tab"
+description = "Zsh's completion menu as a fuzzy search with previews. kyko loads it when your .zshrc doesn't."
+requires = ["aur-helper", "zsh"]
+packages = ["fzf"]
+aur = ["fzf-tab"]
 
 [[module]]
 id = "docker"

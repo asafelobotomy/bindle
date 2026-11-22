@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.41 — 2026-11-22
+
+- **Zsh comes with its plugins.** The Zsh module now also installs zsh-autosuggestions, zsh-syntax-highlighting and zsh-history-substring-search, which kyko 1.1 loads (with a saved history, a completion menu and Up/Down history search) when your own .zshrc doesn't. A new optional **fzf-tab** module (Terminals & shells, from the AUR) turns zsh's completion menu into a fuzzy search with previews. What's new offers it to Zsh users.
+
 ## 0.1.40 — 2026-11-22
 
 - **A failed update step shows on uQ's Problems page.** When a bindleUP stage fails (the system packages, the AUR, Flatpak…), in a terminal, the update window or uQ Settings, bindleUP writes it to your journal as `BINDLE-004` under the name `bindle`. uQ 0.3.36 reads it there, so Settings › Problems and `uqctl log` list it, and `uqctl explain BINDLE-004` says what to do. Older uQ versions ignore it.
