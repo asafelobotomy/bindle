@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.36 — 2026-11-22
+
+- **Bindle, bindleUP and Recovery move like the desktop.** Hover and press colours fade in 100 ms instead of snapping, and fades, slides and toasts use uQ's shell speeds (100, 140 and 220 ms) with an ease-out curve instead of a mix of 100 to 200 ms and linear easing. The speeds are `Theme.motionFast`, `motionBase`, `motionSlow` and `Theme.easing`, matching uQ's `shell/core/Motion.qml`.
+
 ## 0.1.35 — 2026-11-21
 
 - **uQbit, uQ's torrent app.** A new `uqbit` module (Downloads, from the AUR) runs qBittorrent Enhanced Edition's headless engine (qbittorrent-enhanced-nox, replacing a plain qbittorrent-nox) in the background with a window that follows the uQ theme; no qBittorrent window is installed. uQ pre-selects it in place of qBittorrent. It becomes the app for magnet links and .torrent files unless something other than qBittorrent already has them, and can sit beside the qBittorrent modules. It also installs Python, which qBittorrent's search plugins need. What's new offers it on upgrade.

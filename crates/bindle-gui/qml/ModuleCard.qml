@@ -55,7 +55,7 @@ QQC2.AbstractButton {
         border.width: card.selected ? 2 : 1
         Behavior on color {
             ColorAnimation {
-                duration: 120
+                duration: Theme.motionFast
             }
         }
     }
@@ -94,6 +94,7 @@ QQC2.AbstractButton {
             background: Rectangle {
                 radius: Theme.radius
                 color: more.hovered || card.current ? Theme.overlay : "transparent"
+                Behavior on color { ColorAnimation { duration: Theme.motionFast } }
             }
             contentItem: QQC2.Label {
                 text: card.current ? "▴" : "▾"
@@ -162,6 +163,7 @@ QQC2.AbstractButton {
             background: Rectangle {
                 radius: Theme.radius
                 color: moreRow.hovered || card.current ? Theme.overlay : "transparent"
+                Behavior on color { ColorAnimation { duration: Theme.motionFast } }
             }
             contentItem: QQC2.Label {
                 text: card.current ? "▴" : "▾"

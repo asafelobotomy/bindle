@@ -149,6 +149,7 @@ ColumnLayout {
                 background: Rectangle {
                     radius: Theme.radius
                     color: act.hovered && act.enabled ? Theme.surfaceAlt : Theme.surface
+                    Behavior on color { ColorAnimation { duration: Theme.motionFast } }
                     border.color: Theme.border
                 }
                 contentItem: ColumnLayout {

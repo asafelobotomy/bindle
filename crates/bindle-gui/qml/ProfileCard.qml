@@ -28,7 +28,7 @@ QQC2.AbstractButton {
         border.width: card.active ? 2 : 1
         Behavior on color {
             ColorAnimation {
-                duration: 120
+                duration: Theme.motionFast
             }
         }
     }
