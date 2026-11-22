@@ -83,7 +83,7 @@ impl BootView {
 pub fn run(plans: Vec<StagePlan>, after: &mut Closing, opts: &RunOpts, ui: &mut dyn Ui) -> Vec<StageResult> {
     let log = format!("/var/log/bindle/upgrade-{}.log", sys::now_id());
     let session = Session::new(log, opts.dry_run, opts.sandbox.clone(), &opts.launch);
-    let mut ex = Exec { opts, ui, session, blocked: BTreeMap::new(), updated: vec![] };
+    let mut ex = Exec { opts, ui, session, blocked: BTreeMap::new(), updated: vec![], run_snapshot: false };
     let total = Stage::ALL.len();
     let mut results: Vec<StageResult> = vec![];
     let rehearsal = opts.dry_run || opts.sandbox.is_some();
@@ -134,6 +134,12 @@ pub fn run(plans: Vec<StagePlan>, after: &mut Closing, opts: &RunOpts, ui: &mut 
         let rest: Vec<StagePlan> = after(&updated, boot).into_iter().filter(|p| p.stage != Stage::Rebuild).collect();
         closing = rest.into_iter();
     }
+    if ex.run_snapshot {
+        // After everything, orphans and rebuilds included (the helper would also take it on quitting).
+        if let Err(e) = ex.root(bindle_run::protocol::Request::RunSnapshotPost) {
+            ex.ui.line(&format!("✗ the snapshot after the run: {e:#}"));
+        }
+    }
     ex.session.quit();
     results
 }
@@ -168,6 +174,8 @@ struct Exec<'a> {
     blocked: BTreeMap<Stage, String>,
     /// Packages upgraded so far.
     updated: Vec<String>,
+    /// The run's "pre" snapshot was taken: take its "post" at the end.
+    run_snapshot: bool,
 }
 
 impl Exec<'_> {

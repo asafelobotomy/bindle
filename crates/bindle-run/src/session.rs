@@ -58,6 +58,10 @@ impl<'a> Session<'a> {
             let shown = match req {
                 Request::Run { step: Step::RunAsRoot { argv, .. } } => sys::shell_words(argv),
                 Request::Interactive { argv, .. } => format!("{} (on this terminal)", sys::shell_words(argv)),
+                Request::RunSnapshotPre => {
+                    "snapper -c root create -t pre -d bindleup (snap-pac waits until the run ends)".into()
+                }
+                Request::RunSnapshotPost => "snapper -c root create -t post -d bindleup (the run's pair)".into(),
                 other => format!("{other:?}"),
             };
             line(&format!("would run as root: {shown}"));
