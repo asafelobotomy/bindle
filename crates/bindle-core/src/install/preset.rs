@@ -227,7 +227,7 @@ mod tests {
         let data = desktops::all().unwrap();
         let pick = |d: Option<&str>| IsoChoice { desktop: d.map(String::from), profile: "desktop".into() };
         let sel = first_login_selection(&data, &pick(Some("uq")));
-        let include = ["uq", "scdr", "crumbs", "noti-fi", "uqview", "text-editor", "marknote", "reelo"]
+        let include = ["uq", "scdr", "crumbs", "noti-fi", "uqview", "text-editor", "marknote", "reelo", "uqbit"]
             .map(String::from)
             .to_vec();
         assert_eq!((sel.profile.as_deref(), sel.include), (Some("desktop"), include));
