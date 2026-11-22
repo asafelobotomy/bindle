@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.39 — 2026-11-22
+
+- **One source for uQ's shared values.** Bindle now vendors uQ's uq-consts 1.0.0: the window's `Theme` is uQ's `UqThemeBase.qml` (same colours, shape, type and motion as every uQ app, with Bindle's desktop-palette fallbacks off uQ), and bindle's uQ settings page and widget folders come from `uq_consts.rs`, with a test that they match. uq-theme moves to 1.1.0, so tokens' `motion` block (uQ's Reduce motion setting) is honoured. CI checks every vendored kit with uQ's single `scripts/check-uq-native.sh` and `uq/native.toml`, replacing the two separate check scripts.
+
 ## 0.1.38 — 2026-11-22
 
 - **Bindle's problems show in uQ.** Bindle now uses uQ's shared uq-diag module (`crates/bindle-core/src/uq_diag.rs`, uq-diag 1.0.1). A crash of `bindle`, bindleUP or the Bindle window leaves a crash record that uQ 0.3.35 lists on Settings › Problems with a report to copy. Bindle's warnings and errors have codes (`BINDLE-001` the window couldn't open, `BINDLE-002` a background task such as the daily update check failed, `BINDLE-003` a setting in upgrade.toml was ignored), explained in plain words by `uqctl explain` and the Problems page from `/usr/share/uq/diag/bindle.toml`. Under systemd (the update-check timer) Bindle writes uQ's log format so the journal files warnings as warnings; in a terminal its messages are unchanged. CI checks the vendored copy matches the release, and a test keeps the codes and the list in step.

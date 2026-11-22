@@ -4,6 +4,7 @@ fn main() {
     let builder = CxxQtBuilder::new_qml_module(QmlModule::new("org.bindle.wizard").qml_files([
         QmlFile::from("qml/Main.qml"),
         QmlFile::from("qml/Theme.qml").singleton(true),
+        QmlFile::from("qml/UqThemeBase.qml"),
         QmlFile::from("qml/Panel.qml"),
         QmlFile::from("qml/Pill.qml"),
         QmlFile::from("qml/ActionButton.qml"),

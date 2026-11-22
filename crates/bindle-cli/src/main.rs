@@ -28,6 +28,8 @@ mod updates_cmd;
 mod upgrade_cmd;
 mod upgrade_select;
 mod upgrade_stream;
+#[rustfmt::skip]
+mod uq_consts; // uQ's native/uq-consts, vendored unchanged
 mod uq_handoff;
 mod welcome;
 mod whatsnew_cmd;
