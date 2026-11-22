@@ -2,7 +2,7 @@
 
 ## 0.1.38 — 2026-11-22
 
-- **Bindle's problems show in uQ.** Bindle now uses uQ's shared uq-diag module (`crates/bindle-core/src/uq_diag.rs`, uq-diag 1.0.0). A crash of `bindle`, bindleUP or the Bindle window leaves a crash record that uQ 0.3.35 lists on Settings › Problems with a report to copy. Bindle's warnings and errors have codes (`BINDLE-001` the window couldn't open, `BINDLE-002` a background task such as the daily update check failed, `BINDLE-003` a setting in upgrade.toml was ignored), explained in plain words by `uqctl explain` and the Problems page from `/usr/share/uq/diag/bindle.toml`. Under systemd (the update-check timer) Bindle writes uQ's log format so the journal files warnings as warnings; in a terminal its messages are unchanged. CI checks the vendored copy matches the release, and a test keeps the codes and the list in step.
+- **Bindle's problems show in uQ.** Bindle now uses uQ's shared uq-diag module (`crates/bindle-core/src/uq_diag.rs`, uq-diag 1.0.1). A crash of `bindle`, bindleUP or the Bindle window leaves a crash record that uQ 0.3.35 lists on Settings › Problems with a report to copy. Bindle's warnings and errors have codes (`BINDLE-001` the window couldn't open, `BINDLE-002` a background task such as the daily update check failed, `BINDLE-003` a setting in upgrade.toml was ignored), explained in plain words by `uqctl explain` and the Problems page from `/usr/share/uq/diag/bindle.toml`. Under systemd (the update-check timer) Bindle writes uQ's log format so the journal files warnings as warnings; in a terminal its messages are unchanged. CI checks the vendored copy matches the release, and a test keeps the codes and the list in step.
 
 ## 0.1.37 — 2026-11-22
 

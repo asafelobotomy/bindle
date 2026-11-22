@@ -23,7 +23,7 @@ jobs:
       # the vendored uq-theme (uQ's native/uq-theme) is exactly the pinned release
       - run: scripts/check-uq-theme.sh 1.0.0 crates/bindle-gui/src/uq_theme.rs
       # the vendored uq-diag (uQ's native/uq-diag) likewise
-      - run: scripts/check-uq-diag.sh 1.0.0 crates/bindle-core/src/uq_diag.rs
+      - run: scripts/check-uq-diag.sh 1.0.1 crates/bindle-core/src/uq_diag.rs
       - run: cargo fmt --check
       - run: cargo deny --locked check
       - run: cargo clippy --all-targets --locked -- -D warnings
