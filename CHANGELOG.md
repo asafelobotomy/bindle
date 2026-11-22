@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.40 — 2026-11-22
+
+- **A failed update step shows on uQ's Problems page.** When a bindleUP stage fails (the system packages, the AUR, Flatpak…), in a terminal, the update window or uQ Settings, bindleUP writes it to your journal as `BINDLE-004` under the name `bindle`. uQ 0.3.36 reads it there, so Settings › Problems and `uqctl log` list it, and `uqctl explain BINDLE-004` says what to do. Older uQ versions ignore it.
+
 ## 0.1.39 — 2026-11-22
 
 - **bindleUP stops rebuilding the same AUR packages on every run.** rebuild-detector flags a package when one of its files links a library that isn't there; for a package that ships prebuilt files (codeql, nvidia-580xx-utils with its optional GTK 2 panel) a rebuild changes nothing, so every bindleUP run rebuilt them again, and rebuilding the driver package regenerated the boot images each time. After the Rebuilds stage bindleUP now looks again and remembers each package the rebuild didn't clear, at that version (`~/.local/state/bindle/rebuild-stuck.json`). That version isn't rebuilt again; it is listed under Rebuilds instead, with `checkrebuild -v` to see why. A new version of the package is tried again.

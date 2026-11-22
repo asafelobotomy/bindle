@@ -53,7 +53,7 @@ the upgrade rather than upgrading without one. `--yes` skips the list and takes 
 
 Each stage prints `==> [n/N] Title: summary` and its details (up to 12
 lines). The run ends with one row per stage: done, current, note, skipped,
-held or failed. Exit status 1 when a stage failed.
+held or failed. Exit status 1 when a stage failed. Each failed stage is also written to the user journal as `bindle: [BINDLE-004] bindleUP: <stage> failed: …` (`systemd-cat -t bindle`), from the terminal, the window and uQ Settings alike, which uQ's Settings › Problems reads (uQ 0.3.36+, through `identifiers` in `uq/diag/bindle.toml`).
 
 ## Preferences
 
