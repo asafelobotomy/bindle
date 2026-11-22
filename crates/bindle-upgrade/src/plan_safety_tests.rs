@@ -120,8 +120,8 @@ fn after() -> After {
 fn broken_aur_packages_are_rebuilt() {
     let now = After {
         rebuild: Some(vec![
-            Rebuild { repo: "foreign".into(), name: "python-foo".into() },
-            Rebuild { repo: "extra".into(), name: "bar".into() },
+            Rebuild { repo: "foreign".into(), name: "python-foo".into(), version: "1.0-1".into() },
+            Rebuild { repo: "extra".into(), name: "bar".into(), ..Default::default() },
         ]),
         ..after()
     };
@@ -141,6 +141,36 @@ fn broken_aur_packages_are_rebuilt() {
     assert_eq!(check.summary, "1 AUR package needs a rebuild (python-foo): paru rebuilds them after the upgrade");
     let missing = &after_plans(&after(), &after(), &["python".into()], &Options::default(), false)[0];
     assert!(missing.summary.starts_with("install rebuild-detector"));
+}
+
+#[test]
+fn a_package_a_rebuild_did_not_clear_is_not_rebuilt_every_run() {
+    // solon64, 2026-11-22: codeql and nvidia-580xx-utils were rebuilt on every run (the driver's
+    // rebuild regenerating the UKI each time), and checkrebuild still flagged both right after.
+    let flagged = vec![
+        Rebuild { repo: "foreign".into(), name: "codeql".into(), version: "2.27.3-1".into() },
+        Rebuild { repo: "foreign".into(), name: "nvidia-580xx-utils".into(), version: "580.196.07-1".into() },
+    ];
+    let stuck = crate::rebuild_state::Stuck::from([
+        ("codeql".into(), "2.27.3-1".into()),
+        ("nvidia-580xx-utils".into(), "580.196.07-1".into()),
+    ]);
+    let now = After { rebuild: Some(flagged.clone()), rebuild_stuck: stuck.clone(), ..after() };
+    let r = &after_plans(&now, &now, &["harfbuzz".into()], &Options::default(), false)[0];
+    assert_eq!(r.todo, Todo::Nothing, "{r:?}");
+    assert!(r.summary.starts_with("nothing new needs a rebuild"));
+    assert!(r.details.iter().all(|d| d.contains("still flagged after Bindle rebuilt it")));
+    // A new version of one is tried again; the other stays out.
+    let mut newer = flagged;
+    newer[0].version = "2.28.0-1".into();
+    let now = After { rebuild: Some(newer), rebuild_stuck: stuck, ..after() };
+    let r = &after_plans(&now, &now, &[], &Options::default(), false)[0];
+    assert!(
+        matches!(&r.todo, Todo::Run(a) if a == &[Action::UserElevated(
+            ["paru", "-S", "--rebuild", "--", "codeql"].map(String::from).to_vec()
+        )]),
+        "{r:?}"
+    );
 }
 
 #[test]

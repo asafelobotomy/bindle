@@ -66,13 +66,16 @@ pub enum Action {
     SelfUpdate { tag: String, location: Location },
     /// `uqctl setup --apps --json` as the user, reporting each file.
     UqSetup,
+    /// snapper's "pre" snapshot of / for the whole run (the helper takes the
+    /// "post" when the run ends), with snap-pac's own snapshots paused.
+    RunSnapshot,
 }
 
 impl Action {
     /// Runs through the root helper, so the run asks for the password.
     pub fn needs_root(&self) -> bool {
         match self {
-            Action::Root(_) | Action::RootTerminal(_) | Action::UserElevated(_) => true,
+            Action::Root(_) | Action::RootTerminal(_) | Action::UserElevated(_) | Action::RunSnapshot => true,
             Action::Releases(assets) => {
                 assets.iter().any(|r| r.kind() == Some(bindle_core::catalog::AssetKind::Package))
             }
@@ -274,13 +277,14 @@ fn snapshot(p: &Probe, upgrading: bool) -> StagePlan {
     let s = Stage::Snapshot;
     if !p.snapper_root {
         StagePlan::new(s, Todo::Skip("snapper isn't set up for /".into()), "snapper isn't set up for /")
-    } else if p.snap_pac {
-        StagePlan::new(s, Todo::Skip("snap-pac does it".into()), "snap-pac snapshots every pacman run")
     } else if !upgrading {
         StagePlan::new(s, Todo::Nothing, "no package upgrades")
+    } else if p.snap_pac {
+        // One restore point for the run instead of a pair per pacman call (each AUR install too).
+        StagePlan::new(s, Todo::Run(vec![Action::RunSnapshot]), "one snapshot pair of / for the whole run")
+            .details(vec!["snap-pac's own snapshots wait until the run ends".into()])
     } else {
-        let argv = ["snapper", "-c", "root", "create", "--description", "bindleup", "--cleanup-algorithm", "number"];
-        StagePlan::new(s, Todo::Run(vec![root(&argv)]), "snapshot of / before upgrading")
+        StagePlan::new(s, Todo::Run(vec![Action::RunSnapshot]), "snapshot of / before and after the run")
     }
 }
 

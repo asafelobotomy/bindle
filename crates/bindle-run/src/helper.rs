@@ -28,7 +28,9 @@ const LOG_DIR: &str = "/var/log/bindle/";
 
 pub mod recover;
 mod restore;
+mod run_snapshot;
 mod stage;
+mod undo;
 
 pub struct HelperOpts {
     pub root: PathBuf,
@@ -43,6 +45,8 @@ struct Helper {
     out: Box<dyn Write>,
     /// Snapshot of this session, for files that appear after it was taken.
     snapshot: Option<String>,
+    /// bindleUP's "pre" snapper snapshot, until its "post" is taken.
+    run_pre: Option<u32>,
 }
 
 pub fn serve(opts: HelperOpts) -> Result<()> {
@@ -61,7 +65,7 @@ pub fn serve(opts: HelperOpts) -> Result<()> {
     // Never follow a symlink planted at the log path.
     let log = OpenOptions::new().create(true).append(true).mode(0o600).custom_flags(libc::O_NOFOLLOW).open(&log_path);
     let log_error = log.as_ref().err().map(|e| format!("warning: no log at {}: {e}", log_path.display()));
-    let mut h = Helper { opts, log: log.ok(), out: Box::new(io::stdout()), snapshot: None };
+    let mut h = Helper { opts, log: log.ok(), out: Box::new(io::stdout()), snapshot: None, run_pre: None };
     h.emit(&Event::Hello { version: VERSION.into() });
     if let Some(warning) = log_error {
         h.emit(&Event::Output { line: warning });
@@ -88,6 +92,7 @@ pub fn serve(opts: HelperOpts) -> Result<()> {
             }
         }
     }
+    h.close_run_snapshot();
     Ok(())
 }
 
@@ -186,42 +191,7 @@ impl Helper {
                 let _ = fs::remove_dir_all(host(self.root(), STAGING));
                 result.map(|()| None)
             }
-            Request::Restore { id, force } => {
-                let m = snapshot::load(self.root(), &id)?;
-                let report = snapshot::restore_files(self.root(), &m, force);
-                for line in report.done.iter().chain(&report.kept) {
-                    self.output(line);
-                }
-                if !report.kept.is_empty() {
-                    self.output(&format!("to put the originals back anyway: bindle undo --force {id}"));
-                }
-                let mut errors = report.errors;
-                // systemd made mount units from the fstab that was just put back.
-                if m.files.iter().any(|f| f.path == fstab::PATH)
-                    && let Err(e) = self.cmd(&["systemctl", "daemon-reload"])
-                {
-                    errors.push(format!("reload systemd: {e:#}"));
-                }
-                if !m.units.is_empty() {
-                    let units = m.units.clone();
-                    let disabled = check_names(&units).and_then(|()| {
-                        let mut argv: Vec<String> = ["systemctl", "disable", "--now", "--"].map(String::from).into();
-                        argv.extend(units);
-                        self.cmd_owned(&argv)
-                    });
-                    if let Err(e) = disabled {
-                        errors.push(format!("disable units: {e:#}"));
-                    }
-                }
-                if !errors.is_empty() {
-                    for e in &errors {
-                        self.output(&format!("not restored: {e}"));
-                    }
-                    bail!("snapshot {id}: {} item(s) could not be restored (listed above)", errors.len());
-                }
-                snapshot::mark_undone(self.root(), &id)?;
-                crate::record::on_undone(self.root(), &id).map(|()| None)
-            }
+            Request::Restore { id, force } => self.restore_snapshot(&id, force).map(|()| None),
             Request::Interactive { argv, tty } => {
                 self.log_line(&format!("$ {}  (on {tty})", shell_words(&argv)));
                 let fake = self.opts.fake_commands;
@@ -258,6 +228,8 @@ impl Helper {
                 snapshot::mark_complete(self.root(), &id)?;
                 crate::record::on_complete(self.root(), &snapshot::load(self.root(), &id)?).map(|()| None)
             }
+            Request::RunSnapshotPre => self.run_snapshot_pre().map(|_| None),
+            Request::RunSnapshotPost => self.run_snapshot_post().map(|()| None),
             Request::Quit => Ok(None),
         }
     }

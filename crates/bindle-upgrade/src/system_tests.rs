@@ -55,7 +55,7 @@ fn failed_unit_names() {
 #[test]
 fn rebuild_detector_lines() {
     let r = checkrebuild("foreign\tpython-foo\nextra\tbar\n");
-    assert_eq!(r[0], Rebuild { repo: "foreign".into(), name: "python-foo".into() });
+    assert_eq!(r[0], Rebuild { repo: "foreign".into(), name: "python-foo".into(), version: String::new() });
     assert_eq!(r[1].repo, "extra");
 }
 

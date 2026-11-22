@@ -128,11 +128,13 @@ pub fn failed_units(text: &str) -> Vec<String> {
 }
 
 /// A package `checkrebuild` (rebuild-detector) says needs a rebuild.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
 pub struct Rebuild {
     /// `foreign` (AUR, built here) or the repo it came from.
     pub repo: String,
     pub name: String,
+    /// The installed version (`pacman -Q`); empty when unknown.
+    pub version: String,
 }
 
 /// `foreign\tpython-foo` lines.
@@ -141,7 +143,17 @@ pub fn checkrebuild(text: &str) -> Vec<Rebuild> {
         .filter_map(|l| {
             let mut w = l.split_whitespace();
             let (repo, name) = (w.next()?, w.next()?);
-            Some(Rebuild { repo: repo.into(), name: name.into() })
+            Some(Rebuild { repo: repo.into(), name: name.into(), version: String::new() })
+        })
+        .collect()
+}
+
+/// `pacman -Q` output: name → version.
+pub fn pacman_q(text: &str) -> std::collections::BTreeMap<String, String> {
+    text.lines()
+        .filter_map(|l| {
+            let mut w = l.split_whitespace();
+            Some((w.next()?.to_string(), w.next()?.to_string()))
         })
         .collect()
 }

@@ -23,6 +23,7 @@ fn shown(a: &Action) -> String {
         Action::Optional { question, action, .. } => format!("{question} {}", shown(action)),
         Action::SelfUpdate { tag, .. } => format!("self-update: {tag}"),
         Action::UqSetup => "uq setup".into(),
+        Action::RunSnapshot => "run snapshot".into(),
     }
 }
 
@@ -135,9 +136,13 @@ fn unreadable_news_is_reported_not_fatal() {
 #[test]
 fn snapshots_only_with_snapper_and_upgrades() {
     let mut p = Probe { snapper_root: true, pacman: Ok(vec![up("a")]), ..Default::default() };
-    assert!(argvs(get(&plan(&p, &Options::default()), Stage::Snapshot))[0].starts_with("root: snapper -c root create"));
+    assert_eq!(argvs(get(&plan(&p, &Options::default()), Stage::Snapshot)), ["run snapshot"]);
+    // With snap-pac too: one pair for the run (snap-pac waits), not one per pacman call.
     p.snap_pac = true;
-    assert!(matches!(get(&plan(&p, &Options::default()), Stage::Snapshot).todo, Todo::Skip(_)));
+    let plans = plan(&p, &Options::default());
+    let s = get(&plans, Stage::Snapshot);
+    assert_eq!(argvs(s), ["run snapshot"]);
+    assert_eq!(s.summary, "one snapshot pair of / for the whole run");
     p.snap_pac = false;
     p.pacman = Ok(vec![]);
     assert_eq!(get(&plan(&p, &Options::default()), Stage::Snapshot).todo, Todo::Nothing);

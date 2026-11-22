@@ -28,6 +28,11 @@ impl Exec<'_> {
                 done
             }
             Action::User(argv) => self.user(argv),
+            Action::RunSnapshot => {
+                self.root(Request::RunSnapshotPre)?;
+                self.run_snapshot = true;
+                Ok(())
+            }
             Action::UserElevated(argv) => {
                 let ui = &mut *self.ui;
                 self.session.user_elevated(argv, self.opts.tty.as_deref(), &mut |l| ui.line(l))
