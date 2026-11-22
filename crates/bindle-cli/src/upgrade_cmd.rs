@@ -89,7 +89,13 @@ pub fn main(mut a: UpgradeArgs) -> Result<()> {
     validate(&a)?;
     // Nobody is there to answer: take the default answers, as --yes does.
     a.yes |= a.ndjson;
-    let prefs = prefs::load(&mut |w| eprintln!("bindleup: {w}"));
+    let prefs = prefs::load(&mut |w| {
+        if crate::diag::journal() {
+            tracing::warn!("[BINDLE-003] {w}");
+        } else {
+            eprintln!("bindleup: {w}");
+        }
+    });
     if a.prefs {
         print!("{}", prefs.to_toml());
         return Ok(());

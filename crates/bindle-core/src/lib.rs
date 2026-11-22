@@ -15,6 +15,9 @@ pub mod recover;
 pub mod relnotes;
 pub mod restart;
 pub mod uki;
+// uQ's log format and crash records (uQ's native/uq-diag; don't edit, copy a new release over).
+#[rustfmt::skip]
+pub mod uq_diag;
 pub mod whatsnew;
 
 pub use catalog::Catalog;

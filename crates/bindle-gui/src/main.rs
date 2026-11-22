@@ -55,6 +55,7 @@ fn main() {
     if args.first().is_some_and(|a| a == "elev-shim") {
         std::process::exit(bindle_run::bridge::shim(&args[1..]));
     }
+    bindle_core::uq_diag::init("bindle-gui", "warn");
     if arg("--screenshots").is_some() && std::env::var_os("QT_QPA_PLATFORM").is_none() {
         // SAFETY: single-threaded here, before Qt or any other thread starts.
         unsafe { std::env::set_var("QT_QPA_PLATFORM", "offscreen") };
@@ -100,7 +101,7 @@ fn main() {
         engine.load(&QUrl::from(&format!("qrc:/qt/qml/org/bindle/wizard/qml/{main}.qml")));
     }
     if !app::ffi::bindle_has_window() {
-        eprintln!("bindle-gui: the window couldn't be created (is Kirigami installed?)");
+        tracing::error!("[BINDLE-001] the window couldn't be created (is Kirigami installed?)");
         std::process::exit(EXIT_NO_WINDOW);
     }
     if let Some(app) = app.as_mut() {

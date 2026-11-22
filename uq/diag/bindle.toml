@@ -1,0 +1,26 @@
+# Bindle's problem codes for uQ (`uqctl log`, `uqctl explain`, Settings › Problems). Installed as
+# /usr/share/uq/diag/bindle.toml. A code never changes meaning: set `retired = true` on one nothing
+# logs any more, and give a new problem the next number.
+app = "Bindle"
+units = ["bindle-update-check.service", "bindle-first-login.service"]
+
+[[code]]
+id = "BINDLE-001"
+severity = "error"
+title = "Bindle's window couldn't open"
+means = "Bindle started but couldn't make its window, usually because Kirigami (the toolkit its window is built with) isn't installed or is broken."
+fix = "Install kirigami (sudo pacman -S kirigami), then open Bindle again. `bindle` in a terminal still works without it."
+
+[[code]]
+id = "BINDLE-002"
+severity = "warn"
+title = "A Bindle task in the background failed"
+means = "Something Bindle runs on its own, such as the daily update check, stopped with an error. Nothing was changed; it tries again next time."
+fix = "Run `bindleup --check` in a terminal to see the problem in full. Most often the network or a mirror was down."
+
+[[code]]
+id = "BINDLE-003"
+severity = "warn"
+title = "A setting in upgrade.toml was ignored"
+means = "bindleUP found a value in ~/.config/bindle/upgrade.toml it doesn't understand and used the default for it instead."
+fix = "Run `bindle config show` to see what is in use, and `bindle config reset KEY` to go back to the default."

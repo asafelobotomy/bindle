@@ -3,6 +3,7 @@ mod archinstall_version;
 mod bindo_cmd;
 mod carry_network;
 mod config_cmd;
+mod diag;
 mod firstlogin;
 mod firstlogin_cmd;
 mod gui;
@@ -252,6 +253,10 @@ pub(crate) use apply::wizard;
 use apply::{SYSTEM_SELECTION, apply_selection, read_current};
 
 fn main() -> Result<()> {
+    diag::main(run)
+}
+
+fn run() -> Result<()> {
     print::quiet_broken_pipe();
     let Some(argv) = bindo_cmd::route()? else { return Ok(()) };
     let cli = Cli::parse_from(argv);
@@ -295,7 +300,7 @@ fn main() -> Result<()> {
             if !std::io::stdout().is_terminal() {
                 bail!("the wizard needs a terminal; try `bindle plan --help`");
             }
-            warn_distro(&facts);
+            diag::warn_distro(&facts);
             whatsnew_cmd::first_run(&catalog, &facts, sandbox.clone());
             wizard(&catalog, &facts, sandbox).map(drop)
         }
@@ -355,7 +360,7 @@ fn main() -> Result<()> {
         }
         Cmd::Status { json } => status::run(&catalog, &facts, json, std::path::Path::new(SYSTEM_SELECTION)),
         Cmd::Plan { sel, json } => {
-            warn_distro(&facts);
+            diag::warn_distro(&facts);
             // Preview what an interactive apply would do.
             let sel = Selection { replace_conflicts: true, ..sel.resolve()? };
             let p = plan::resolve(&catalog, &facts, &sel, &read_current)?;
@@ -367,7 +372,7 @@ fn main() -> Result<()> {
             Ok(())
         }
         Cmd::Apply { sel, yes, sandbox, defer_user } => {
-            warn_distro(&facts);
+            diag::warn_distro(&facts);
             let mut sel = sel.resolve()?;
             // Interactive: the confirmation shows what gets replaced.
             sel.replace_conflicts |= !yes;
@@ -389,11 +394,5 @@ fn main() -> Result<()> {
         | Cmd::FirstLogin { .. } => {
             unreachable!("handled above")
         }
-    }
-}
-
-fn warn_distro(facts: &Facts) {
-    if !facts.is_arch_family() {
-        eprintln!("warning: Bindle currently targets Arch Linux; detected `{}`. Plans may be wrong.", facts.distro_id);
     }
 }
