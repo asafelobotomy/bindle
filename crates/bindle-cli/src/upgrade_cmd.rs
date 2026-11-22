@@ -191,6 +191,7 @@ pub fn main(mut a: UpgradeArgs) -> Result<()> {
     let results = run(plans, &mut after, &run_opts, ui);
     if !rehearsal {
         bindle_upgrade::status::clear();
+        bindle_upgrade::report::log_problems(&results);
     }
     if a.ndjson {
         results.iter().for_each(upgrade_stream::result_event);
