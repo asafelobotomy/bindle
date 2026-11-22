@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.39 — 2026-11-22
+
+- **bindleUP stops rebuilding the same AUR packages on every run.** rebuild-detector flags a package when one of its files links a library that isn't there; for a package that ships prebuilt files (codeql, nvidia-580xx-utils with its optional GTK 2 panel) a rebuild changes nothing, so every bindleUP run rebuilt them again, and rebuilding the driver package regenerated the boot images each time. After the Rebuilds stage bindleUP now looks again and remembers each package the rebuild didn't clear, at that version (`~/.local/state/bindle/rebuild-stuck.json`). That version isn't rebuilt again; it is listed under Rebuilds instead, with `checkrebuild -v` to see why. A new version of the package is tried again.
+- **The last checks see what the rebuilds changed.** After rebuilds ran, uQ, config files, orphans, services and Reboot are planned again from a fresh look, so a rebuilt DKMS module or a regenerated boot image is checked before Reboot says whether restarting is safe.
+
 ## 0.1.38 — 2026-11-22
 
 - **Bindle's problems show in uQ.** Bindle now uses uQ's shared uq-diag module (`crates/bindle-core/src/uq_diag.rs`, uq-diag 1.0.1). A crash of `bindle`, bindleUP or the Bindle window leaves a crash record that uQ 0.3.35 lists on Settings › Problems with a report to copy. Bindle's warnings and errors have codes (`BINDLE-001` the window couldn't open, `BINDLE-002` a background task such as the daily update check failed, `BINDLE-003` a setting in upgrade.toml was ignored), explained in plain words by `uqctl explain` and the Problems page from `/usr/share/uq/diag/bindle.toml`. Under systemd (the update-check timer) Bindle writes uQ's log format so the journal files warnings as warnings; in a terminal its messages are unchanged. CI checks the vendored copy matches the release, and a test keeps the codes and the list in step.

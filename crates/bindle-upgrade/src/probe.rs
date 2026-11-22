@@ -95,6 +95,8 @@ pub struct After {
     pub failed: Vec<String>,
     /// `checkrebuild`; None when rebuild-detector isn't installed.
     pub rebuild: Option<Vec<Rebuild>>,
+    /// Packages a rebuild didn't clear, at that version (`rebuild_state`).
+    pub rebuild_stuck: crate::rebuild_state::Stuck,
     pub aur_helper: Option<String>,
     pub uq: bool,
     /// greetd (uQ's login screen) is the display manager.
@@ -154,6 +156,11 @@ pub fn today() -> i64 {
     (secs / 86_400) as i64
 }
 
+/// `checkrebuild` now, with versions; None without rebuild-detector.
+pub fn rebuild_now() -> Option<Vec<Rebuild>> {
+    look::rebuild()
+}
+
 /// Leftovers and the kernel, looked at before and again after upgrading
 /// (the slower looks side by side).
 pub fn after() -> After {
@@ -192,6 +199,7 @@ pub fn after() -> After {
         boot: look::boot(),
         failed: failed.unwrap_or_default(),
         rebuild: rebuild.flatten(),
+        rebuild_stuck: crate::rebuild_state::load(),
         aur_helper: ["paru", "yay"].into_iter().find(|h| on_path(h)).map(String::from),
         uq: on_path("uqctl"),
         greeter: look::greeter(),
