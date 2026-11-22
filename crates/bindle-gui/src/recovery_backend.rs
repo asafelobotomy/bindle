@@ -88,7 +88,7 @@ impl cxx_qt::Initialize for RecoveryBackend {
         self.as_mut().set_run_json(qs(&json!(RunState { state: "idle".into(), ..Default::default() })));
         self.as_mut().refresh();
         let path = theme::tokens_path();
-        self.as_mut().set_theme_json(qs(&theme::load(path.as_ref())));
+        self.as_mut().set_theme_json(qs(&theme::load(path.as_deref())));
         let qt = self.qt_thread();
         theme::watch(path, move |tokens| qt.queue(move |b| b.set_theme_json(QString::from(&tokens))).is_ok());
     }

@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- AppStream metadata: what software centres (GNOME Software, Discover, bindaru) show for the app. -->
+<component type="desktop-application">
+  <id>io.github.asafelobotomy.bindle</id>
+  <name>Bindle</name>
+  <summary>Set up and optimise this system</summary>
+  <description>
+    <p>Bindle sets up a fresh Arch-based install the way you want it: it picks drivers, apps and tweaks for your hardware, installs them in one go, and keeps them up to date.</p>
+    <p>bindleUP checks for updates, runs them in one window and can roll back to a snapshot from Recovery when an update goes wrong.</p>
+  </description>
+  <launchable type="desktop-id">bindle.desktop</launchable>
+  <icon type="stock">bindle</icon>
+  <url type="homepage">https://github.com/asafelobotomy/bindle</url>
+  <url type="bugtracker">https://github.com/asafelobotomy/bindle/issues</url>
+  <developer id="io.github.asafelobotomy">
+    <name>asafelobotomy</name>
+  </developer>
+  <categories>
+    <category>System</category>
+  </categories>
+  <keywords>
+    <keyword>setup</keyword>
+    <keyword>install</keyword>
+    <keyword>update</keyword>
+    <keyword>drivers</keyword>
+    <keyword>snapshot</keyword>
+  </keywords>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="0.1.36" date="2026-11-22">
+      <description><p>Hovers, fades and slides move at the same speeds and curve as the uQ desktop.</p></description>
+    </release>
+    <release version="0.1.35" date="2026-11-21">
+      <description>
+        <p>uQbit, uQ's torrent app, as a new module: qBittorrent's engine in the background with a window in uQ's style, opening magnet links and .torrent files.</p>
+      </description>
+    </release>
+    <release version="0.1.34" date="2026-11-21">
+      <description>
+        <p>The windows follow uQ's theme with a file watch instead of a once-a-second check. AppStream metadata for software centres.</p>
+      </description>
+    </release>
+    <release version="0.1.33" date="2026-11-21">
+      <description>
+        <p>One update window at a time: a second start brings the open window forward instead of starting a second update.</p>
+      </description>
+    </release>
+    <release version="0.1.32" date="2026-11-20">
+      <description>
+        <p>AUR updates finish in the update window again.</p>
+      </description>
+    </release>
+    <release version="0.1.31" date="2026-11-20">
+      <description>
+        <p>uQview is uQ&#x27;s picture viewer, pre-selected on first login.</p>
+      </description>
+    </release>
+  </releases>
+</component>

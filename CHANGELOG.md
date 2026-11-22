@@ -1,8 +1,38 @@
 # Changelog
 
-## Unreleased
+## 0.1.37 — 2026-11-22
 
-- **kyko is uQ's terminal.** kyko 1.0 (from the AUR) is back in the catalog under Terminals & shells and is pre-selected with uQ's own apps in place of kitty, which leaves uQ's essentials. uQ opens kyko on SUPER+Return and falls back to kitty where kyko is not installed; a kitty you already have stays. Needs uQ with the kyko default (uq#178).
+- **kyko is uQ's terminal.** kyko (from the AUR) is back in the catalog under Terminals & shells and is pre-selected with uQ's own apps in place of kitty, which leaves uQ's essentials. uQ opens kyko on SUPER+Return and falls back to kitty where kyko is not installed; a kitty you already have stays. What's new offers it to existing uQ installs.
+
+## 0.1.36 — 2026-11-22
+
+- **Bindle, bindleUP and Recovery move like the desktop.** Hover and press colours fade in 100 ms instead of snapping, and fades, slides and toasts use uQ's shell speeds (100, 140 and 220 ms) with an ease-out curve instead of a mix of 100 to 200 ms and linear easing. The speeds are `Theme.motionFast`, `motionBase`, `motionSlow` and `Theme.easing`, matching uQ's `shell/core/Motion.qml`.
+
+## 0.1.35 — 2026-11-21
+
+- **uQbit, uQ's torrent app.** A new `uqbit` module (Downloads, from the AUR) runs qBittorrent Enhanced Edition's headless engine (qbittorrent-enhanced-nox, replacing a plain qbittorrent-nox) in the background with a window that follows the uQ theme; no qBittorrent window is installed. uQ pre-selects it in place of qBittorrent. It becomes the app for magnet links and .torrent files unless something other than qBittorrent already has them, and can sit beside the qBittorrent modules. It also installs Python, which qBittorrent's search plugins need. What's new offers it on upgrade.
+
+## 0.1.34 — 2026-11-21
+
+- **The windows follow uQ's theme without polling.** Bindle, bindleUP and Recovery used to check uQ's theme file once a second; they now use uQ's shared uq-theme module (`crates/bindle-gui/src/uq_theme.rs`, uq-theme 1.0.0), which watches the file and also catches uQ swapping the whole theme folder.
+- AppStream metadata (`io.github.asafelobotomy.bindle.metainfo.xml`), so software centres show Bindle; the desktop entry lists one main category (`System;`).
+
+## 0.1.33 — 2026-11-21
+
+- **One update window at a time.** Clicking uQ's Bindle bar icon again (or running `bindleup --gui` twice) opened a second update window that could start a second update while the first ran. A second start now brings the open update window forward; the Recovery window works the same way.
+- **uQ developer setup** also clones uQview, kyko and AV Morning Star into `~/Projects`.
+
+## 0.1.32 — 2026-11-20
+
+- **AUR updates finish in the update window again.** When the window updated AUR packages, paru's password-free `sudo` started a second Bindle window instead of passing the pacman command on, so the AUR step sat waiting for that window, and its Qt messages ("Failed to register with host portal", "QWaylandTextInputv3::disableSurface") filled the window's output. paru's `sudo` now runs `bindle` itself, and `bindle-gui` never opens a window when started that way.
+
+## 0.1.31 — 2026-11-20
+
+- **uQview is uQ's picture viewer.** A new `uqview` module (from the AUR) is one of uQ's apps, pre-selected on first login: it views pictures in uQ's theme, marks up screenshots and sets a picture as the wallpaper, and becomes the app for pictures unless you already chose one. On uQ the everyday apps no longer include Gwenview. A Gwenview Bindle installed earlier stays; remove it with crumBS if you don't want it.
+
+## 0.1.30 — 2026-11-20
+
+- **reelo is uQ's media player.** uQ pre-selects reelo (from the AUR) instead of VLC and mpv, and makes it the default for video and music unless another player was chosen. What's new offers it to uQ users upgrading. Other desktops keep the VLC and mpv module.
 
 ## 0.1.29 — 2026-11-20
 

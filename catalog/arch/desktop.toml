@@ -77,6 +77,17 @@ unless = [{ path = "~/.local/state/notifd/takeover.json" }]
 manual = { 1 = "notifd could not take over notifications yet. Log in to your desktop and run `notify takeover --now`." }
 
 [[module]]
+id = "uqview"
+group = "uQ desktop"
+name = "uQview (picture viewer)"
+description = "Opens pictures fast in uQ's theme, marks up screenshots (arrows, boxes, text, numbers, pixelate, crop) and sets a picture as the wallpaper. By asafelobotomy."
+notes = ["uQview opens pictures unless you already chose an app for them; its page in uQ Settings switches it."]
+requires = ["aur-helper"]
+aur = ["uqview"]
+# The app for pictures, unless one was chosen already (a PNG default in mimeapps.list).
+user_commands = [{ argv = ["uqview", "default", "set"], unless = [{ path = "~/.config/mimeapps.list", contains = "image/png=" }] }]
+
+[[module]]
 id = "crumbs"
 group = "Utilities"
 name = "crumBS (uninstaller and cleaner)"
@@ -107,7 +118,7 @@ packages = ["github-cli", "jq", "lua", "shellcheck", "qt6-base", "qt6-declarativ
 argv = ["sh", "-ec", """
 mkdir -p "$HOME/Projects"
 failed=""
-for r in uq bindle bindaru noti-fi scdr crumbs appofholding scale_tail romforge hauler emobie oysterAV XZram; do
+for r in uq bindle bindaru noti-fi scdr crumbs appofholding scale_tail romforge hauler emobie oysterAV XZram reelo uqview kyko AV-Morning-Star; do
   [ -d "$HOME/Projects/$r/.git" ] && continue
   git clone -q "https://github.com/asafelobotomy/$r.git" "$HOME/Projects/$r" || failed="$failed $r"
 done
@@ -120,6 +131,8 @@ unless = [
   { path = "~/Projects/scale_tail/.git/HEAD" }, { path = "~/Projects/romforge/.git/HEAD" },
   { path = "~/Projects/hauler/.git/HEAD" }, { path = "~/Projects/emobie/.git/HEAD" },
   { path = "~/Projects/oysterAV/.git/HEAD" }, { path = "~/Projects/XZram/.git/HEAD" },
+  { path = "~/Projects/reelo/.git/HEAD" }, { path = "~/Projects/uqview/.git/HEAD" },
+  { path = "~/Projects/kyko/.git/HEAD" }, { path = "~/Projects/AV-Morning-Star/.git/HEAD" },
 ]
 manual = { 3 = "some uQ repos could not be cloned (see above). Clone them into ~/Projects later; uq-dev uses whichever are there." }
 
@@ -324,14 +337,29 @@ when = ["desktop"]
 requires = ["flatpak"]
 packages = ["gnome-software"]
 
+# uQ's own player replaces these on uQ (the `reelo` module below).
 [[module]]
 id = "media-players"
 group = "Media"
 name = "Media players"
 description = "VLC and mpv for video and audio."
-when = ["desktop"]
+when = ["desktop", "!desktop:uq"]
 profiles = ["desktop", "gaming", "developer"]
 packages = ["vlc", "mpv"]
+
+# uQ pre-selects it (desktops.toml `apps`). It becomes the default player for video and music
+# unless another player (other than VLC or mpv, which it replaces) was chosen.
+[[module]]
+id = "reelo"
+group = "Media"
+name = "reelo (media player)"
+description = "Plays video, music and streams with mpv's engine, follows the uQ theme, shows in uQ's media controls, and lists your newest downloads. By asafelobotomy."
+when = ["desktop"]
+requires = ["aur-helper"]
+aur = ["reelo"]
+[[module.user_commands]]
+argv = ["sh", "-c", 'case "$(xdg-mime query default video/mp4 2>/dev/null)" in ""|vlc.desktop|org.videolan.VLC.desktop|mpv.desktop|io.mpv.Mpv.desktop) exec reelo default set ;; esac']
+unless = [{ path = "~/.config/mimeapps.list", contains = "video/mp4=io.github.asafelobotomy.reelo.desktop" }]
 
 [[module]]
 id = "spotify"

@@ -30,6 +30,9 @@ mod recovery;
 mod recovery_backend;
 mod relnotes;
 mod theme;
+#[allow(dead_code)] // vendored whole; this app uses part of it
+#[rustfmt::skip]
+mod uq_theme;
 mod upgrade;
 mod upgrade_backend;
 
@@ -46,6 +49,12 @@ pub fn flag(name: &str) -> bool {
 }
 
 fn main() {
+    // Bindle's `sudo` for paru, should it ever be pointed at this program:
+    // forward the pacman command, never open a window.
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    if args.first().is_some_and(|a| a == "elev-shim") {
+        std::process::exit(bindle_run::bridge::shim(&args[1..]));
+    }
     if arg("--screenshots").is_some() && std::env::var_os("QT_QPA_PLATFORM").is_none() {
         // SAFETY: single-threaded here, before Qt or any other thread starts.
         unsafe { std::env::set_var("QT_QPA_PLATFORM", "offscreen") };
@@ -64,6 +73,21 @@ fn main() {
     let mut app = QGuiApplication::new();
     app::ffi::bindle_describe_application(env!("CARGO_PKG_VERSION"));
     app::ffi::bindle_set_window_icon(include_bytes!("../../../branding/bindle.svg"));
+    // One update window and one Recovery window per session: a second click on uQ's bar icon
+    // (or a second `bindleup --gui`) brings the open one forward instead of opening another that
+    // could start a second transaction.
+    if arg("--screenshots").is_none() {
+        let window = if flag("--upgrade") {
+            Some("upgrade")
+        } else if flag("--recovery") {
+            Some("recovery")
+        } else {
+            None
+        };
+        if window.is_some_and(app::ffi::bindle_forward_to_running) {
+            std::process::exit(EXIT_APPLIED);
+        }
+    }
     let mut engine = QQmlApplicationEngine::new();
     if let Some(engine) = engine.as_mut() {
         let main = if flag("--upgrade") {

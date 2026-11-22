@@ -36,6 +36,7 @@ Row {
             background: Rectangle {
                 radius: height / 2
                 color: step.now ? Theme.accent : step.hovered && step.enabled ? Theme.surfaceAlt : "transparent"
+                Behavior on color { ColorAnimation { duration: Theme.motionFast } }
                 border.color: step.now || step.done ? Theme.accent : Theme.border
                 border.width: 1
             }

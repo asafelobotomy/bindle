@@ -39,6 +39,7 @@ fn main() {
     .qt_module("Gui")
     .qt_module("Quick")
     .qt_module("QuickControls2")
+    .qt_module("Network")
     .files(["src/backend.rs", "src/upgrade_backend.rs", "src/recovery_backend.rs", "src/app.rs"])
     .cpp_file("cpp/app.cpp");
     // SAFETY: only adds a warning flag; GCC 16 warns about Qt's own headers.

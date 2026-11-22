@@ -105,7 +105,7 @@ impl<'a> Session<'a> {
             return self.user(argv, tty.is_some(), line);
         }
         self.start(line)?;
-        let exe = std::env::current_exe().context("find this program")?;
+        let exe = self.shim_exe()?;
         let bridge = Bridge::start(&exe)?;
         let shown = sys::shell_words(argv);
         if let Some(h) = self.helper.as_mut() {
@@ -180,6 +180,17 @@ impl<'a> Session<'a> {
         Ok(())
     }
 
+    /// The `bindle` program the AUR helper's `sudo` shim runs: the one the
+    /// root helper runs, not this program. In the update window this program
+    /// is `bindle-gui`, which opened a second window as paru's `sudo` and
+    /// left the run waiting on it.
+    fn shim_exe(&self) -> Result<PathBuf> {
+        match &self.launch.exe {
+            Some(exe) => Ok(exe.clone()),
+            None => std::env::current_exe().context("find this program"),
+        }
+    }
+
     /// A command as the user: on the terminal when there is one (`tty`),
     /// otherwise line by line through `line` (the window).
     pub fn user(&mut self, argv: &[String], tty: bool, line: &mut dyn FnMut(&str)) -> Result<()> {
@@ -222,4 +233,21 @@ fn parallel_make() -> Option<String> {
     }
     let n = std::thread::available_parallelism().map_or(1, |n| n.get());
     (n > 1).then(|| format!("-j{n}"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_shim_runs_the_root_helpers_bindle_not_the_window() {
+        // The update window launches with `bindle` as the helper; its own
+        // program is `bindle-gui`, which must never be paru's `sudo`.
+        let launch = Launch { exe: Some(PathBuf::from("/usr/bin/bindle")), graphical: true };
+        let s = Session::new(String::new(), false, None, &launch);
+        assert_eq!(s.shim_exe().unwrap(), PathBuf::from("/usr/bin/bindle"));
+        let default = Launch::default();
+        let s = Session::new(String::new(), false, None, &default);
+        assert_eq!(s.shim_exe().unwrap(), std::env::current_exe().unwrap());
+    }
 }

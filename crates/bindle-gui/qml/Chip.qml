@@ -26,7 +26,7 @@ QQC2.AbstractButton {
         border.width: 1
         Behavior on color {
             ColorAnimation {
-                duration: 100
+                duration: Theme.motionFast
             }
         }
     }
