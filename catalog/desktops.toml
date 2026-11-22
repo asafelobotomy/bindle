@@ -32,10 +32,10 @@ status = "recommended"
 base = "hyprland"
 includes = ["hyprland"]
 module = "uq"
-# uQ's own apps (uQview is its picture viewer, reelo its media player, uQbit its torrent app)
+# uQ's own apps (kyko is its terminal in place of kitty, uQview is its picture viewer, reelo its media player, uQbit its torrent app)
 # and Marknote (notes):
 # pre-selected with it on first login, each one can be unticked. everyday-apps leaves Gwenview out on uQ.
-apps = ["scdr", "crumbs", "noti-fi", "uqview", "text-editor", "marknote", "reelo", "uqbit"]
+apps = ["kyko", "scdr", "crumbs", "noti-fi", "uqview", "text-editor", "marknote", "reelo", "uqbit"]
 # archinstall can't install uQ's own login screen (greetd + uq), so the install
 # boots into sddm once; the uq module then switches to uQ's (`uqctl greeter enable`).
 greeter = "sddm"
@@ -46,7 +46,7 @@ everyday = "qt"
 # recovery bind, and sound-theme-freedesktop the Sound page's test sound (both optdepends of
 # uq; Hyprland's essentials, which have hyprlock, are replaced by these). The text editor is
 # its own module (`apps` above).
-essentials = ["kitty", "papirus-icon-theme", "ttf-jetbrains-mono", "inter-font", "wireplumber", "playerctl", "networkmanager", "grim", "slurp", "wl-clipboard", "gnome-keyring", "hyprlock", "sound-theme-freedesktop"]
+essentials = ["papirus-icon-theme", "ttf-jetbrains-mono", "inter-font", "wireplumber", "playerctl", "networkmanager", "grim", "slurp", "wl-clipboard", "gnome-keyring", "hyprlock", "sound-theme-freedesktop"]
 bt = ["bluez"]
 notes = ["uQ comes from the AUR; Bindle then runs `uqctl setup --apps` as you and turns on uQ's login screen. Restart to log in to uQ."]
 

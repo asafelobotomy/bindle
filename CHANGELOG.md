@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.37 — 2026-11-22
+
+- **kyko is uQ's terminal.** kyko (from the AUR) is back in the catalog under Terminals & shells and is pre-selected with uQ's own apps in place of kitty, which leaves uQ's essentials. uQ opens kyko on SUPER+Return and falls back to kitty where kyko is not installed; a kitty you already have stays. What's new offers it to existing uQ installs.
+
 ## 0.1.36 — 2026-11-22
 
 - **Bindle, bindleUP and Recovery move like the desktop.** Hover and press colours fade in 100 ms instead of snapping, and fades, slides and toasts use uQ's shell speeds (100, 140 and 220 ms) with an ease-out curve instead of a mix of 100 to 200 ms and linear easing. The speeds are `Theme.motionFast`, `motionBase`, `motionSlow` and `Theme.easing`, matching uQ's `shell/core/Motion.qml`.

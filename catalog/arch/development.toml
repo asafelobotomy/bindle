@@ -165,6 +165,15 @@ description = "GPU-accelerated terminal emulator."
 packages = ["ghostty"]
 
 [[module]]
+id = "kyko"
+group = "Terminals & shells"
+name = "kyko (uQ's terminal)"
+description = "uQ's terminal: tabs and splits, sessions that survive a restart, images, ligatures, the kitty keyboard protocol and a drop-down mode on one key. By asafelobotomy."
+notes = ["uQ opens it on SUPER+Return. `kyko dropdown --show` (or the hotkey you set in its Preferences) slides it down from the top."]
+requires = ["aur-helper"]
+aur = ["kyko"]
+
+[[module]]
 id = "kitty"
 group = "Terminals & shells"
 name = "kitty"
