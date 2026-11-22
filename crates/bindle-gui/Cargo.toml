@@ -21,6 +21,7 @@ cxx-qt-lib = { version = "0.10", features = ["qt_gui", "qt_qml", "qt_quickcontro
 serde.workspace = true
 libc = "0.2"
 serde_json.workspace = true
+tracing = "0.1"
 
 [build-dependencies]
 cxx-qt-build = "0.10"
