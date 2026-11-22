@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.35 — 2026-11-22
+
+- **Bindle, bindleUP and Recovery move like the desktop.** Hover and press colours fade in 100 ms instead of snapping, and fades, slides and toasts use uQ's shell speeds (100, 140 and 220 ms) with an ease-out curve instead of a mix of 70 to 250 ms and linear easing. The speeds are `Theme.motionFast`, `motionBase`, `motionSlow` and `Theme.easing`, matching uQ's `shell/core/Motion.qml`.
+
 ## 0.1.34 — 2026-11-21
 
 - **The windows follow uQ's theme without polling.** Bindle, bindleUP and Recovery used to check uQ's theme file once a second; they now use uQ's shared uq-theme module (`crates/bindle-gui/src/uq_theme.rs`, uq-theme 1.0.0), which watches the file and also catches uQ swapping the whole theme folder.

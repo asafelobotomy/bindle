@@ -133,6 +133,7 @@ RowLayout {
             background: Rectangle {
                 radius: Theme.radius
                 color: cat.active ? Theme.accent : cat.hovered ? Theme.surfaceAlt : "transparent"
+                Behavior on color { ColorAnimation { duration: Theme.motionFast } }
             }
             contentItem: RowLayout {
                 spacing: Kirigami.Units.smallSpacing
@@ -159,6 +160,7 @@ RowLayout {
                     implicitHeight: tally.implicitHeight + 2
                     radius: height / 2
                     color: cat.active ? Theme.accentText : Qt.tint(Theme.surface, Qt.alpha(Theme.accent, 0.25))
+                    Behavior on color { ColorAnimation { duration: Theme.motionFast } }
                     QQC2.Label {
                         id: tally
                         anchors.centerIn: parent
@@ -340,7 +342,8 @@ RowLayout {
             icon: tone === "warning" ? "exchange-positions" : tone === "success" ? "list-add" : "list-remove"
             Behavior on opacity {
                 NumberAnimation {
-                    duration: 200
+                    duration: Theme.motionSlow
+                    easing.type: Theme.easing
                 }
             }
             Timer {

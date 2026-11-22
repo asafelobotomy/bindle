@@ -18,6 +18,7 @@ QQC2.ItemDelegate {
     background: Rectangle {
         radius: Theme.radius
         color: toggle.hovered ? Theme.surface : "transparent"
+        Behavior on color { ColorAnimation { duration: Theme.motionFast } }
     }
     contentItem: RowLayout {
         spacing: Kirigami.Units.smallSpacing

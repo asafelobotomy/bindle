@@ -164,6 +164,7 @@ QQC2.ScrollView {
                                         background: Rectangle {
                                             radius: width / 2
                                             color: rm.hovered ? Theme.overlay : "transparent"
+                                            Behavior on color { ColorAnimation { duration: Theme.motionFast } }
                                         }
                                         contentItem: QQC2.Label {
                                             text: "×"
