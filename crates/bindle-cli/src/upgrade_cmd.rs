@@ -90,11 +90,7 @@ pub fn main(mut a: UpgradeArgs) -> Result<()> {
     // Nobody is there to answer: take the default answers, as --yes does.
     a.yes |= a.ndjson;
     let prefs = prefs::load(&mut |w| {
-        if crate::diag::journal() {
-            tracing::warn!("[BINDLE-003] {w}");
-        } else {
-            eprintln!("bindleup: {w}");
-        }
+        crate::diag::problem(tracing::Level::WARN, &format!("[BINDLE-003] {w}"), &format!("bindleup: {w}"))
     });
     if a.prefs {
         print!("{}", prefs.to_toml());
