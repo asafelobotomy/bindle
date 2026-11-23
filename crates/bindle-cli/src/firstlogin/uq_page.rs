@@ -64,3 +64,16 @@ mod tests {
         assert_eq!(paths().len(), FILES.len() + WIDGET_FILES.len());
     }
 }
+
+#[cfg(test)]
+mod consts_tests {
+    use crate::uq_consts::install;
+
+    /// The folders are uQ's (uq-consts), where uQ reads integrations from.
+    #[test]
+    fn the_page_and_widget_go_where_uq_reads_them() {
+        assert_eq!(super::DIR, format!("{}/bindle", install::PAGES_DIR));
+        assert_eq!(super::WIDGET_DIR, format!("{}/bindleup", install::WIDGETS_DIR));
+        assert_eq!(crate::firstlogin::UQ_PAGE, format!("{}/bindle/page.toml", install::PAGES_DIR));
+    }
+}

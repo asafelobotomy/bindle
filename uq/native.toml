@@ -1,0 +1,15 @@
+# uQ kits this repo vendors unchanged (uQ's native/README.md). CI: scripts/check-uq-native.sh
+
+[uq-consts]
+version = "1.0.0"
+files = ["crates/bindle-gui/qml/UqThemeBase.qml", "crates/bindle-cli/src/uq_consts.rs"]
+
+[uq-theme]
+version = "1.1.0"
+files = ["crates/bindle-gui/src/uq_theme.rs"]
+
+[uq-diag]
+version = "1.0.1"
+files = ["crates/bindle-core/src/uq_diag.rs"]
+codes = "uq/diag/bindle.toml"
+sources = ["crates"]

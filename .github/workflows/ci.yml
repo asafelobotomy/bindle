@@ -20,10 +20,8 @@ jobs:
             printf '\n[multilib]\nInclude = /etc/pacman.d/mirrorlist\n' >> /etc/pacman.conf
           pacman -Syu --noconfirm --needed rust rust-musl git python cargo-deny
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      # the vendored uq-theme (uQ's native/uq-theme) is exactly the pinned release
-      - run: scripts/check-uq-theme.sh 1.0.0 crates/bindle-gui/src/uq_theme.rs
-      # the vendored uq-diag (uQ's native/uq-diag) likewise
-      - run: scripts/check-uq-diag.sh 1.0.1 crates/bindle-core/src/uq_diag.rs
+      # uQ's kits (uq/native.toml) are exactly the pinned releases
+      - run: scripts/check-uq-native.sh
       - run: cargo fmt --check
       - run: cargo deny --locked check
       - run: cargo clippy --all-targets --locked -- -D warnings
@@ -107,7 +105,7 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       # The uQ release whose `uqctl` and settings page test kit this repo follows (uq_api 3).
-      UQ_TAG: v0.3.35
+      UQ_TAG: v0.3.37
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install Qt Quick and qmltestrunner

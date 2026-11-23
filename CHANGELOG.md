@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.42 — 2026-11-23
+
+- **One source for uQ's shared values.** Bindle now vendors uQ's uq-consts 1.0.0: the window's `Theme` is uQ's `UqThemeBase.qml` (same colours, shape, type and motion as every uQ app, with Bindle's desktop-palette fallbacks off uQ), and bindle's uQ settings page and widget folders come from `uq_consts.rs`, with a test that they match. uq-theme moves to 1.1.0, so tokens' `motion` block (uQ's Reduce motion setting) is honoured. CI checks every vendored kit with uQ's single `scripts/check-uq-native.sh` and `uq/native.toml`, replacing the two separate check scripts.
+
 ## 0.1.41 — 2026-11-22
 
 - **Zsh comes with its plugins.** The Zsh module now also installs zsh-autosuggestions, zsh-syntax-highlighting and zsh-history-substring-search, which kyko 1.1 loads (with a saved history, a completion menu and Up/Down history search) when your own .zshrc doesn't. A new optional **fzf-tab** module (Terminals & shells, from the AUR) turns zsh's completion menu into a fuzzy search with previews. What's new offers it to Zsh users.
