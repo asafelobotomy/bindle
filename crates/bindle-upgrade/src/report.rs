@@ -73,12 +73,62 @@ pub fn any_failed(results: &[StageResult]) -> bool {
     results.iter().any(|r| matches!(r.outcome, Outcome::Failed(_)))
 }
 
+/// Each failed stage as a line for uQ's Problems page (`BINDLE-004`, in `uq/diag/bindle.toml`).
+pub fn problems(results: &[StageResult]) -> Vec<String> {
+    results
+        .iter()
+        .filter_map(|r| match &r.outcome {
+            Outcome::Failed(why) => Some(format!("bindle: [BINDLE-004] bindleUP: {} failed: {why}", r.stage.title())),
+            _ => None,
+        })
+        .collect()
+}
+
+/// Write [`problems`] to the user journal under the identifier `bindle`, which uQ's Problems
+/// page reads wherever the run was (a terminal, the window, uQ Settings). Best effort: without
+/// `systemd-cat` nothing is written.
+pub fn log_problems(results: &[StageResult]) {
+    use std::io::Write;
+    let lines = problems(results);
+    if lines.is_empty() {
+        return;
+    }
+    let child = std::process::Command::new("systemd-cat")
+        .args(["-t", "bindle", "-p", "err"])
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn();
+    if let Ok(mut child) = child {
+        if let Some(mut stdin) = child.stdin.take() {
+            for l in &lines {
+                let _ = writeln!(stdin, "{}", l.replace('\n', " "));
+            }
+        }
+        let _ = child.wait();
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::Stage;
     use crate::plan::{Options, plan};
     use crate::probe::Probe;
+
+    #[test]
+    fn failed_stages_become_problem_lines() {
+        let r = |stage, outcome| StageResult { stage, outcome, summary: String::new() };
+        let results = [
+            r(Stage::Pacman, Outcome::Failed("`pacman -Syu` failed (exit status: 1)".into())),
+            r(Stage::Aur, Outcome::Held("the system upgrade failed; fix that first".into())),
+            r(Stage::Flatpak, Outcome::Done),
+        ];
+        assert_eq!(
+            problems(&results),
+            ["bindle: [BINDLE-004] bindleUP: Packages failed: `pacman -Syu` failed (exit status: 1)"]
+        );
+    }
 
     #[test]
     fn check_lists_every_stage_and_cuts_long_details() {

@@ -1,8 +1,22 @@
 # Changelog
 
-## 0.1.39 — 2026-11-22
+## 0.1.42 — 2026-11-23
 
 - **One source for uQ's shared values.** Bindle now vendors uQ's uq-consts 1.0.0: the window's `Theme` is uQ's `UqThemeBase.qml` (same colours, shape, type and motion as every uQ app, with Bindle's desktop-palette fallbacks off uQ), and bindle's uQ settings page and widget folders come from `uq_consts.rs`, with a test that they match. uq-theme moves to 1.1.0, so tokens' `motion` block (uQ's Reduce motion setting) is honoured. CI checks every vendored kit with uQ's single `scripts/check-uq-native.sh` and `uq/native.toml`, replacing the two separate check scripts.
+
+## 0.1.41 — 2026-11-22
+
+- **Zsh comes with its plugins.** The Zsh module now also installs zsh-autosuggestions, zsh-syntax-highlighting and zsh-history-substring-search, which kyko 1.1 loads (with a saved history, a completion menu and Up/Down history search) when your own .zshrc doesn't. A new optional **fzf-tab** module (Terminals & shells, from the AUR) turns zsh's completion menu into a fuzzy search with previews. What's new offers it to Zsh users.
+
+## 0.1.40 — 2026-11-22
+
+- **A failed update step shows on uQ's Problems page.** When a bindleUP stage fails (the system packages, the AUR, Flatpak…), in a terminal, the update window or uQ Settings, bindleUP writes it to your journal as `BINDLE-004` under the name `bindle`. uQ 0.3.36 reads it there, so Settings › Problems and `uqctl log` list it, and `uqctl explain BINDLE-004` says what to do. Older uQ versions ignore it.
+
+## 0.1.39 — 2026-11-22
+
+- **bindleUP stops rebuilding the same AUR packages on every run.** rebuild-detector flags a package when one of its files links a library that isn't there; for a package that ships prebuilt files (codeql, nvidia-580xx-utils with its optional GTK 2 panel) a rebuild changes nothing, so every bindleUP run rebuilt them again, and rebuilding the driver package regenerated the boot images each time. After the Rebuilds stage bindleUP now looks again and remembers each package the rebuild didn't clear, at that version (`~/.local/state/bindle/rebuild-stuck.json`). That version isn't rebuilt again; it is listed under Rebuilds instead, with `checkrebuild -v` to see why. A new version of the package is tried again.
+- **One snapshot pair per bindleUP run.** With snap-pac installed, a run used to leave a pre and post snapshot for every pacman call (each AUR install and rebuild too): about ten per run, so snapper's number limit kept only a few runs of history. bindleUP now takes one "bindleup" pre snapshot before the packages stage and its post after the last stage, and snap-pac skips its own snapshots for the pacman calls in between (`SNAP_PAC_SKIP`). If the run is cut short, the root helper still takes the post as it exits. Without snap-pac the run gets the same pair in place of the single snapshot it had.
+- **The last checks see what the rebuilds changed.** After rebuilds ran, uQ, config files, orphans, services and Reboot are planned again from a fresh look, so a rebuilt DKMS module or a regenerated boot image is checked before Reboot says whether restarting is safe.
 
 ## 0.1.38 — 2026-11-22
 

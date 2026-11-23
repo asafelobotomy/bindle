@@ -21,6 +21,7 @@ pub mod prefs;
 pub mod prefs_cfg;
 pub mod preview;
 pub mod probe;
+pub mod rebuild_state;
 pub mod releases;
 pub mod report;
 pub mod run;

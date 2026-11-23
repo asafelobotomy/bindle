@@ -3,6 +3,8 @@
 # logs any more, and give a new problem the next number.
 app = "Bindle"
 units = ["bindle-update-check.service", "bindle-first-login.service"]
+# bindleUP run from a terminal, its window or uQ Settings logs under this name (uQ 0.3.36+).
+identifiers = ["bindle"]
 
 [[code]]
 id = "BINDLE-001"
@@ -24,3 +26,10 @@ severity = "warn"
 title = "A setting in upgrade.toml was ignored"
 means = "bindleUP found a value in ~/.config/bindle/upgrade.toml it doesn't understand and used the default for it instead."
 fix = "Run `bindle config show` to see what is in use, and `bindle config reset KEY` to go back to the default."
+
+[[code]]
+id = "BINDLE-004"
+severity = "error"
+title = "A bindleUP update step failed"
+means = "While updating, one step of bindleUP (such as the system packages, the AUR or Flatpak) stopped with an error. The steps that depend on it were held back; the rest went on."
+fix = "Run `bindleup` in a terminal to see the step's full output, or open the log it names at the end. After a failed system upgrade, fix that first (often `sudo pacman -Syu` in a terminal answers a question bindleUP couldn't)."

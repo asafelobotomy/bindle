@@ -116,7 +116,19 @@ pub(super) fn rebuild() -> Option<Vec<Rebuild>> {
     if !on_path("checkrebuild") {
         return None;
     }
-    Some(capture(&["checkrebuild"]).map(|(_, out, _)| system::checkrebuild(&out)).unwrap_or_default())
+    let mut list = capture(&["checkrebuild"]).map(|(_, out, _)| system::checkrebuild(&out)).unwrap_or_default();
+    // The versions, so a package a rebuild didn't clear is known again (`rebuild_state`).
+    if !list.is_empty() {
+        let mut argv = vec!["pacman", "-Q", "--"];
+        argv.extend(list.iter().map(|r| r.name.as_str()));
+        if let Ok((_, out, _)) = capture(&argv) {
+            let versions = system::pacman_q(&out);
+            for r in &mut list {
+                r.version = versions.get(&r.name).cloned().unwrap_or_default();
+            }
+        }
+    }
+    Some(list)
 }
 
 pub(super) fn greeter() -> bool {

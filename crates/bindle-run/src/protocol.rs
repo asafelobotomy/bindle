@@ -81,6 +81,11 @@ pub enum Request {
     Complete {
         id: String,
     },
+    /// bindleUP: snapper's "pre" snapshot for the whole run, with snap-pac's
+    /// own snapshots paused until `RunSnapshotPost` (or the session's end).
+    RunSnapshotPre,
+    /// The matching "post"; nothing without a "pre".
+    RunSnapshotPost,
     Quit,
 }
 

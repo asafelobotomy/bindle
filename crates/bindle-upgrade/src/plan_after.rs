@@ -50,20 +50,34 @@ pub(super) fn rebuild(now: &After, updated: &[String], o: &Options, pending: boo
             ),
         };
     };
-    let foreign: Vec<String> = list.iter().filter(|r| r.repo == "foreign").map(|r| r.name.clone()).collect();
+    // A version a rebuild already didn't clear (prebuilt files): rebuilding it again changes nothing.
+    let stuck = |r: &&crate::system::Rebuild| now.rebuild_stuck.get(&r.name).is_some_and(|v| *v == r.version);
+    let foreign: Vec<String> =
+        list.iter().filter(|r| r.repo == "foreign" && !stuck(r)).map(|r| r.name.clone()).collect();
     let mut details: Vec<String> = foreign.clone();
     details.extend(
         list.iter().filter(|r| r.repo != "foreign").map(|r| format!("{} (from {}: reinstall it)", r.name, r.repo)),
     );
+    details.extend(list.iter().filter(stuck).map(|r| {
+        format!(
+            "{} {}: still flagged after Bindle rebuilt it, so not rebuilt again (it likely ships prebuilt files; `checkrebuild -v` says why)",
+            r.name, r.version
+        )
+    }));
     if list.is_empty() {
         return StagePlan::new(s, Todo::Nothing, "nothing needs a rebuild");
+    }
+    if list.iter().all(|r| stuck(&r)) {
+        let n = plural(list.len(), "package", "packages");
+        return StagePlan::new(s, Todo::Nothing, format!("nothing new needs a rebuild ({n} a rebuild didn't clear)"))
+            .details(details);
     }
     let n = plural(foreign.len(), "AUR package needs", "AUR packages need");
     let Some(helper) = now.aur_helper.as_deref().filter(|_| !foreign.is_empty()) else {
         return StagePlan::new(
             s,
             Todo::Report,
-            format!("{} need attention", plural(list.len(), "package", "packages")),
+            format!("{} need attention", plural(list.iter().filter(|r| !stuck(r)).count(), "package", "packages")),
         )
         .details(details);
     };

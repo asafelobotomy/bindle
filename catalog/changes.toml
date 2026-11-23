@@ -99,3 +99,8 @@ why = "New in Bindle 0.1.35: uQbit, uQ's own torrent app. It runs qBittorrent En
 version = "0.1.37"
 modules = ["kyko"]
 why = "New in Bindle 0.1.37: kyko is back, as uQ's terminal in place of kitty: images, ligatures, splits, sessions that survive a restart and a drop-down mode."
+
+[[added]]
+version = "0.1.41"
+modules = ["zsh", "fzf-tab"]
+why = "New in Bindle 0.1.41: Zsh now comes with suggestions as you type, syntax highlighting and history search on Up and Down, which kyko turns on when your .zshrc doesn't, and fzf-tab makes its completion menu a fuzzy search."

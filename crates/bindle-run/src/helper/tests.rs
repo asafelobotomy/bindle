@@ -31,7 +31,7 @@ fn helper(name: &str) -> (Helper, Sink, PathBuf) {
     let root = crate::sys::test_dir(&format!("helper-{name}"));
     let sink = Sink::default();
     let opts = HelperOpts { root: root.clone(), fake_commands: true, log: "/var/log/bindle/test.log".into() };
-    (Helper { opts, log: None, out: Box::new(sink.clone()), snapshot: None }, sink, root)
+    (Helper { opts, log: None, out: Box::new(sink.clone()), snapshot: None, run_pre: None }, sink, root)
 }
 
 /// A user build directory beside (not inside) the helper's root.

@@ -130,6 +130,7 @@ fn a_failed_system_upgrade_holds_the_aur() {
         session: Session::new(String::new(), opts.dry_run, None, &opts.launch),
         blocked: BTreeMap::new(),
         updated: vec![],
+        run_snapshot: false,
     };
     ex.failed(Stage::Pacman);
     assert!(ex.blocked.contains_key(&Stage::Aur) && ex.blocked.contains_key(&Stage::Releases));
@@ -146,6 +147,7 @@ fn a_refused_password_isnt_asked_for_again() {
             .refused("couldn't get administrator rights: dismissed"),
         blocked: BTreeMap::new(),
         updated: vec![],
+        run_snapshot: false,
     };
     let e = ex.action(&Action::Root(vec!["true".into()])).unwrap_err();
     assert_eq!(e.to_string(), "couldn't get administrator rights: dismissed");
@@ -195,6 +197,7 @@ fn an_unattended_run_waits_when_no_snapshot_could_be_taken() {
         session: Session::new(String::new(), opts.dry_run, None, &opts.launch),
         blocked: BTreeMap::new(),
         updated: vec![],
+        run_snapshot: false,
     };
     ex.failed(Stage::Snapshot);
     assert!(ex.blocked.contains_key(&Stage::Pacman) && ex.blocked.contains_key(&Stage::Aur));

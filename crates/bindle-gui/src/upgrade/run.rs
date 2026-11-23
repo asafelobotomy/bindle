@@ -185,6 +185,9 @@ pub fn run(
         tty: None,
     };
     let results = bindle_upgrade::run::run(plans, after, &opts, &mut w);
+    if !rehearsal {
+        report::log_problems(&results);
+    }
     w.state.finish(&results);
     w.all.push(String::new());
     w.all.extend(report::table(&results, rehearsal));

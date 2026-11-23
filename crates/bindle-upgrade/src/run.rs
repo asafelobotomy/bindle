@@ -83,7 +83,7 @@ impl BootView {
 pub fn run(plans: Vec<StagePlan>, after: &mut Closing, opts: &RunOpts, ui: &mut dyn Ui) -> Vec<StageResult> {
     let log = format!("/var/log/bindle/upgrade-{}.log", sys::now_id());
     let session = Session::new(log, opts.dry_run, opts.sandbox.clone(), &opts.launch);
-    let mut ex = Exec { opts, ui, session, blocked: BTreeMap::new(), updated: vec![] };
+    let mut ex = Exec { opts, ui, session, blocked: BTreeMap::new(), updated: vec![], run_snapshot: false };
     let total = Stage::ALL.len();
     let mut results: Vec<StageResult> = vec![];
     let rehearsal = opts.dry_run || opts.sandbox.is_some();
@@ -112,11 +112,51 @@ pub fn run(plans: Vec<StagePlan>, after: &mut Closing, opts: &RunOpts, ui: &mut 
     }
     let updated = ex.updated.clone();
     let boot = BootView { files: ex.boot_files(), ukis: ex.boot_images() };
-    for plan in after(&updated, boot) {
-        results.push(ex.stage(plan, results.len(), total));
+    let mut closing = after(&updated, boot).into_iter();
+    while let Some(plan) = closing.next() {
+        let rebuilt = if plan.stage == Stage::Rebuild { rebuilt_names(&plan) } else { vec![] };
+        let result = ex.stage(plan, results.len(), total);
+        let done = result.outcome == Outcome::Done;
+        results.push(result);
+        if rebuilt.is_empty() || !done || rehearsal {
+            continue;
+        }
+        // Remember what the rebuild didn't clear, so the next run doesn't rebuild it again.
+        let stuck = crate::rebuild_state::settle(&rebuilt);
+        if !stuck.is_empty() {
+            ex.ui.line(&format!(
+                "still flagged after the rebuild (prebuilt files?), so not rebuilt again: {}",
+                stuck.join(", ")
+            ));
+        }
+        // A rebuild can replace DKMS modules and boot images: plan the rest from a fresh look.
+        let boot = BootView { files: ex.boot_files(), ukis: ex.boot_images() };
+        let rest: Vec<StagePlan> = after(&updated, boot).into_iter().filter(|p| p.stage != Stage::Rebuild).collect();
+        closing = rest.into_iter();
+    }
+    if ex.run_snapshot {
+        // After everything, orphans and rebuilds included (the helper would also take it on quitting).
+        if let Err(e) = ex.root(bindle_run::protocol::Request::RunSnapshotPost) {
+            ex.ui.line(&format!("✗ the snapshot after the run: {e:#}"));
+        }
     }
     ex.session.quit();
     results
+}
+
+/// The packages a Rebuilds plan rebuilds: what follows `--` in its command.
+fn rebuilt_names(plan: &StagePlan) -> Vec<String> {
+    let Todo::Run(actions) = &plan.todo else { return vec![] };
+    actions
+        .iter()
+        .filter_map(|a| match a {
+            crate::plan::Action::UserElevated(argv) => {
+                argv.iter().position(|w| w == "--").map(|i| argv[i + 1..].to_vec())
+            }
+            _ => None,
+        })
+        .flatten()
+        .collect()
 }
 
 /// Bindle replaced itself in this (real) run: the caller starts the new one
@@ -134,6 +174,8 @@ struct Exec<'a> {
     blocked: BTreeMap<Stage, String>,
     /// Packages upgraded so far.
     updated: Vec<String>,
+    /// The run's "pre" snapshot was taken: take its "post" at the end.
+    run_snapshot: bool,
 }
 
 impl Exec<'_> {
