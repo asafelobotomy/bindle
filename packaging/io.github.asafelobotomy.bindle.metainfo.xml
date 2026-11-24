@@ -29,6 +29,9 @@
   <project_license>GPL-3.0-or-later</project_license>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.1.43" date="2026-11-24">
+      <description><p>uQ Settings' Bindle page shows again on Bindle installed from its own release, and stays current after Bindle updates itself. What's new offers uQview to setups made before it.</p></description>
+    </release>
     <release version="0.1.42" date="2026-11-23">
       <description><p>Uses uQ's shared constants.</p></description>
     </release>

@@ -120,17 +120,43 @@ pub fn install(root: &Path, tty_hook: bool) -> Result<Vec<String>> {
         write_atomic_system(&gui_target, &data, 0o755)?;
         done.push(format!("installed {GUI_BIN}"));
     }
-    let mut files = vec![
-        (AUTOSTART, AUTOSTART_ENTRY),
-        (LAUNCHER, LAUNCHER_ENTRY),
-        (USER_UNIT, USER_UNIT_FILE),
-        (POLKIT, POLICY),
-        (TMPFILES, TMPFILES_RULE),
-    ];
+    let mut files = vec![(AUTOSTART, AUTOSTART_ENTRY), (USER_UNIT, USER_UNIT_FILE)];
     if tty_hook {
         files.push((PROFILE_HOOK, HOOK));
     }
     for (path, content) in files {
+        write_atomic_system(&host(root, path), content.as_bytes(), 0o644)?;
+        done.push(format!("wrote {path}"));
+    }
+    // What `systemctl --global enable` does, without needing systemd running (chroot).
+    let wants = host(root, USER_UNIT_WANTS);
+    create_dirs(wants.parent().context("wants dir")?)?;
+    let _ = fs::remove_file(&wants);
+    symlink("../bindle-first-login.service", &wants).context("enable user unit")?;
+    done.push(format!("enabled {USER_UNIT} for all users"));
+    done.extend(write_shared(root)?);
+    Ok(done)
+}
+
+/// After Bindle replaced its own programs (bindleup): write again what
+/// `install` put next to them (launcher, password message, uQ Settings'
+/// page, bar icon and problem codes, icons, links), so they match the new
+/// version. The login hooks are left as they are: `remove` may have taken
+/// them away on purpose. Does nothing when Bindle isn't installed under
+/// /usr/local/bin.
+pub fn refresh(root: &Path) -> Result<Vec<String>> {
+    require_root(root)?;
+    if !host(root, BIN).is_file() {
+        return Ok(vec![format!("{BIN} isn't installed: nothing to refresh")]);
+    }
+    write_shared(root)
+}
+
+/// The files `install` and `refresh` both write: everything but the
+/// programs and the login hooks.
+fn write_shared(root: &Path) -> Result<Vec<String>> {
+    let mut done = Vec::new();
+    for (path, content) in [(LAUNCHER, LAUNCHER_ENTRY), (POLKIT, POLICY), (TMPFILES, TMPFILES_RULE)] {
         write_atomic_system(&host(root, path), content.as_bytes(), 0o644)?;
         done.push(format!("wrote {path}"));
     }
@@ -139,17 +165,12 @@ pub fn install(root: &Path, tty_hook: bool) -> Result<Vec<String>> {
     }
     done.push(format!("wrote uQ Settings' Bindle page ({} files) to {UQ_PAGE_DIR}", uq_page::FILES.len()));
     done.push(format!("wrote bindleUP's bar icon to {}", uq_page::WIDGET_DIR));
+    done.push(format!("wrote Bindle's problem codes to {}", uq_page::DIAG));
     let icons = crate::icons::files();
     for (path, data) in &icons {
         write_atomic_system(&host(root, path), data, 0o644)?;
     }
     done.push(format!("wrote the icon ({} sizes) under /usr/local/share/icons/hicolor", icons.len()));
-    // What `systemctl --global enable` does, without needing systemd running (chroot).
-    let wants = host(root, USER_UNIT_WANTS);
-    create_dirs(wants.parent().context("wants dir")?)?;
-    let _ = fs::remove_file(&wants);
-    symlink("../bindle-first-login.service", &wants).context("enable user unit")?;
-    done.push(format!("enabled {USER_UNIT} for all users"));
     let link = host(root, UQ_PAGE_BIN);
     create_dirs(link.parent().context("page bin dir")?)?;
     let _ = fs::remove_file(&link);
@@ -293,102 +314,4 @@ pub fn archinstall_snippet(url: &str, sha256: Option<&str>) -> Result<String> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn install_and_remove_into_a_root() {
-        let root = crate::apply::sys::test_dir("firstlogin");
-        let done = install(&root, true).unwrap();
-        assert!(done.iter().any(|d| d.contains(BIN)));
-        assert!(host(&root, AUTOSTART).exists() && host(&root, PROFILE_HOOK).exists());
-        let entry = fs::read_to_string(host(&root, AUTOSTART)).unwrap();
-        assert!(entry.contains("Exec=/usr/local/bin/bindle first-login run"));
-        assert_eq!(
-            fs::read_link(host(&root, USER_UNIT_WANTS)).unwrap(),
-            PathBuf::from("../bindle-first-login.service")
-        );
-        let unit = fs::read_to_string(host(&root, USER_UNIT)).unwrap();
-        assert!(unit.contains("ConditionUser=!@system"));
-        assert!(fs::read_to_string(host(&root, PROFILE_HOOK)).unwrap().contains("UID_MIN"));
-        let policy = fs::read_to_string(host(&root, POLKIT)).unwrap();
-        // The helper's own path and first argument (client.rs: pkexec <bindle> helper), one approval each.
-        assert!(policy.contains(&format!(">{BIN}<")) && policy.contains(">helper<"));
-        assert!(policy.contains("<allow_active>auth_admin</allow_active>"));
-        let tmpfiles = fs::read_to_string(host(&root, TMPFILES)).unwrap();
-        assert!(tmpfiles.lines().any(|l| l == "r /etc/sudoers.d/zz-bindle-install"), "{tmpfiles}");
-        // uQ Settings' page runs Bindle by a path under /usr/lib.
-        assert!(fs::read_to_string(host(&root, UQ_PAGE)).unwrap().contains(&format!("\"{UQ_PAGE_BIN}\"")));
-        assert!(uq_page::paths().iter().all(|p| host(&root, p).is_file()));
-        assert_eq!(fs::read_link(host(&root, UQ_PAGE_BIN)).unwrap(), PathBuf::from(BIN));
-        remove(&root, false).unwrap();
-        assert!(!host(&root, AUTOSTART).exists() && host(&root, BIN).exists());
-        assert!(host(&root, USER_UNIT_WANTS).symlink_metadata().is_err());
-        remove(&root, true).unwrap();
-        assert!(!host(&root, BIN).exists() && !host(&root, POLKIT).exists());
-        assert!(crate::bindo_cmd::NAMES.iter().all(|n| host(&root, n).symlink_metadata().is_err()));
-        assert!(!host(&root, UQ_PAGE_DIR).exists() && host(&root, UQ_PAGE_BIN).symlink_metadata().is_err());
-    }
-
-    /// The page only runs Bindle commands that exist, through the linked path, and every
-    /// declared command parses with the real argument parser (so a flag renamed in the CLI
-    /// breaks this test, not the page).
-    #[test]
-    fn the_uq_page_runs_real_subcommands() {
-        let page: toml::Value = toml::from_str(uq_page::FILES[0].1).unwrap();
-        assert_eq!(page["id"].as_str(), Some("bindle"));
-        let commands = page["command"].as_array().unwrap();
-        use clap::CommandFactory;
-        let cli = crate::Cli::command();
-        let example = |name: &str| match name {
-            "stage" => "pacman",
-            "id" => "20260101-1",
-            "key" => "news_days",
-            _ => "7",
-        };
-        for c in commands {
-            let id = c["id"].as_str().unwrap();
-            let mut args: Vec<String> =
-                c["argv"].as_array().unwrap().iter().map(|a| a.as_str().unwrap().to_string()).collect();
-            assert_eq!(args[0], UQ_PAGE_BIN, "{id}");
-            args[0] = "bindle".into();
-            for a in c.get("args").and_then(|a| a.as_array()).into_iter().flatten() {
-                args.push(example(a["name"].as_str().unwrap()).to_string());
-            }
-            cli.clone().try_get_matches_from(&args).unwrap_or_else(|e| panic!("{id}: {e}"));
-        }
-    }
-
-    /// Only UqLabel shows text (uQ refuses Text and Label), in every file of the page.
-    #[test]
-    fn the_uq_page_shows_text_only_through_uqlabel() {
-        for (name, content) in uq_page::FILES.iter().filter(|(n, _)| n.ends_with(".qml")) {
-            let plain = content.replace("UqLabel {", "");
-            for refused in ["Text {", "Label {", "TextEdit", "TextInput", "createQmlObject", "import org.kde"] {
-                assert!(!plain.contains(refused), "{name} uses {refused}");
-            }
-        }
-    }
-
-    #[test]
-    fn snippet_quotes_the_url_and_checks_the_digest() {
-        let plain = archinstall_snippet("https://example.invalid/bindle", None).unwrap();
-        assert!(plain.contains("first-login install") && !plain.contains("sha256sum"));
-        let evil = archinstall_snippet("https://x/'; rm -rf / #", None).unwrap();
-        let cmd: serde_json::Value = serde_json::from_str(&evil).unwrap();
-        assert!(cmd["custom_commands"][0].as_str().unwrap().contains(r"'https://x/'\''; rm -rf / #'"));
-        assert!(plain.contains("--proto '=https' --tlsv1.2"));
-        let sum = "A".repeat(64);
-        let checked = archinstall_snippet("https://x/b", Some(&sum)).unwrap();
-        let cmd: serde_json::Value = serde_json::from_str(&checked).unwrap();
-        let cmd = cmd["custom_commands"][0].as_str().unwrap();
-        // Checked as a temporary file; only then executable and in place.
-        let tmp = format!("{BIN}.download");
-        let check = cmd.find(&format!("{}  {tmp}' | sha256sum -c", "a".repeat(64))).unwrap();
-        assert!(cmd.find(&format!("-o {tmp} ")).unwrap() < check);
-        assert!(check < cmd.find(&format!("chmod 755 {tmp}")).unwrap());
-        assert!(check < cmd.find(&format!("mv -f {tmp} {BIN}")).unwrap());
-        assert!(!cmd.contains(&format!("-o {BIN} ")) && cmd.ends_with(&format!("|| {{ rm -f {tmp}; false; }}")));
-        assert!(archinstall_snippet("https://x/b", Some("abc")).is_err());
-    }
-}
+mod tests;
