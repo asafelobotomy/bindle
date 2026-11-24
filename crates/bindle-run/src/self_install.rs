@@ -65,7 +65,24 @@ pub fn install(root: &Path, files: &[BindleFile], fake: bool, out: &mut dyn FnMu
         out(&format!("installed {}", f.dest));
     }
     let _ = fs::remove_dir_all(&staging);
+    if files.iter().any(|f| f.dest == DESTS[0]) {
+        refresh(root, out);
+    }
     Ok(())
+}
+
+/// The new Bindle writes again what it keeps next to itself (uQ Settings' page, bar icon and
+/// problem codes, launcher, icons): only the programs were replaced. Never fails the update.
+fn refresh(root: &Path, out: &mut dyn FnMut(&str)) {
+    let bin = host(root, DESTS[0]);
+    match Command::new(&bin).args(["first-login", "refresh", "--root"]).arg(root).output() {
+        Ok(o) if o.status.success() => out("refreshed uQ Settings' Bindle page and Bindle's other files"),
+        Ok(o) => out(&format!(
+            "couldn't refresh Bindle's uQ page ({}): `sudo bindle first-login refresh` does it",
+            String::from_utf8_lossy(&o.stderr).trim()
+        )),
+        Err(e) => out(&format!("couldn't refresh Bindle's uQ page ({e}): `sudo bindle first-login refresh` does it")),
+    }
 }
 
 #[cfg(test)]

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.43 — 2026-11-24
+
+- **uQ Settings' Bindle page shows on Bindle installed from its release.** The page asked uQ to show it only while `/usr/bin/bindle` exists, which is true for the AUR package but never for Bindle in `/usr/local/bin` (the live-ISO and release install), so uQ kept it hidden. `first-login install` now writes the page without that condition (`first-login remove --purge` takes it away), and also installs Bindle's problem codes (`/usr/share/uq/diag/bindle.toml`), so `uqctl explain BINDLE-…` and Settings › Problems know them there too.
+- **The page and bar icon follow Bindle's updates.** bindleup replaced only the programs, so the page, bindleUP's bar icon, the launcher and the password message stayed as the first install wrote them. A new `bindle first-login refresh` (root) writes them again without touching the login hooks, and bindleup runs it after Bindle updates itself. On a machine updated to 0.1.43 by an older Bindle, run `sudo bindle first-login refresh` once.
+- **What's new offers uQview** to setups made before Bindle 0.1.31, when it joined uQ's apps. It becomes the app for pictures only if you haven't chosen one.
+
 ## 0.1.42 — 2026-11-23
 
 - **One source for uQ's shared values.** Bindle now vendors uQ's uq-consts 1.0.0: the window's `Theme` is uQ's `UqThemeBase.qml` (same colours, shape, type and motion as every uQ app, with Bindle's desktop-palette fallbacks off uQ), and bindle's uQ settings page and widget folders come from `uq_consts.rs`, with a test that they match. uq-theme moves to 1.1.0, so tokens' `motion` block (uQ's Reduce motion setting) is honoured. CI checks every vendored kit with uQ's single `scripts/check-uq-native.sh` and `uq/native.toml`, replacing the two separate check scripts.
