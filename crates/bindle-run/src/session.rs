@@ -149,6 +149,7 @@ impl<'a> Session<'a> {
         })
         .collect();
         drop(tx);
+        let mut cause = Cause::default();
         let status = loop {
             bridge.poll(&mut |pacman| {
                 // pacman (as root) ignores Ctrl-C mid-transaction; so does this side.
@@ -165,6 +166,7 @@ impl<'a> Session<'a> {
                 done.map(drop)
             });
             while let Ok(l) = rx.try_recv() {
+                cause.see(&l);
                 line(&l);
             }
             if let Some(s) = child.try_wait()? {
@@ -176,10 +178,14 @@ impl<'a> Session<'a> {
             let _ = r.join();
         }
         while let Ok(l) = rx.try_recv() {
+            cause.see(&l);
             line(&l);
         }
         if !status.success() {
-            bail!("`{shown}` failed ({status})");
+            match cause.get() {
+                Some(why) => bail!("`{shown}` failed ({status}): {why}"),
+                None => bail!("`{shown}` failed ({status})"),
+            }
         }
         Ok(())
     }
@@ -237,6 +243,82 @@ fn parallel_make() -> Option<String> {
     }
     let n = std::thread::available_parallelism().map_or(1, |n| n.get());
     (n > 1).then(|| format!("-j{n}"))
+}
+
+/// Why an AUR helper failed, from its output (only seen without a terminal):
+/// makepkg's first `==> ERROR:` (which step of which build), else the
+/// helper's last `error:` line.
+#[derive(Default)]
+struct Cause {
+    makepkg: Option<String>,
+    helper: Option<String>,
+}
+
+impl Cause {
+    fn see(&mut self, line: &str) {
+        let plain = strip_ansi(line);
+        let t = plain.trim();
+        if let Some(rest) = t.strip_prefix("==> ERROR:") {
+            self.makepkg.get_or_insert_with(|| rest.trim().to_string());
+        } else if let Some(rest) = t.strip_prefix("error:") {
+            self.helper = Some(rest.trim().to_string());
+        }
+    }
+
+    fn get(&self) -> Option<String> {
+        match (&self.makepkg, &self.helper) {
+            (Some(m), Some(h)) => Some(format!("{h} ({m})")),
+            (Some(one), None) | (None, Some(one)) => Some(one.clone()),
+            (None, None) => None,
+        }
+    }
+}
+
+/// Terminal colour codes (`ESC [ … letter`) out of a line.
+fn strip_ansi(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut chars = s.chars();
+    while let Some(c) = chars.next() {
+        if c == '\u{1b}' {
+            if chars.next() == Some('[') {
+                for c in chars.by_ref() {
+                    if c.is_ascii_alphabetic() {
+                        break;
+                    }
+                }
+            }
+        } else {
+            out.push(c);
+        }
+    }
+    out
+}
+
+#[cfg(test)]
+mod cause_tests {
+    use super::Cause;
+
+    #[test]
+    fn names_the_failed_build_step_and_package() {
+        let mut c = Cause::default();
+        for l in [
+            "==> Starting check()...",
+            "\u{1b}[1;31m==> ERROR:\u{1b}[0m A failure occurred in check().",
+            "    Aborting...",
+            "==> ERROR: Makepkg was unable to build kyko.",
+            "\u{1b}[1;31merror:\u{1b}[0m packages failed to build: kyko-1.3.2-1",
+        ] {
+            c.see(l);
+        }
+        assert_eq!(c.get().as_deref(), Some("packages failed to build: kyko-1.3.2-1 (A failure occurred in check().)"));
+    }
+
+    #[test]
+    fn nothing_recognised_says_nothing() {
+        let mut c = Cause::default();
+        c.see("building kyko...");
+        assert_eq!(c.get(), None);
+    }
 }
 
 #[cfg(test)]

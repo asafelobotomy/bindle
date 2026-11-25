@@ -109,6 +109,7 @@ fn a_failed_user_stage_doesnt_stop_the_run() {
         ask: None,
         stops: vec![],
         packages: vec![],
+        upgrades: vec![],
     };
     let mut firmware = failing.clone();
     firmware.stage = Stage::Firmware;
@@ -177,6 +178,7 @@ fn optional_clean_ups_follow_their_answer() {
         ask: None,
         stops: vec![],
         packages: vec![],
+        upgrades: vec![],
     };
     let mut ui = Script { answers: vec![false], ..Default::default() };
     run(vec![pl.clone()], &mut |_, _| vec![], &dry(false), &mut ui);
@@ -202,4 +204,18 @@ fn an_unattended_run_waits_when_no_snapshot_could_be_taken() {
     ex.failed(Stage::Snapshot);
     assert!(ex.blocked.contains_key(&Stage::Pacman) && ex.blocked.contains_key(&Stage::Aur));
     assert!(ui.asked.is_empty(), "nobody is there to answer");
+}
+
+#[test]
+fn a_failed_aur_stage_still_counts_what_it_upgraded() {
+    let ups = [
+        Update { name: "kyko".into(), old: "0.2.2-1".into(), new: "1.3.2-1".into() },
+        Update { name: "uq".into(), old: "0.3.39-1".into(), new: "0.3.41-1".into() },
+    ];
+    let installed: BTreeMap<String, String> =
+        [("kyko".to_string(), "0.2.2-1".to_string()), ("uq".to_string(), "0.3.41-1".to_string())].into();
+    let (done, left) = partial(&ups, &installed);
+    assert_eq!(done, ["uq"], "uQ's setup runs after it upgraded");
+    assert_eq!(left, ["kyko 0.2.2-1 → 1.3.2-1"]);
+    assert_eq!(partial(&ups, &BTreeMap::new()), (vec![], vec![]), "pacman -Q failed: nothing known");
 }

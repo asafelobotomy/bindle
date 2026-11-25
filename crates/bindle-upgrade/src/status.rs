@@ -113,7 +113,16 @@ mod tests {
     use super::*;
 
     fn plan(stage: Stage, todo: Todo, summary: &str) -> StagePlan {
-        StagePlan { stage, todo, summary: summary.into(), details: vec![], ask: None, stops: vec![], packages: vec![] }
+        StagePlan {
+            stage,
+            todo,
+            summary: summary.into(),
+            details: vec![],
+            ask: None,
+            stops: vec![],
+            packages: vec![],
+            upgrades: vec![],
+        }
     }
 
     #[test]

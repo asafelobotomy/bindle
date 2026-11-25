@@ -209,7 +209,18 @@ impl Exec<'_> {
         }
         for action in actions {
             if let Err(e) = self.action(action) {
-                let msg = format!("{e:#}");
+                let mut msg = format!("{e:#}");
+                // An AUR helper builds one package after another: some may have
+                // upgraded before one failed. Those count as upgraded (uQ's setup,
+                // the reboot check); the rest are named, since the helper's own
+                // error scrolled past on the terminal.
+                if !plan.upgrades.is_empty() && !self.session.dry_run && self.session.sandbox.is_none() {
+                    let (done, left) = partial(&plan.upgrades, &crate::probe::installed_versions());
+                    if !left.is_empty() {
+                        msg.push_str(&format!("; not upgraded: {}", left.join(", ")));
+                    }
+                    self.updated.extend(done);
+                }
                 self.ui.line(&format!("✗ {msg}"));
                 self.failed(plan.stage);
                 return result(Outcome::Failed(msg));
@@ -252,6 +263,21 @@ impl Exec<'_> {
             _ => {}
         }
     }
+}
+
+/// After a failed stage: which of its upgrades happened anyway (by name), and
+/// the ones that didn't (`name old → new`). Nothing is known when `pacman -Q`
+/// gave nothing.
+fn partial(upgrades: &[crate::parse::Update], installed: &BTreeMap<String, String>) -> (Vec<String>, Vec<String>) {
+    if installed.is_empty() {
+        return (vec![], vec![]);
+    }
+    let (done, left): (Vec<_>, Vec<_>) =
+        upgrades.iter().partition(|u| installed.get(&u.name).is_some_and(|v| *v != u.old));
+    (
+        done.into_iter().map(|u| u.name.clone()).collect(),
+        left.into_iter().map(|u| format!("{} {} → {}", u.name, u.old, u.new)).collect(),
+    )
 }
 
 #[path = "run_actions.rs"]
