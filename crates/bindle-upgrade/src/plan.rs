@@ -7,7 +7,7 @@ use bindle_core::catalog::ReleaseAsset;
 use serde::Serialize;
 
 use crate::news;
-use crate::parse::ymd;
+use crate::parse::{Update, ymd};
 use crate::prefs::Prefs;
 use crate::probe::{After, Probe};
 use crate::selfupdate::Location;
@@ -112,6 +112,10 @@ pub struct StagePlan {
     pub stops: Vec<Stage>,
     /// Packages this stage upgrades (to tell whether a reboot is due).
     pub packages: Vec<String>,
+    /// The versions they go from and to: after a failure, which of them
+    /// upgraded anyway (an AUR helper builds the others one by one).
+    #[serde(skip)]
+    pub upgrades: Vec<Update>,
 }
 
 impl StagePlan {
@@ -121,7 +125,16 @@ impl StagePlan {
     }
 
     fn new(stage: Stage, todo: Todo, summary: impl Into<String>) -> Self {
-        StagePlan { stage, todo, summary: summary.into(), details: vec![], ask: None, stops: vec![], packages: vec![] }
+        StagePlan {
+            stage,
+            todo,
+            summary: summary.into(),
+            details: vec![],
+            ask: None,
+            stops: vec![],
+            packages: vec![],
+            upgrades: vec![],
+        }
     }
 
     fn details(mut self, d: Vec<String>) -> Self {

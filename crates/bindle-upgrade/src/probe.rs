@@ -258,7 +258,8 @@ fn age_days(path: &Path) -> Option<i64> {
     Some(SystemTime::now().duration_since(modified).map_or(0, |d| d.as_secs() / 86_400) as i64)
 }
 
-fn installed_versions() -> BTreeMap<String, String> {
+/// `pacman -Q`: every installed package's version; empty when it fails.
+pub fn installed_versions() -> BTreeMap<String, String> {
     capture(&["pacman", "-Q"])
         .map(|(_, out, _)| {
             out.lines().filter_map(|l| l.split_once(' ')).map(|(n, v)| (n.to_string(), v.to_string())).collect()

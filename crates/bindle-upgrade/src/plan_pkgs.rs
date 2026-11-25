@@ -36,6 +36,7 @@ pub(super) fn pacman(p: &Probe, o: &Options) -> StagePlan {
         pl = pl.ask(format!("Upgrade {n}?"), true);
     }
     pl.packages = list.iter().map(|u| u.name.clone()).collect();
+    pl.upgrades = list.clone();
     // AUR builds and release packages expect an upgraded system.
     pl.stops = vec![Stage::Aur, Stage::Releases];
     pl
@@ -75,6 +76,7 @@ pub(super) fn aur(p: &Probe, o: &Options) -> StagePlan {
     let mut pl = StagePlan::new(s, Todo::Run(vec![user_elevated(&argv)]), format!("{n} to upgrade with {helper}"))
         .details(details);
     pl.packages = list.iter().map(|u| u.name.clone()).collect();
+    pl.upgrades = list.clone();
     pl
 }
 

@@ -171,6 +171,7 @@ mod tests {
                 ask: None,
                 stops: vec![],
                 packages: vec![],
+                upgrades: vec![],
             },
             StagePlan {
                 stage: Stage::News,
@@ -180,6 +181,7 @@ mod tests {
                 ask: None,
                 stops: vec![],
                 packages: vec![],
+                upgrades: vec![],
             },
         ];
         let c = choices(&plans, true);
