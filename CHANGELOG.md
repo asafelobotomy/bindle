@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.44 — 2026-11-25
+
+- **A failed AUR build no longer hides what happened.** paru builds AUR packages one after another and fails the whole run when any one of them fails, so a single broken build made bindleUP's AUR stage say only "`paru -Sua …` failed (exit status: 1)", with paru's own error long scrolled past. The stage's result now names the packages that didn't upgrade (`not upgraded: kyko 0.2.2-1 → 1.3.2-1`), and in the update window and uQ Settings, where paru's output comes line by line, it adds paru's error and makepkg's (`packages failed to build: … (A failure occurred in check().)`).
+- **What did upgrade still counts.** The packages paru upgraded before the failure used to count as not upgraded, so the uQ stage said "no uQ update" after uQ itself had just been upgraded from the AUR, and skipped `uqctl setup --apps`; the reboot check missed them too. bindleUP now compares the installed versions after a failed stage and treats those packages as upgraded.
+
 ## 0.1.43 — 2026-11-24
 
 - **uQ Settings' Bindle page shows on Bindle installed from its release.** The page asked uQ to show it only while `/usr/bin/bindle` exists, which is true for the AUR package but never for Bindle in `/usr/local/bin` (the live-ISO and release install), so uQ kept it hidden. `first-login install` now writes the page without that condition (`first-login remove --purge` takes it away), and also installs Bindle's problem codes (`/usr/share/uq/diag/bindle.toml`), so `uqctl explain BINDLE-…` and Settings › Problems know them there too.
