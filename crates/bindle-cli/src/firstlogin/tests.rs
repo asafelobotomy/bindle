@@ -103,3 +103,26 @@ fn snippet_quotes_the_url_and_checks_the_digest() {
     assert!(!cmd.contains(&format!("-o {BIN} ")) && cmd.ends_with(&format!("|| {{ rm -f {tmp}; false; }}")));
     assert!(archinstall_snippet("https://x/b", Some("abc")).is_err());
 }
+
+/// Once `/usr/local/bin/bindle` points at the AUR package (catalog module `bindle`), the uQ
+/// page, bar icon, problem codes and `/usr/lib/bindle/bindle` are the package's: a refresh
+/// leaves them alone, and a purge takes only the installer's own files.
+#[test]
+fn a_packaged_bindle_keeps_the_packages_files() {
+    let root = crate::apply::sys::test_dir("firstlogin-packaged");
+    install(&root, false).unwrap();
+    assert!(!packaged(&root));
+    let pkg = host(&root, PACKAGE_BIN);
+    fs::create_dir_all(pkg.parent().unwrap()).unwrap();
+    fs::write(&pkg, "package").unwrap();
+    fs::remove_file(host(&root, BIN)).unwrap();
+    symlink(&pkg, host(&root, BIN)).unwrap();
+    assert!(packaged(&root));
+    fs::write(host(&root, UQ_PAGE), "the package's").unwrap();
+    assert!(refresh(&root).unwrap()[0].contains("package"));
+    assert_eq!(fs::read_to_string(host(&root, UQ_PAGE)).unwrap(), "the package's");
+    remove(&root, true).unwrap();
+    assert!(host(&root, BIN).symlink_metadata().is_err() && !host(&root, POLKIT).exists());
+    assert!(host(&root, UQ_PAGE).is_file() && host(&root, UQ_PAGE_BIN).symlink_metadata().is_ok());
+    assert!(host(&root, uq_page::DIAG).is_file() && pkg.is_file());
+}
