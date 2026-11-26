@@ -63,6 +63,50 @@ requires = ["build-tools"]
 builtin = "aur-helper"
 
 [[module]]
+id = "bindle"
+group = "Building & AUR"
+name = "Bindle from the AUR"
+description = "Bindle itself as its AUR package, updated with your other AUR packages, in place of the copy the installer put in /usr/local/bin. By asafelobotomy."
+notes = ["`bindle`, `bindleup` and `bindo` keep working as before: /usr/local/bin points at the package's programs."]
+profiles = ["desktop", "gaming", "developer"]
+requires = ["aur-helper"]
+aur = ["bindle"]
+# `bindle first-login install` wrote uQ Settings' Bindle page, bindleUP's bar icon, the
+# problem codes and /usr/lib/bindle/bindle, which the package ships too: pacman won't
+# overwrite them, so the ones no package owns go first.
+[[module.root_commands]]
+argv = ["sh", "-c", '''
+for f in /usr/lib/bindle/bindle /usr/share/uq/settings/pages/bindle/* /usr/share/uq/shell/widgets/bindleup/* /usr/share/uq/diag/bindle.toml; do
+  if [ -e "$f" ] || [ -L "$f" ]; then pacman -Qoq "$f" >/dev/null 2>&1 || rm -f "$f"; fi
+done
+''']
+before_aur = true
+unless = [{ path = "/usr/bin/bindle" }]
+# Then /usr/local/bin/bindle and bindle-gui point at the package's programs (the login hooks,
+# bindo and bindleup run them by that path), and the installer's launcher, icons and password
+# message go: the package has its own. Without the package (its build failed) the page comes back.
+[[module.root_commands]]
+argv = ["sh", "-c", '''
+set -e
+if [ ! -x /usr/bin/bindle ]; then
+  if [ -x /usr/local/bin/bindle ] && [ ! -L /usr/local/bin/bindle ]; then /usr/local/bin/bindle first-login refresh >/dev/null; fi
+  echo "Bindle's AUR package isn't installed; Bindle stays in /usr/local/bin." >&2
+  exit 1
+fi
+for n in bindle bindle-gui; do
+  if [ -e "/usr/bin/$n" ] && [ -e "/usr/local/bin/$n" ] && [ ! -L "/usr/local/bin/$n" ]; then
+    ln -sfn "/usr/bin/$n" "/usr/local/bin/.$n.bindle-new"
+    mv -fT "/usr/local/bin/.$n.bindle-new" "/usr/local/bin/$n"
+  fi
+done
+rm -f /usr/local/share/applications/bindle.desktop /usr/share/polkit-1/actions/io.github.asafelobotomy.bindle.policy
+rm -f /usr/local/share/icons/hicolor/*/apps/bindle.svg /usr/local/share/icons/hicolor/*/apps/bindle.png
+mkdir -p /usr/local/lib/bindle
+printf '# Managed by Bindle: Bindle runs from its AUR package (/usr/bin/bindle).\n' > /usr/local/lib/bindle/from-package
+''']
+unless = [{ path = "/usr/local/lib/bindle/from-package", contains = "Managed by Bindle" }]
+
+[[module]]
 id = "microcode"
 group = "Firmware & upkeep"
 name = "CPU microcode"

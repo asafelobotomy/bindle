@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.49 — 2026-11-26
+
+- **Bindle offers uQ's apps from the AUR only.** Every app by asafelobotomy that Bindle installs comes from its one AUR package (crumBS and romforge as their prebuilt `-bin` packages, so no Rust or Node toolchain is needed); nothing comes from a GitHub release any more, and the catalog tests refuse a release pin of uQ's own apps or two packages of the same app.
+- **Bindle itself moves to its AUR package.** The new `bindle` module (in the Desktop, Gaming and Developer profiles, next to the AUR helper) installs the `bindle` AUR package, then points `/usr/local/bin/bindle` and `bindle-gui`, the copy the installer made, at `/usr/bin`, so `bindle`, `bindleup`, `bindo` and the login hooks keep working by the same paths and Bindle updates with the rest of the AUR. Before the build it removes the installer's copies of the files the package ships (uQ Settings' page, bindleUP's bar icon, the problem codes), which pacman would otherwise refuse as conflicts; if the build fails, they come back. What's new offers it on systems set up before. `first-login refresh` and `remove --purge` leave the package's files alone.
+- **ReShadeLinux and qbit Plugin Manager leave Bindle for now.** They were the last two apps Bindle installed as AppImages from GitHub; they come back once their AUR packages are up. A copy you already have stays installed.
+- The AUR package no longer runs the test suite while it builds (CI tests every release), which roughly halves its build time during setup.
+
 ## 0.1.48 — 2026-11-26
 
 - **A password typed into the terminal no longer turns up after bindleUP.** bindleUP asks for the password in polkit's dialog, but nothing read the terminal meanwhile, so a password typed there (before the dialog had opened, or after self-update's second dialog) stayed in the terminal's input queue: it echoed into pacman's output and, when bindleUP ended, landed at the shell's prompt, where Enter ran it as a command and saved it in the shell's history. Now the terminal doesn't echo while the dialog is up, and what was typed into it then, or during the unattended run, is thrown away when the helper starts, before each pacman question on the terminal (so a stray `y` can't answer one) and when bindleUP ends. `bindle apply` and the other commands that ask for the password do the same. bindleUP also says to type the password in the dialog, not the terminal.

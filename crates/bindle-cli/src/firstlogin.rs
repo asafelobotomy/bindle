@@ -149,6 +149,9 @@ pub fn refresh(root: &Path) -> Result<Vec<String>> {
     if !host(root, BIN).is_file() {
         return Ok(vec![format!("{BIN} isn't installed: nothing to refresh")]);
     }
+    if packaged(root) {
+        return Ok(vec![format!("{BIN} runs Bindle's package, which ships these files: nothing to refresh")]);
+    }
     write_shared(root)
 }
 
@@ -180,13 +183,27 @@ fn write_shared(root: &Path) -> Result<Vec<String>> {
     Ok(done)
 }
 
+/// `/usr/local/bin/bindle` points at the AUR package's `/usr/bin/bindle` (catalog module
+/// `bindle`): the uQ page, bar icon, problem codes and `/usr/lib/bindle/bindle` are the
+/// package's then, never written or removed here.
+pub fn packaged(root: &Path) -> bool {
+    let bin = host(root, BIN);
+    bin.symlink_metadata().is_ok_and(|m| m.file_type().is_symlink()) && host(root, PACKAGE_BIN).is_file()
+}
+
+/// Where the AUR package puts Bindle.
+pub const PACKAGE_BIN: &str = "/usr/bin/bindle";
+
 pub fn remove(root: &Path, purge: bool) -> Result<Vec<String>> {
     require_root(root)?;
     let icons: Vec<String> = crate::icons::files().into_iter().map(|(p, _)| p).collect();
-    let page = uq_page::paths();
+    let page = if packaged(root) { Vec::new() } else { uq_page::paths() };
     let mut paths = vec![AUTOSTART, PROFILE_HOOK, USER_UNIT_WANTS, USER_UNIT];
     if purge {
-        paths.extend([LAUNCHER, POLKIT, TMPFILES, UQ_PAGE_BIN, GUI_BIN, BIN]);
+        paths.extend([LAUNCHER, POLKIT, TMPFILES, GUI_BIN, BIN]);
+        if !packaged(root) {
+            paths.push(UQ_PAGE_BIN);
+        }
         paths.extend(page.iter().map(String::as_str));
         paths.extend(crate::bindo_cmd::NAMES);
         paths.extend(icons.iter().map(String::as_str));

@@ -94,7 +94,13 @@ units (scdr imports ananicy's rules, then removes ananicy, then starts).
 
 ## Release assets
 
-For apps that ship on GitHub rather than in the repos or the AUR. Bindle
+For third-party apps that ship on GitHub rather than in the repos or the AUR.
+uQ's own apps (asafelobotomy/*) never use this: they install from their AUR
+package only, one package per app (`romforge-bin` and `crum-bs-bin`, not
+their source twins), and `cargo test` refuses an asafelobotomy release pin.
+Bindle itself does the same through the `bindle` module (base, with the AUR
+helper): it installs the `bindle` AUR package and points `/usr/local/bin/bindle`
+and `bindle-gui`, which the installer put there, at `/usr/bin`. Bindle
 downloads the asset as you over HTTPS, refuses it unless its sha256 matches the
 pin, then installs a `.pkg.tar.zst` through the root helper (`pacman -U`, which
 pulls its dependencies from the repos) or puts an `.AppImage` in `~/.local/bin`
@@ -230,7 +236,7 @@ their own, recommended or not.
 
 | Category | Modules |
 |---|---|
-| System | boot-guard, pacman-qol, mirrors, multilib, build-tools, aur-helper, microcode, firmware-updates, fstrim, man-pages, log-limits, kernel-modules-hook, pacnew-notice, quick-shutdown |
+| System | boot-guard, pacman-qol, mirrors, multilib, build-tools, aur-helper, bindle, microcode, firmware-updates, fstrim, man-pages, log-limits, kernel-modules-hook, pacnew-notice, quick-shutdown |
 | Hardware | gpu-driver, nvidia-legacy, audio-firmware, audio-pipewire, bluetooth, power-profiles, tlp, tlp-rdw, thermald, fingerprint, fingerprint-sudo, printing, scanning-qt, scanning-gtk, solaar, piper, openrgb, android-tools, wifi-region, thunderbolt, thunderbolt-plasma, monitor-brightness, mipi-camera, security-keys, console-font, controller-rules, xpadneo, charge-limit, asusctl, throttled, framework, dell-smbios, handheld, sensors, coolercontrol, pen-tablet, hp-devices, epson-scan |
 | Performance | zram, xzram, oomd, earlyoom, io-schedulers, scdr, scdr-sched-ext, scdr-devbox, scx-schedulers, kernel-zen, makepkg-parallel, makepkg-native, writeback, nmi-watchdog-off, audio-no-powersave, thrash-guard, btrfs-noatime |
 | Desktop & apps | desktop-essentials, uq, noti-fi, uqview, crumbs, uq-dev, fonts, nerd-fonts, codecs, archives, user-dirs, everyday-apps, default-file-manager, file-search-names, dolphin-video-thumbnails, copyq, screenshots, spellcheck, disk-formats, appimage, bash-completion, vpn-plugins, flatpak, flatpak-bazaar, flatseal, warehouse, flatpak-discover, flatpak-gnome-software, media-players, spotify, libreoffice, obsidian, marknote, xournalpp, text-editor, yakuake, emobie, appofholding, keyring-at-login, kwallet-at-login, kwallet-at-login-wm, ssh-agent, browser-video-decoding, flatpak-theme, uniform-theme, qt-follows-gtk, cjk-fonts, bash-extras, idle-lock-sway, idle-lock-niri, captive-portal, night-light, firefox-privacy, firefox-nvidia, gpg-pinentry |
