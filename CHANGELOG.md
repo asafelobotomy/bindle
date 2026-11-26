@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.48 — 2026-11-26
+
+- **A password typed into the terminal no longer turns up after bindleUP.** bindleUP asks for the password in polkit's dialog, but nothing read the terminal meanwhile, so a password typed there (before the dialog had opened, or after self-update's second dialog) stayed in the terminal's input queue: it echoed into pacman's output and, when bindleUP ended, landed at the shell's prompt, where Enter ran it as a command and saved it in the shell's history. Now the terminal doesn't echo while the dialog is up, and what was typed into it then, or during the unattended run, is thrown away when the helper starts, before each pacman question on the terminal (so a stray `y` can't answer one) and when bindleUP ends. `bindle apply` and the other commands that ask for the password do the same. bindleUP also says to type the password in the dialog, not the terminal.
+
 ## 0.1.47 — 2026-11-26
 
 - **Snapshots by hand: `bindle snapshot`.** List the system's snapper snapshots, take one now (`bindle snapshot create "Before the party"`), delete old ones, and see or change how many automatic snapshots snapper keeps (`bindle snapshot settings`, `bindle snapshot set TIMELINE_LIMIT_DAILY 7`). Changes ask for the password once; only the automatic-snapshot settings can be changed this way. uQ Settings' new Restore page uses these.

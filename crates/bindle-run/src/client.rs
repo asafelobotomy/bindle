@@ -115,6 +115,9 @@ impl HelperClient {
                     Elevation::Pkexec => {
                         if !how.graphical {
                             println!("Bindle needs administrator rights for system changes.");
+                            if crate::tty::own_tty().is_some() {
+                                println!("When the password dialog opens, type it there, not here.");
+                            }
                         }
                         Command::new("pkexec")
                     }
@@ -128,6 +131,9 @@ impl HelperClient {
                 c
             }
         };
+        // Until the helper answers, what's typed into this terminal is neither shown nor kept:
+        // a password typed here instead of in the dialog would otherwise reach the shell.
+        let _hidden = (!how.graphical && sandbox.is_none()).then(crate::tty::HiddenInput::stdin);
         let stderr = if how.graphical { Stdio::piped() } else { Stdio::inherit() };
         cmd.args(["--log", log]).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(stderr);
         let mut child = cmd.spawn().context("start the Bindle helper")?;
@@ -182,6 +188,10 @@ impl HelperClient {
 
     /// Send a request; stream output lines to `on_output` until it finishes.
     pub fn request(&mut self, req: &Request, on_output: &mut dyn FnMut(&str)) -> Result<Option<String>> {
+        if matches!(req, Request::Interactive { .. }) {
+            // Keys typed during the unattended part must not answer pacman's questions.
+            crate::tty::discard_typeahead();
+        }
         writeln!(self.stdin, "{}", serde_json::to_string(req)?)?;
         self.stdin.flush()?;
         loop {

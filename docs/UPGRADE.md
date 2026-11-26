@@ -51,6 +51,11 @@ y/n questions, pacman prompts (pacman takes its default answers, as with `--yes`
 build-file review; anything that failed or was held is listed at the end. A failed snapshot holds
 the upgrade rather than upgrading without one. `--yes` skips the list and takes the defaults.
 
+The password goes in polkit's dialog (on uQ, the shell's), never in the terminal. While the dialog is
+up the terminal doesn't echo, and anything typed into it then, or during the unattended run, is thrown
+away when the helper answers, before pacman's own questions and when bindleup ends, so a password typed
+there by mistake never reaches the shell (its prompt, or its history as a command).
+
 Each stage prints `==> [n/N] Title: summary` and its details (up to 12
 lines). The run ends with one row per stage: done, current, note, skipped,
 held or failed. Exit status 1 when a stage failed. Each failed stage is also written to the user journal as `bindle: [BINDLE-004] bindleUP: <stage> failed: …` (`systemd-cat -t bindle`), from the terminal, the window and uQ Settings alike, which uQ's Settings › Problems reads (uQ 0.3.36+, through `identifiers` in `uq/diag/bindle.toml`).
