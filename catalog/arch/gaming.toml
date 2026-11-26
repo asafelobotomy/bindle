@@ -179,19 +179,6 @@ argv = ["sh", "-c", "e=\"$HOME/.local/share/applications/bindle-$0.desktop\"; if
 unless = [{ path = "/usr/bin/romforge-app" }]
 
 [[module]]
-id = "reshadelinux"
-group = "Performance & overlays"
-name = "ReShadeLinux"
-description = "Installs the official ReShade runtime for Wine and Proton games. By asafelobotomy."
-packages = ["fuse2"]
-[[module.release]]
-repo = "asafelobotomy/reshadelinux"
-tag = "v1.4.1"
-asset = "reshadelinux-1.4.1-x86_64.AppImage"
-sha256 = "974b66a99d9c3447161a111a61deca49381d587330494dedc627107e64ec0bae"
-name = "reshadelinux"
-
-[[module]]
 id = "ntsync"
 group = "Steam & Proton"
 name = "Faster Windows games (ntsync)"
