@@ -46,6 +46,8 @@ pub struct Probe {
     /// `paru` or `yay`, when installed.
     pub aur_helper: Option<String>,
     pub aur: Listed<Update>,
+    /// The AUR updates' partner versions (`compat`).
+    pub aur_compat: crate::compat::Facts,
     /// None: Flatpak isn't installed.
     pub flatpak: Option<Listed<String>>,
     /// None: fwupd isn't installed.
@@ -119,6 +121,7 @@ impl Default for Probe {
             pacman: Ok(vec![]),
             aur_helper: None,
             aur: Ok(vec![]),
+            aur_compat: Default::default(),
             flatpak: None,
             firmware: None,
             firmware_age: None,

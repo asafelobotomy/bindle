@@ -45,7 +45,11 @@ pub fn gather(
         });
         let pacman = on(s, enabled(Stage::Pacman), pacman_updates);
         let helper = aur_helper.clone().unwrap_or_default();
-        let aur = on(s, has(Stage::Aur, aur_helper.is_some()), move || aur_updates(&helper));
+        let aur = on(s, has(Stage::Aur, aur_helper.is_some()), move || {
+            let list = aur_updates(&helper);
+            let facts = list.as_ref().map(|l| crate::compat_probe::gather(l)).unwrap_or_default();
+            (list, facts)
+        });
         let flatpak = on(s, enabled(Stage::Flatpak) && on_path("flatpak"), flatpak_updates);
         let firmware = on(s, enabled(Stage::Firmware) && on_path("fwupdmgr"), || {
             let age = look::firmware(prefs.firmware_refresh_days, refresh);
@@ -64,6 +68,7 @@ pub fn gather(
             Some((n, l)) => (n, l),
             None => (Ok(vec![]), None),
         };
+        let (aur_list, aur_compat) = join(aur).unwrap_or_else(|| (off::<Update>(), Default::default()));
         let (firmware_age, firmware) = match join(firmware) {
             Some((age, f)) => (age, Some(f)),
             None => (None, None),
@@ -75,7 +80,8 @@ pub fn gather(
             power: look::power(),
             pin: installed.contains_key("uq-hyprland-pin").then(look::pin),
             pacman: join(pacman).unwrap_or_else(off::<Update>),
-            aur: join(aur).unwrap_or_else(off::<Update>),
+            aur: aur_list,
+            aur_compat,
             aur_helper,
             flatpak: join(flatpak),
             firmware,

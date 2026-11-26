@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.49 — 2026-11-26
+
+- **bindleUP never installs an app version its partners aren't ready for.** uQ and its apps now say in their packages which versions of each other they work with (`conflicts=('uq<0.3.41')`, from uQ's new `compat/family.toml`). Before the AUR stage, bindleUP reads each update's new relations from the AUR and holds back one that can't be met yet, for example an app that needs an oysterAV release not on the AUR yet, or a uQ that would break an app with no update for it yet. Everything else still updates, and the stage says what waits and for what (`held back: …`). Partners updating in the same run go in the order pacman needs (uQ before the app that needs the new uQ), so paru never stops half way on a conflict.
+
 ## 0.1.48 — 2026-11-26
 
 - **A password typed into the terminal no longer turns up after bindleUP.** bindleUP asks for the password in polkit's dialog, but nothing read the terminal meanwhile, so a password typed there (before the dialog had opened, or after self-update's second dialog) stayed in the terminal's input queue: it echoed into pacman's output and, when bindleUP ended, landed at the shell's prompt, where Enter ran it as a command and saved it in the shell's history. Now the terminal doesn't echo while the dialog is up, and what was typed into it then, or during the unattended run, is thrown away when the helper starts, before each pacman question on the terminal (so a stray `y` can't answer one) and when bindleUP ends. `bindle apply` and the other commands that ask for the password do the same. bindleUP also says to type the password in the dialog, not the terminal.

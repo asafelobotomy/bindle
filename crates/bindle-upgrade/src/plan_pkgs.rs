@@ -1,7 +1,8 @@
 //! The package stages: pacman, the AUR, Bindle's pinned releases, Flatpak
 //! and firmware.
 
-use super::{Action, Options, StagePlan, Todo, plural, root, user, user_elevated};
+use super::{Action, Options, StagePlan, Todo, plural, root, user};
+use crate::parse::Update;
 use crate::prefs::{Follow, Prefs};
 use crate::probe::Probe;
 use crate::releases::{Newer, Source};
@@ -63,20 +64,58 @@ pub(super) fn aur(p: &Probe, o: &Options) -> StagePlan {
         Ok(l) => l,
         Err(e) => return StagePlan::new(s, Todo::Report, format!("couldn't check the AUR ({e})")),
     };
-    let mut argv = vec![helper.as_str(), "-Sua"];
-    // Nobody reviews build files in the window or an unattended run.
-    if o.yes || o.windowed {
-        argv.extend(match helper.as_str() {
-            "yay" => &["--noconfirm", "--answerdiff", "None", "--answerclean", "None"][..],
-            _ => &["--noconfirm", "--skipreview"][..],
-        });
+    let verdict = crate::compat::check(&p.aur_compat, list);
+    let waiting: Vec<&str> = verdict.held.iter().map(|h| h.name.as_str()).collect();
+    let going: Vec<&Update> = list.iter().filter(|u| !waiting.contains(&u.name.as_str())).collect();
+    let mut details: Vec<String> = going.iter().map(|u| format!("{} {} → {}", u.name, u.old, u.new)).collect();
+    details.extend(verdict.held.iter().map(|h| format!("held back: {}", h.reason)));
+    if let Some(why) = &p.aur_compat.problem {
+        details.push(format!("couldn't check partner versions ({why}); pacman still refuses a set that clashes"));
     }
-    let n = plural(list.len(), "AUR package", "AUR packages");
-    let details = list.iter().map(|u| format!("{} {} → {}", u.name, u.old, u.new)).collect();
-    let mut pl = StagePlan::new(s, Todo::Run(vec![user_elevated(&argv)]), format!("{n} to upgrade with {helper}"))
-        .details(details);
-    pl.packages = list.iter().map(|u| u.name.clone()).collect();
-    pl.upgrades = list.clone();
+    let held_note = (!waiting.is_empty()).then(|| format!("{} held back until a partner is ready", waiting.len()));
+    if going.is_empty() {
+        let summary = held_note.unwrap_or_else(|| "up to date".into());
+        return StagePlan::new(s, Todo::Report, summary).details(details);
+    }
+    // Nobody reviews build files in the window or an unattended run.
+    let quiet: &[&str] = match (o.yes || o.windowed, helper.as_str()) {
+        (false, _) => &[],
+        (true, "yay") => &["--noconfirm", "--answerdiff", "None", "--answerclean", "None"],
+        (true, _) => &["--noconfirm", "--skipreview"],
+    };
+    let actions = match &verdict.waves {
+        // One run of everything, held ones left out.
+        None => {
+            let mut argv = vec![helper.clone(), "-Sua".into()];
+            argv.extend(quiet.iter().map(|a| a.to_string()));
+            if !waiting.is_empty() {
+                argv.extend(["--ignore".to_string(), waiting.join(",")]);
+            }
+            vec![Action::UserElevated(argv)]
+        }
+        // Partners first: each run only once the one before it went in.
+        Some(waves) => waves
+            .iter()
+            .map(|w| {
+                let mut argv = vec![helper.clone(), "-S".into(), "--needed".into()];
+                argv.extend(quiet.iter().map(|a| a.to_string()));
+                if w.together {
+                    argv.push("--batchinstall".into());
+                }
+                argv.push("--".into());
+                argv.extend(w.names.iter().cloned());
+                Action::UserElevated(argv)
+            })
+            .collect(),
+    };
+    let n = plural(going.len(), "AUR package", "AUR packages");
+    let mut summary = format!("{n} to upgrade with {helper}");
+    if let Some(note) = held_note {
+        summary = format!("{summary}; {note}");
+    }
+    let mut pl = StagePlan::new(s, Todo::Run(actions), summary).details(details);
+    pl.packages = going.iter().map(|u| u.name.clone()).collect();
+    pl.upgrades = going.into_iter().cloned().collect();
     pl
 }
 

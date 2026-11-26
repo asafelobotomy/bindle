@@ -59,6 +59,7 @@ pub fn probe() -> Probe {
         ]),
         aur_helper: Some("paru".into()),
         aur: Ok(vec![up("visual-studio-code-bin", "1.106.0-1", "1.106.1-1")]),
+        aur_compat: Default::default(),
         flatpak: Some(Ok(vec!["org.gimp.GIMP".into(), "org.freedesktop.Platform".into()])),
         firmware: Some(Ok(vec!["UEFI dbx → 371".into()])),
         firmware_age: Some(2),

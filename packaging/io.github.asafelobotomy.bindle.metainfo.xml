@@ -29,6 +29,9 @@
   <project_license>GPL-3.0-or-later</project_license>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.1.49" date="2026-11-26">
+      <description><p>bindleUP holds back an AUR update until the uQ apps it works with are ready, and installs partners in the order they need.</p></description>
+    </release>
     <release version="0.1.48" date="2026-11-26">
       <description><p>A password typed into the terminal during bindleUP is no longer shown, and never reaches the shell afterwards.</p></description>
     </release>
