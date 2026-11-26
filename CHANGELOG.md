@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.45 — 2026-11-26
+
+- **bindleUP's bar icon shows on Bindle installed from its release.** The icon had the same `[requires] bins = ["bindle"]` condition that hid uQ Settings' Bindle page until 0.1.43: uQ looks it up in `/usr/bin` only, so with Bindle in `/usr/local/bin` the icon stayed hidden (`uqctl integrations list`: "hidden: needs /usr/bin/bindle"). `first-login install` and `refresh` now write the icon without it, like the page. Updating to 0.1.45 with bindleUP fixes it by itself, since the new Bindle writes its uQ files again.
+
 ## 0.1.44 — 2026-11-25
 
 - **A failed AUR build no longer hides what happened.** paru builds AUR packages one after another and fails the whole run when any one of them fails, so a single broken build made bindleUP's AUR stage say only "`paru -Sua …` failed (exit status: 1)", with paru's own error long scrolled past. The stage's result now names the packages that didn't upgrade (`not upgraded: kyko 0.2.2-1 → 1.3.2-1`), and in the update window and uQ Settings, where paru's output comes line by line, it adds paru's error and makepkg's (`packages failed to build: … (A failure occurred in check().)`).

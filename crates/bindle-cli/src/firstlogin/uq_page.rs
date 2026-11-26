@@ -32,18 +32,20 @@ pub const WIDGET_FILES: &[(&str, &str)] = &[
 pub const DIAG: &str = "/usr/share/uq/diag/bindle.toml";
 const DIAG_FILE: &str = include_str!("../../../../uq/diag/bindle.toml");
 
-/// The AUR package's page shows only while `/usr/bin/bindle` exists (`[requires] bins`, which uQ
-/// looks up in /usr/bin alone). Installed here, Bindle is `/usr/local/bin/bindle`, so the same
-/// table would hide the page for good; `first-login remove --purge` takes the page away instead.
+/// The AUR package's page and bar icon show only while `/usr/bin/bindle` exists (`[requires]
+/// bins`, which uQ looks up in /usr/bin alone). Installed here, Bindle is `/usr/local/bin/bindle`,
+/// so the same table would hide them for good; `first-login remove --purge` takes them away instead.
 const REQUIRES: &str = "[requires]\nbins = [\"bindle\"]\n";
+
+/// A manifest without the `[requires]` table; every other file as it is.
+fn without_requires(name: &str, text: &str) -> String {
+    if name == "page.toml" || name == "widget.toml" { text.replacen(REQUIRES, "", 1) } else { text.to_string() }
+}
 
 /// Every file with its installed path: the page's, the widget's, then the problem codes.
 pub fn installed() -> Vec<(String, String)> {
-    let page = FILES.iter().map(|(name, text)| {
-        let text = if *name == "page.toml" { text.replacen(REQUIRES, "", 1) } else { text.to_string() };
-        (format!("{DIR}/{name}"), text)
-    });
-    let widget = WIDGET_FILES.iter().map(|(name, text)| (format!("{WIDGET_DIR}/{name}"), text.to_string()));
+    let page = FILES.iter().map(|(name, text)| (format!("{DIR}/{name}"), without_requires(name, text)));
+    let widget = WIDGET_FILES.iter().map(|(name, text)| (format!("{WIDGET_DIR}/{name}"), without_requires(name, text)));
     page.chain(widget).chain([(DIAG.to_string(), DIAG_FILE.to_string())]).collect()
 }
 
@@ -92,6 +94,20 @@ mod tests {
             original["command"].as_array().unwrap().len()
         });
         assert!(all.iter().any(|(p, t)| p == DIAG && t.contains("BINDLE-001")));
+    }
+
+    /// The bar icon has the same table, and hid the same way (solon64, 0.1.44:
+    /// "widget bindleup hidden: needs /usr/bin/bindle").
+    #[test]
+    fn the_installed_widget_does_not_require_usr_bin_bindle() {
+        assert!(WIDGET_FILES[0].1.contains(REQUIRES), "widget.toml's [requires] changed: update REQUIRES");
+        let all = installed();
+        let widget = &all.iter().find(|(p, _)| p == &format!("{WIDGET_DIR}/widget.toml")).unwrap().1;
+        let parsed: toml::Value = toml::from_str(widget).unwrap();
+        assert!(parsed.get("requires").is_none());
+        let original: toml::Value = toml::from_str(WIDGET_FILES[0].1).unwrap();
+        assert_eq!(parsed["command"].as_array().unwrap().len(), original["command"].as_array().unwrap().len());
+        assert_eq!(parsed["id"].as_str(), Some("bindleup"));
     }
 }
 
