@@ -67,7 +67,7 @@ to do unasked.
 | root command | root | as declared in the catalog |
 | initramfs | root | `mkinitcpio -P` |
 | AUR helper bootstrap | you, then root | `git clone` at a pinned commit + PKGBUILD checksum + `makepkg`, then `pacman -U` of root-owned copies |
-| AUR packages | you | `paru -S --needed -- …` (you review PKGBUILDs); with `--yes`: `--noconfirm --skipreview` |
+| AUR packages | you | `paru -S --needed -- …` (you review PKGBUILDs); with `--yes`: `--noconfirm --skipreview`. If that run fails, each package gets its own run (one more try each), so one that cannot build or install doesn't keep the rest out; the step still fails, naming only those |
 | release assets | you, then root | `curl --proto =https` + sha256 pin; packages via `pacman -U` (root-owned copies), AppImages to `~/.local/bin` |
 | user command | you | as declared |
 
