@@ -167,19 +167,53 @@ pub fn install_aur(
     if let Some(p) = packages.iter().find(|p| !valid_name(p)) {
         bail!("invalid package name `{p}`");
     }
-    let mut argv = aur_argv(helper, unattended);
-    argv.push("--".into());
-    argv.extend(packages.iter().cloned());
-    // The helper downloads from the AUR, which drops connections when busy.
-    // `--needed` makes a second try pick up where the first stopped.
-    match run(&argv, fake, note) {
-        Ok(()) => Ok(()),
-        Err(e) => {
-            note(&format!("{e}; trying the AUR install once more"));
-            std::thread::sleep(std::time::Duration::from_secs(5));
-            run(&argv, fake, note)
+    let base = aur_argv(helper, unattended);
+    let mut run_one = |argv: &[String], note: &mut dyn FnMut(&str)| run(argv, fake, note);
+    install_aur_with(&base, packages, &mut run_one, note)
+}
+
+type RunFn<'a> = dyn FnMut(&[String], &mut dyn FnMut(&str)) -> Result<()> + 'a;
+
+/// All the packages in one helper run first, so the helper orders AUR
+/// dependencies among them. If that fails, each package gets its own run, so
+/// one that cannot build or install does not keep the others out; the error
+/// then names only the ones that failed. `--needed` makes every later run skip
+/// what is already in, and each run gets one more try (the AUR drops
+/// connections when busy).
+fn install_aur_with(base: &[String], packages: &[String], run: &mut RunFn, note: &mut dyn FnMut(&str)) -> Result<()> {
+    let argv = |pkgs: &[String]| {
+        let mut a = base.to_vec();
+        a.push("--".into());
+        a.extend(pkgs.iter().cloned());
+        a
+    };
+    let Err(e) = run(&argv(packages), note) else { return Ok(()) };
+    if packages.len() < 2 {
+        note(&format!("{e}; trying the AUR install once more"));
+        std::thread::sleep(retry_pause());
+        return run(&argv(packages), note);
+    }
+    note(&format!("{e}; installing the AUR packages one at a time"));
+    let mut failed = Vec::new();
+    for p in packages {
+        let one = argv(std::slice::from_ref(p));
+        if let Err(e) = run(&one, note) {
+            note(&format!("{e}; trying {p} once more"));
+            std::thread::sleep(retry_pause());
+            if run(&one, note).is_err() {
+                failed.push(p.as_str());
+            }
         }
     }
+    match failed.as_slice() {
+        [] => Ok(()),
+        f if f.len() == packages.len() => bail!("no AUR package could be installed: {}", f.join(", ")),
+        f => bail!("these AUR packages could not be installed: {} (the others are in)", f.join(", ")),
+    }
+}
+
+fn retry_pause() -> std::time::Duration {
+    std::time::Duration::from_secs(if cfg!(test) { 0 } else { 5 })
 }
 
 fn aur_argv(helper: &str, unattended: bool) -> Vec<String> {
@@ -239,5 +273,45 @@ mod tests {
         assert!(build_aur(AUR_HELPER, true, &mut |_| {}).is_ok());
         assert_eq!(AUR_HELPER_COMMIT.len(), 40);
         assert_eq!(AUR_HELPER_PKGBUILD_SHA256.len(), 64);
+    }
+
+    #[test]
+    fn one_failing_aur_package_does_not_keep_the_others_out() {
+        let base = vec!["paru".to_string(), "-S".into()];
+        let pkgs: Vec<String> = ["emobie", "av-morning-star", "romforge-bin"].map(String::from).into();
+        let mut calls = Vec::new();
+        let mut run = |argv: &[String], _: &mut dyn FnMut(&str)| {
+            calls.push(argv[3..].join(" "));
+            if argv.iter().any(|a| a == "emobie") { bail!("exit 1") } else { Ok(()) }
+        };
+        let e = install_aur_with(&base, &pkgs, &mut run, &mut |_| {}).unwrap_err().to_string();
+        assert!(e.contains("emobie") && !e.contains("romforge-bin"), "{e}");
+        assert_eq!(
+            calls,
+            ["emobie av-morning-star romforge-bin", "emobie", "emobie", "av-morning-star", "romforge-bin"]
+        );
+    }
+
+    #[test]
+    fn a_batch_that_installs_runs_once() {
+        let pkgs = vec!["a".to_string(), "b".into()];
+        let mut n = 0;
+        let mut run = |_: &[String], _: &mut dyn FnMut(&str)| {
+            n += 1;
+            Ok(())
+        };
+        install_aur_with(&["paru".into()], &pkgs, &mut run, &mut |_| {}).unwrap();
+        assert_eq!(n, 1);
+    }
+
+    #[test]
+    fn a_single_package_is_retried_once() {
+        let mut n = 0;
+        let mut run = |_: &[String], _: &mut dyn FnMut(&str)| {
+            n += 1;
+            if n == 1 { bail!("busy") } else { Ok(()) }
+        };
+        install_aur_with(&["paru".into()], &["a".into()], &mut run, &mut |_| {}).unwrap();
+        assert_eq!(n, 2);
     }
 }
