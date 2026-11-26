@@ -189,6 +189,9 @@ pub fn main(mut a: UpgradeArgs) -> Result<()> {
     let mut stream = upgrade_stream::Stream;
     let ui: &mut dyn Ui = if a.ndjson { &mut stream } else { &mut printer };
     let results = run(plans, &mut after, &run_opts, ui);
+    // Nothing typed into this terminal during the unattended run (a password meant for the
+    // dialog) may reach the shell, or the next Bindle after a self-update.
+    bindle_run::tty::discard_typeahead();
     if !rehearsal {
         bindle_upgrade::status::clear();
         bindle_upgrade::report::log_problems(&results);

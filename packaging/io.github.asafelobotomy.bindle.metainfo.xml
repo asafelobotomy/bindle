@@ -29,6 +29,9 @@
   <project_license>GPL-3.0-or-later</project_license>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.1.48" date="2026-11-26">
+      <description><p>A password typed into the terminal during bindleUP is no longer shown, and never reaches the shell afterwards.</p></description>
+    </release>
     <release version="0.1.47" date="2026-11-26">
       <description><p>Take, list and delete system snapshots with bindle snapshot, and change how many automatic ones are kept.</p></description>
     </release>
