@@ -29,6 +29,7 @@ const LOG_DIR: &str = "/var/log/bindle/";
 pub mod recover;
 mod restore;
 mod run_snapshot;
+mod snapper_ops;
 mod stage;
 mod undo;
 
@@ -214,6 +215,10 @@ impl Helper {
                 crate::self_install::install(&root, &files, fake, &mut |l| self.output(l)).map(|()| None)
             }
             req @ (Request::Snapshots
+            | Request::CreateSnapshot { .. }
+            | Request::DeleteSnapshots { .. }
+            | Request::SnapperSettings
+            | Request::SetSnapperSetting { .. }
             | Request::Rollback { .. }
             | Request::ResetConfig { .. }
             | Request::PrepareRestore { .. }

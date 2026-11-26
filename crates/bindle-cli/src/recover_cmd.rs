@@ -16,6 +16,10 @@ use bindle_run::sys;
 pub enum RecoverCmd {
     /// The Recovery window: Roll back, Rebase and Factory Restore, explained.
     Recovery {
+        /// Print what this computer allows as JSON (rollback, restore,
+        /// imageKept, snapper), open nothing.
+        #[arg(long)]
+        status: bool,
         /// Print what would run, run nothing.
         #[arg(long, short = 'n')]
         dry_run: bool,
@@ -32,11 +36,18 @@ pub enum RecoverCmd {
     /// Factory Restore: restart into the Arch installer to erase this
     /// computer and install it from new (nothing is erased until its last question).
     Restore(restore::RestoreArgs),
+    /// The system's snapper snapshots: list, take one now, delete, and the
+    /// automatic-snapshot settings.
+    Snapshot {
+        #[command(subcommand)]
+        cmd: snapshot::SnapshotCmd,
+    },
 }
 
 mod offline;
 mod rebase;
 mod restore;
+mod snapshot;
 
 #[derive(clap::Args, Debug)]
 pub struct RollbackArgs {
@@ -64,10 +75,15 @@ pub struct RollbackArgs {
 
 pub fn main(cmd: RecoverCmd) -> Result<()> {
     match cmd {
-        RecoverCmd::Recovery { dry_run, sandbox } => crate::gui::recovery(dry_run, sandbox.as_deref()),
+        RecoverCmd::Recovery { status: true, .. } => {
+            println!("{}", bindle_core::recover::status::status());
+            Ok(())
+        }
+        RecoverCmd::Recovery { dry_run, sandbox, .. } => crate::gui::recovery(dry_run, sandbox.as_deref()),
         RecoverCmd::Rollback(a) => rollback(a),
         RecoverCmd::Rebase(a) => rebase::main(a),
         RecoverCmd::Restore(a) => restore::main(a),
+        RecoverCmd::Snapshot { cmd } => snapshot::main(cmd),
     }
 }
 

@@ -226,3 +226,23 @@ fn reset_config_refuses_files_a_rebase_keeps() {
     assert!(h.handle(ok).unwrap().is_none());
     assert!(sink.lines().iter().any(|l| l.contains("would run: sh -ec") && l.contains("/etc/pacman.conf")));
 }
+
+#[test]
+fn snapshot_management_checks_before_snapper_runs() {
+    let (mut h, sink, _) = helper("snapper-ops");
+    assert!(h.handle(Request::CreateSnapshot { description: "before\nthe party".into() }).unwrap().is_none());
+    assert!(
+        sink.lines().iter().any(|l| l.contains("would run: snapper -c root create") && l.contains("beforethe party"))
+    );
+    assert!(
+        h.handle(Request::DeleteSnapshots { numbers: vec![4, 0] }).unwrap_err().to_string().contains("running system")
+    );
+    assert!(h.handle(Request::DeleteSnapshots { numbers: vec![4, 5] }).unwrap().is_none());
+    assert!(sink.lines().iter().any(|l| l.contains("would run: snapper -c root delete 4 5")));
+    let set = |k: &str, v: &str| Request::SetSnapperSetting { key: k.into(), value: v.into() };
+    assert!(h.handle(set("ALLOW_USERS", "me")).is_err());
+    assert!(h.handle(set("TIMELINE_LIMIT_DAILY", "7 8")).is_err());
+    assert!(h.handle(set("TIMELINE_LIMIT_DAILY", "7")).unwrap().is_none());
+    assert!(sink.lines().iter().any(|l| l.contains("set-config TIMELINE_LIMIT_DAILY=7")));
+    assert!(h.handle(Request::SnapperSettings).unwrap().is_none());
+}

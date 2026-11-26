@@ -44,6 +44,21 @@ pub enum Request {
     },
     /// snapper's snapshots of the root config, as JSON (one `Output` per line).
     Snapshots,
+    /// Take a snapper snapshot of the system now; its number is one `Output`.
+    CreateSnapshot {
+        description: String,
+    },
+    /// Delete snapper snapshots (never 0, the running system).
+    DeleteSnapshots {
+        numbers: Vec<u32>,
+    },
+    /// snapper's root config settings that can be changed, as JSON (one `Output`).
+    SnapperSettings,
+    /// Change one of those settings (checked by `snapper_config::check`).
+    SetSnapperSetting {
+        key: String,
+        value: String,
+    },
     /// Make a snapper snapshot the system from the next start (the helper
     /// works out how from the mount table).
     Rollback {

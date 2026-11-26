@@ -32,6 +32,10 @@ impl Helper {
     pub(super) fn recover(&mut self, req: Request) -> Result<()> {
         match req {
             Request::Snapshots => self.snapshots(),
+            Request::CreateSnapshot { description } => self.create_snapshot(&description),
+            Request::DeleteSnapshots { numbers } => self.delete_snapshots(&numbers),
+            Request::SnapperSettings => self.snapper_settings(),
+            Request::SetSnapperSetting { key, value } => self.set_snapper_setting(&key, &value),
             Request::Rollback { number } => {
                 self.log_line(&format!("== roll back to snapshot {number}"));
                 self.rollback(number)

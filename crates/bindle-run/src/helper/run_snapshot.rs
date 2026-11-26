@@ -83,7 +83,7 @@ impl Helper {
 }
 
 /// `snapper create -p` prints the new snapshot's number.
-fn parse_number(out: &str) -> Result<u32> {
+pub(super) fn parse_number(out: &str) -> Result<u32> {
     out.trim().parse().with_context(|| format!("snapper printed `{}`, not a snapshot number", out.trim()))
 }
 
