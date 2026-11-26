@@ -4,7 +4,9 @@
 # system that is already installed. Installed this way it lives in /usr/bin
 # and updates with the AUR: Bindle's own self-update (`bindleup`'s Bindle
 # stage) only replaces the copy `bindle first-login install` puts in
-# /usr/local/bin, and only reports a packaged one. The release workflow
+# /usr/local/bin, and only reports a packaged one. Bindle's `bindle` module
+# installs this package once an AUR helper is in, and points /usr/local/bin
+# at it. The release workflow
 # writes the published copy (version and checksum filled in, plus .SRCINFO)
 # into its `aur` artifact.
 
@@ -40,11 +42,9 @@ build() {
   cargo build --release --frozen -p bindle-cli -p bindle-gui
 }
 
-check() {
-  cd "$pkgname-$pkgver"
-  export RUSTUP_TOOLCHAIN=stable CARGO_TARGET_DIR=target
-  cargo test --release --frozen --workspace --exclude bindle-gui
-}
+# No check(): every tag's tests passed in CI before its release, and Bindle installs
+# this package during setup (catalog module `bindle`), where a second, test build of
+# the whole workspace would double the wait.
 
 package() {
   cd "$pkgname-$pkgver"

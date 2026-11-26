@@ -109,3 +109,18 @@ why = "New in Bindle 0.1.41: Zsh now comes with suggestions as you type, syntax 
 version = "0.1.43"
 modules = ["uqview"]
 why = "uQview, uQ's picture viewer, joined uQ's apps in Bindle 0.1.31 but was never offered to setups made before it: it opens pictures in uQ's theme, marks up screenshots and sets a picture as the wallpaper. It becomes the app for pictures only if you haven't chosen one."
+
+[[added]]
+version = "0.1.49"
+modules = ["bindle"]
+why = "New in Bindle 0.1.49: Bindle itself comes from its AUR package once an AUR helper is in, and updates with your other AUR packages. bindle, bindleup and bindo keep working by the same names."
+
+[[retired]]
+id = "reshadelinux"
+version = "0.1.49"
+why = "Bindle now installs uQ's own apps only from the AUR, and ReShadeLinux isn't there yet. It comes back once it is. A copy you already have stays installed."
+
+[[retired]]
+id = "qbit-plugin-dl"
+version = "0.1.49"
+why = "Bindle now installs uQ's own apps only from the AUR, and qbit Plugin Manager isn't there yet. It comes back once it is. A copy you already have stays installed."

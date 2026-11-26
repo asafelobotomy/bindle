@@ -180,14 +180,21 @@ mod tests {
 
     #[test]
     fn the_catalog_pins_are_listed_once_with_titles() {
-        let c = Catalog::arch().unwrap();
+        // The shipped catalog pins nothing (uQ's apps come from the AUR): two modules sharing a pin.
+        let module = |id: &str| {
+            format!(
+                "[[module]]\nid = \"{id}\"\nname = \"T {id}\"\ndescription = \"\"\n[[module.release]]\nrepo = \"example/tool\"\n\
+                 tag = \"v1\"\nasset = \"tool-1.0-1-x86_64.pkg.tar.zst\"\nsha256 = \"{}\"\nname = \"tool\"\n",
+                "a".repeat(64)
+            )
+        };
+        let file = format!("[category]\nid = \"x\"\nname = \"X\"\ndescription = \"\"\n{}{}", module("a"), module("b"));
+        let profiles = "[[profile]]\nid = \"p\"\nname = \"P\"\ndescription = \"\"\n";
+        let c = Catalog::from_sources("arch", &[("x", &file)], profiles).unwrap();
         let p = pinned(&c);
-        assert!(!p.is_empty());
-        assert!(p.iter().all(|a| !a.title.is_empty()));
-        let unique: BTreeSet<&str> = p.iter().map(|a| a.asset.as_str()).collect();
-        assert_eq!(unique.len(), p.len());
-        for a in p.iter().filter(|a| a.kind() == Some(AssetKind::Package)) {
-            assert!(pinned_version(a).is_some(), "{}: can't read the version from {}", a.name, a.asset);
-        }
+        assert_eq!(p.len(), 1);
+        assert_eq!(p[0].title, "T a");
+        assert_eq!(pinned_version(&p[0]).as_deref(), Some("1.0-1"));
+        assert!(pinned(&Catalog::arch().unwrap()).is_empty());
     }
 }

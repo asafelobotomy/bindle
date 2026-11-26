@@ -138,6 +138,9 @@ fn check_names(m: &Module) -> Result<()> {
     Ok(())
 }
 
+/// The GitHub owner of uQ and its apps: those come from the AUR only, never a release pin.
+const OWN_APPS: &str = "asafelobotomy";
+
 /// Pinned, checksummed, and a kind Bindle knows how to install.
 fn check_releases(m: &Module) -> Result<()> {
     let word = |s: &str| !s.is_empty() && s.chars().all(|c| c.is_ascii_alphanumeric() || "-_.".contains(c));
@@ -152,6 +155,9 @@ fn check_releases(m: &Module) -> Result<()> {
             && word(&r.name)
             && !r.name.starts_with('-')
             && r.kind().is_some();
+        if r.repo.split_once('/').is_some_and(|(o, _)| o.eq_ignore_ascii_case(OWN_APPS)) {
+            bail!("module `{}` pins a release of {}: uQ's own apps install from the AUR only", m.id, r.repo);
+        }
         if !ok {
             bail!("module `{}` has an invalid release asset `{}` from `{}`", m.id, r.asset, r.repo);
         }
@@ -262,6 +268,18 @@ mod tests {
                 "release asset",
             ),
             (module("a", &format!(release_toml!(), "o/r", "x.AppImage", "abc")), "release asset"),
+            (
+                module(
+                    "a",
+                    &format!(
+                        release_toml!(),
+                        "asafelobotomy/r",
+                        "x.AppImage",
+                        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                    ),
+                ),
+                "from the AUR only",
+            ),
             (
                 module("a", "packages = [\"x\"]\naur = [\"x\"]\nrequires = [\"h\"]") + &module("h", ""),
                 "both packages and aur",

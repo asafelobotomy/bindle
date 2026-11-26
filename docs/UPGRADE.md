@@ -228,8 +228,10 @@ Never test a real upgrade on the host; use the Arch VM (`tests/vm/run.sh`,
 - When Hyprland outgrows uQ's pin and the new pin is on the AUR, Bindle holds the upgrade and says
   to install the pin and Hyprland in one transaction; it doesn't do that itself (not verified in
   the VM which paru invocation does it safely).
-- Bindle's self-update covers `/usr/local/bin` and AppImages; a distribution package of Bindle
-  would be updated by its package manager.
+- Bindle's self-update covers `/usr/local/bin` and AppImages, for systems without an AUR helper.
+  With one, the `bindle` module (What's new offers it from 0.1.49) moves Bindle to its AUR
+  package, which the AUR stage updates; `/usr/local/bin/bindle` then points at it and the
+  self-update only reports.
 - No `--json` for the closing table.
 - No preferences page in the bindle-gui window: the file is the preference (`bindo upgrade-prefs`
   opens it, `bindle config` edits it, uQ Settings' Bindle page shows it).
