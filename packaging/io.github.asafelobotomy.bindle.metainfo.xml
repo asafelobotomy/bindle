@@ -29,6 +29,9 @@
   <project_license>GPL-3.0-or-later</project_license>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.1.50" date="2026-11-26">
+      <description><p>The oysterAV module also installs unhide and Lynis, which its root scans and hardening audit run.</p></description>
+    </release>
     <release version="0.1.49" date="2026-11-26">
       <description><p>uQ's apps, and Bindle itself, now install from the AUR only.</p></description>
     </release>

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.50 — 2026-11-26
+
+- **oysterAV's module installs everything its checks run.** It now also installs unhide (hidden processes and ports) and Lynis (the hardening audit). oysterAV runs those as root from the distro packages only, so without them the checks were missing, and oysterAV tried to build its own copy of unhide, which failed its runtime setup.
+
 ## 0.1.49 — 2026-11-26
 
 - **Bindle offers uQ's apps from the AUR only.** Every app by asafelobotomy that Bindle installs comes from its one AUR package (crumBS and romforge as their prebuilt `-bin` packages, so no Rust or Node toolchain is needed); nothing comes from a GitHub release any more, and the catalog tests refuse a release pin of uQ's own apps or two packages of the same app.
