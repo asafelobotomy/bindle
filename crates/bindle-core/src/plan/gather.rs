@@ -64,8 +64,12 @@ pub(super) fn collect(
         if late { &mut p.late_units } else { &mut p.units }.extend(m.enable.iter().cloned());
         p.groups.extend(m.groups.iter().cloned());
         let pending = |c: &&Command| facts.matches(&c.when).is_ok() && !already_done(c, facts, current_file);
-        let cmds = m.root_commands.iter().filter(pending).map(|c| (id.clone(), c.argv.clone()));
-        if late { &mut p.late_root_cmds } else { &mut p.root_cmds }.extend(cmds);
+        // A late module's root commands wait for its AUR packages, unless they
+        // clear the way for them (`before_aur`).
+        for c in m.root_commands.iter().filter(pending) {
+            let early = !late || c.before_aur;
+            if early { &mut p.root_cmds } else { &mut p.late_root_cmds }.push((id.clone(), c.argv.clone()));
+        }
         p.user_cmds.extend(m.user_commands.iter().filter(pending).map(|c| (id.clone(), c.clone())));
         p.aur.extend(m.aur.iter().map(|x| (id.clone(), x.clone())));
         p.releases.extend(m.releases.iter().map(|r| ReleaseAsset { title: m.name.clone(), ..r.clone() }));

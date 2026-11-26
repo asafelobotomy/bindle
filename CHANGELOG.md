@@ -1,9 +1,14 @@
 # Changelog
 
-## 0.1.46 — 2026-11-26
+## 0.1.47 — 2026-11-26
 
 - **Snapshots by hand: `bindle snapshot`.** List the system's snapper snapshots, take one now (`bindle snapshot create "Before the party"`), delete old ones, and see or change how many automatic snapshots snapper keeps (`bindle snapshot settings`, `bindle snapshot set TIMELINE_LIMIT_DAILY 7`). Changes ask for the password once; only the automatic-snapshot settings can be changed this way. uQ Settings' new Restore page uses these.
 - **`bindle recovery --status`** prints, as JSON, which of Roll back and Factory Restore this computer allows and why not, whether the installer is kept, and whether snapper is set up, so uQ Settings can show only what works here.
+
+## 0.1.46 — 2026-11-26
+
+- **One AUR app that can't install no longer keeps the others out.** Bindle installs the chosen AUR apps in one paru run, and paru stops the whole run at the first failure, so one broken package left every app after it uninstalled ("`paru -S … emobie av-morning-star romforge-bin` failed (exit status: 1)"). When that run fails, each app now gets its own run (and one more try), and the step names only the ones that didn't go in.
+- **emobie installs from the AUR after an earlier Grant.** emobie's Grant, used from its AppImage or a build, copied its polkit action into `/usr/share/polkit-1/actions` without a package owning it; the AUR package ships the same file, so pacman refused it as a conflict. The emobie module now removes that copy before the AUR step when no package owns it (emobie 0.9.7 stops making it).
 
 ## 0.1.45 — 2026-11-26
 

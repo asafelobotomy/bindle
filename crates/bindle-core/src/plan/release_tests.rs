@@ -70,6 +70,9 @@ fn own_apps_come_from_the_aur_and_retire_bindles_appimage() {
     };
     let at_aur = p.steps.iter().position(|s| matches!(s, Step::InstallAur { .. })).unwrap();
     assert!(cleanup(&p).is_some_and(|i| i > at_aur), "{:?}", p.steps);
+    // The polkit action its Grant copied in by hand goes before: the package ships it.
+    let unowned = p.steps.iter().position(|s| matches!(s, Step::RunAsRoot { module, .. } if module == "emobie"));
+    assert!(unowned.is_some_and(|i| i < at_aur), "{:?}", p.steps);
     let installed = |path: &str| (path == "/usr/bin/emobie").then(String::new);
     assert!(cleanup(&resolve(&Catalog::arch().unwrap(), &f, &sel, &installed).unwrap()).is_none());
 }

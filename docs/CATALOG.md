@@ -117,7 +117,9 @@ out of the catalog until that changes.
 
 User commands run after everything else, unless they set `before_aur = true`: then they run
 right after the packages install, before the AUR helper and AUR builds (rustup's
-`rustup default stable`, which every Rust PKGBUILD needs).
+`rustup default stable`, which every Rust PKGBUILD needs). A module with AUR packages
+or releases runs its root commands after them, unless a command sets `before_aur = true`
+(emobie's: it clears a file its app copied in by hand that the package now ships).
 
 Commands are re-planned on every run unless they say how to tell they're done.
 `unless` is a list of file checks, read the same way the planner reads files

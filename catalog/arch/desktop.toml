@@ -422,6 +422,10 @@ name = "emobie (emoji palette)"
 description = "Compact emoji palette with a global hotkey, favourites and text macros. By asafelobotomy."
 requires = ["aur-helper"]
 aur = ["emobie"]
+# emobie's Grant, run from an AppImage or a build, copies its polkit action into
+# /usr/share/polkit-1/actions, where no package owns it: the package ships the same
+# file, so pacman refuses it as a conflict. That unowned copy goes before the AUR step.
+root_commands = [{ argv = ["sh", "-c", 'f=/usr/share/polkit-1/actions/io.github.asafelobotomy.emobie.inputd.policy; if [ -e "$f" ] && ! pacman -Qoq "$f" >/dev/null 2>&1; then rm -f "$f"; fi'], unless = [{ path = "/usr/bin/emobie" }], before_aur = true }]
 # Bindle installed it as an AppImage before it came from the AUR: that copy goes once the
 # package is in (only when Bindle's own desktop entry for it is still there).
 [[module.user_commands]]
