@@ -193,9 +193,10 @@ profiles = ["desktop", "gaming", "developer"]
 requires = ["aur-helper"]
 aur = ["oysterav", "chkrootkit"]
 # What oysterAV scans with, ready to go: ClamAV with its signature updater running (it downloads
-# the signatures as soon as it starts), and rkhunter and chkrootkit for the rootkit checks. The firewall is the
-# ufw module above.
-packages = ["clamav", "rkhunter"]
+# the signatures as soon as it starts), rkhunter, chkrootkit and unhide for the rootkit checks, and Lynis for
+# the hardening audit. Those checks run as root from the distro packages only, never oysterAV's private copies.
+# The firewall is the ufw module above.
+packages = ["clamav", "rkhunter", "unhide", "lynis"]
 enable = ["clamav-freshclam.service"]
 notes = ["ClamAV downloads its virus signatures right after install; oysterAV shows \"no virus signatures\" until that has finished. Open oysterAV from your app menu for the rest."]
 

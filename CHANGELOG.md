@@ -1,8 +1,12 @@
 # Changelog
 
-## 0.1.50 — 2026-11-26
+## 0.1.51 — 2026-11-26
 
 - **bindleUP never installs an app version its partners aren't ready for.** uQ and its apps now say in their packages which versions of each other they work with (`conflicts=('uq<0.3.41')`, from uQ's new `compat/family.toml`). Before the AUR stage, bindleUP reads each update's new relations from the AUR and holds back one that can't be met yet, for example an app that needs an oysterAV release not on the AUR yet, or a uQ that would break an app with no update for it yet. Everything else still updates, and the stage says what waits and for what (`held back: …`). Partners updating in the same run go in the order pacman needs (uQ before the app that needs the new uQ), so paru never stops half way on a conflict.
+
+## 0.1.50 — 2026-11-26
+
+- **oysterAV's module installs everything its checks run.** It now also installs unhide (hidden processes and ports) and Lynis (the hardening audit). oysterAV runs those as root from the distro packages only, so without them the checks were missing, and oysterAV tried to build its own copy of unhide, which failed its runtime setup.
 
 ## 0.1.49 — 2026-11-26
 
