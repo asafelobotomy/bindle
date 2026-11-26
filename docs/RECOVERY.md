@@ -99,6 +99,28 @@ switch): a checked copy stays on the computer, for Factory Restore without
 the internet and, on Btrfs with snapper, the boot menu's "Roll back the
 system" entry. Off deletes the copy, the staged files and that entry.
 
+## Snapshots by hand
+
+`bindle snapshot list|create|delete|settings|set` (uQ Settings' Restore page
+runs these):
+
+- `list [--json]` and `settings [--json]` ask snapper as the user first (it
+  answers when the config's `ALLOW_USERS`/`ALLOW_GROUPS` let them), then the
+  root helper (`Request::Snapshots`, `SnapperSettings`). `--no-ask` exits
+  with status 3 instead of asking for the password.
+- `create [DESCRIPTION]` takes a `single` snapshot with snapper's `number`
+  cleanup and prints its number (`CreateSnapshot`; the description is cut to
+  one line of 100 characters).
+- `delete N... [--yes]` (`DeleteSnapshots`; never 0, the running system).
+- `set KEY VALUE` changes one automatic-snapshot setting
+  (`SetSnapperSetting`): `TIMELINE_CREATE` yes/no, `TIMELINE_LIMIT_*` and
+  `NUMBER_LIMIT[_IMPORTANT]`. `recover::snapper_config::check` lists what's
+  allowed and is checked again as root; nothing else in the config changes.
+
+`bindle recovery --status` prints what this computer allows as JSON
+(`recover::status`): `rollback` and `restore` are null or why not,
+`imageKept` and `snapper` are true or false. The Recovery window reads the same.
+
 ## Testing
 
 Never on the host: `--sandbox <dir>` and `--dry-run` record or print the

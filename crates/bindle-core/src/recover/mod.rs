@@ -5,3 +5,5 @@ pub mod rebase;
 pub mod restore;
 pub mod rollback;
 pub mod snapper;
+pub mod snapper_config;
+pub mod status;

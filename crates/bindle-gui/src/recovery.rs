@@ -8,34 +8,17 @@ use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
-use bindle_core::recover::restore::IMAGE;
-use bindle_core::recover::rollback;
 use serde::Serialize;
 use serde_json::{Value, json};
 
 /// What this computer allows, for the cards on the first page.
 pub fn status() -> Value {
-    let info = std::fs::read_to_string("/proc/self/mountinfo").unwrap_or_default();
-    let rollback = match rollback::layout(&info) {
-        Err(why) => Some(why),
-        Ok(_) if !Path::new("/etc/snapper/configs/root").exists() => Some(
-            "snapper isn't set up here, so there are no snapshots (Bindle's \"Btrfs snapshots\" module sets it up)"
-                .into(),
-        ),
-        Ok(_) => None,
-    };
-    let root_dev = info.lines().find(|l| l.split_whitespace().nth(4) == Some("/")).and_then(|l| l.split(" - ").nth(1));
-    let encrypted = root_dev.and_then(|r| r.split_whitespace().nth(1)).is_some_and(|d| d.starts_with("/dev/mapper/"));
-    json!({
-        "rollback": rollback,
-        "restore": encrypted.then_some("this computer's disk is encrypted: start the installer from a USB stick instead (see bindle iso)"),
-        "imageKept": Path::new(IMAGE).is_file(),
-    })
+    bindle_core::recover::status::status()
 }
 
 /// The sample computer the screenshots show.
 pub fn sample_status() -> Value {
-    json!({ "rollback": null, "restore": null, "imageKept": false })
+    json!({ "rollback": null, "restore": null, "imageKept": false, "snapper": true })
 }
 
 pub fn sample_snapshots() -> Value {

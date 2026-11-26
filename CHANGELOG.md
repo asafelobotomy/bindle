@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.46 — 2026-11-26
+
+- **Snapshots by hand: `bindle snapshot`.** List the system's snapper snapshots, take one now (`bindle snapshot create "Before the party"`), delete old ones, and see or change how many automatic snapshots snapper keeps (`bindle snapshot settings`, `bindle snapshot set TIMELINE_LIMIT_DAILY 7`). Changes ask for the password once; only the automatic-snapshot settings can be changed this way. uQ Settings' new Restore page uses these.
+- **`bindle recovery --status`** prints, as JSON, which of Roll back and Factory Restore this computer allows and why not, whether the installer is kept, and whether snapper is set up, so uQ Settings can show only what works here.
+
 ## 0.1.45 — 2026-11-26
 
 - **bindleUP's bar icon shows on Bindle installed from its release.** The icon had the same `[requires] bins = ["bindle"]` condition that hid uQ Settings' Bindle page until 0.1.43: uQ looks it up in `/usr/bin` only, so with Bindle in `/usr/local/bin` the icon stayed hidden (`uqctl integrations list`: "hidden: needs /usr/bin/bindle"). `first-login install` and `refresh` now write the icon without it, like the page. Updating to 0.1.45 with bindleUP fixes it by itself, since the new Bindle writes its uQ files again.
