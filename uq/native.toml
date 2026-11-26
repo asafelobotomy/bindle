@@ -13,3 +13,7 @@ version = "1.0.1"
 files = ["crates/bindle-core/src/uq_diag.rs"]
 codes = "uq/diag/bindle.toml"
 sources = ["crates"]
+
+[uq-loc]
+version = "1.0.0"
+files = ["scripts/check-loc.sh"]

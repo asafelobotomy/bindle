@@ -22,6 +22,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # uQ's kits (uq/native.toml) are exactly the pinned releases
       - run: scripts/check-uq-native.sh
+      # Every source file is within 400 lines of code (uQ's uq-loc)
+      - run: scripts/check-loc.sh
       - run: cargo fmt --check
       - run: cargo deny --locked check
       - run: cargo clippy --all-targets --locked -- -D warnings
