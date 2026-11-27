@@ -14,6 +14,8 @@
 //!
 //! `--check` stops after step 2.
 
+pub mod compat;
+pub mod compat_probe;
 pub mod news;
 pub mod parse;
 pub mod plan;
@@ -30,6 +32,10 @@ pub mod setup;
 pub mod stage;
 pub mod status;
 pub mod system;
+pub mod vercmp;
+
+#[cfg(test)]
+mod compat_tests;
 
 pub use plan::{Action, Options, StagePlan, Todo};
 pub use stage::Stage;
