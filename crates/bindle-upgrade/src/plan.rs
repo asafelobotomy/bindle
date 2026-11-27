@@ -176,7 +176,7 @@ pub fn plan(p: &Probe, o: &Options) -> Vec<StagePlan> {
     plans.extend([StagePlan::new(Stage::Snapshot, Todo::Nothing, ""), mirrors(p, o)]);
     plans.push(pacman(p, o));
     plans.push(aur(p, o));
-    plans.push(unchecked(releases(&p.releases, &o.prefs), &p.after.unchecked));
+    plans.push(unchecked(releases(&p.releases, &p.leftovers, &o.prefs), &p.after.unchecked));
     plans.push(flatpak(p));
     plans.push(firmware(p, o));
     let pending: Vec<String> =

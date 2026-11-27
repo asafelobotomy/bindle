@@ -82,6 +82,14 @@ pub fn probe() -> Probe {
             pinned("xzram", "v0.4.4", "xzram-0.4.4-1-x86_64.pkg.tar.zst", "0.4.3-1", Source::Bindle),
             pinned("kyko", "v0.0.3", "kyko-0.0.3-1-x86_64.pkg.tar.zst", "0.0.2-1", Source::Other),
         ],
+        leftovers: vec![bindle_upgrade::leftovers::Leftover {
+            name: "scale_tail".into(),
+            files: vec![
+                "~/.local/share/applications/bindle-scale_tail.desktop".into(),
+                "~/.local/bin/scale_tail".into(),
+            ],
+            replaced: true,
+        }],
         after: After {
             pacfiles: vec!["/etc/pacman.conf.pacnew".into()],
             orphans: vec!["python-hatchling".into(), "python-installer".into()],

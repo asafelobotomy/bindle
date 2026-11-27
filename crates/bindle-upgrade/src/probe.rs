@@ -62,6 +62,8 @@ pub struct Probe {
     pub last_upgrade: Option<i64>,
     /// Installed apps with a newer pin, and where each came from.
     pub releases: Vec<Newer>,
+    /// AppImages Bindle installed before its apps moved to the AUR, now left over.
+    pub leftovers: Vec<crate::leftovers::Leftover>,
     pub after: After,
     /// snapper has a config for `/`.
     pub snapper_root: bool,
@@ -130,6 +132,7 @@ impl Default for Probe {
             news: Ok(vec![]),
             last_upgrade: None,
             releases: vec![],
+            leftovers: vec![],
             after: After { kernel_modules_present: true, ..Default::default() },
             snapper_root: false,
             snap_pac: false,
@@ -303,6 +306,34 @@ fn release_updates(catalog: &Catalog, installed: &BTreeMap<String, String>) -> (
         .collect();
     let source = |n: &str| releases::classify(n, &foreign, &recorded);
     (releases::newer(&releases::pinned(catalog), &|n| installed.get(n).cloned(), &at_least, &source, &entry), problem)
+}
+
+/// Bindle's old AppImage launchers in `~/.local/share/applications` that a
+/// package replaced or whose AppImage is gone ([`crate::leftovers`]).
+pub(crate) fn appimage_leftovers(catalog: &Catalog) -> Vec<crate::leftovers::Leftover> {
+    let Some(home) = env::var_os("HOME").map(std::path::PathBuf::from) else {
+        return vec![];
+    };
+    let Ok(dir) = fs::read_dir(home.join(".local/share/applications")) else {
+        return vec![];
+    };
+    let entries: Vec<crate::leftovers::Entry> = dir
+        .flatten()
+        .map(|e| e.path())
+        .filter(|p| {
+            p.file_name().and_then(|n| n.to_str()).is_some_and(|n| n.starts_with("bindle-") && n.ends_with(".desktop"))
+        })
+        .filter_map(|p| {
+            Some(crate::leftovers::Entry { text: fs::read_to_string(&p).ok()?, path: p.to_str()?.to_string() })
+        })
+        .collect();
+    let pinned = releases::pinned(catalog)
+        .into_iter()
+        .filter(|a| a.kind() == Some(bindle_core::catalog::AssetKind::AppImage))
+        .map(|a| a.name)
+        .collect();
+    let packaged = |n: &str| Path::new("/usr/bin").join(n).is_file();
+    crate::leftovers::find(&entries, &home.to_string_lossy(), &pinned, &|p| Path::new(p).is_file(), &packaged)
 }
 
 /// `.pacnew` and `.pacsave` files: pacdiff knows where to look (from

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.53 — 2026-11-27
+
+- **bindleUP clears Bindle's old AppImage copies of apps that now come from the AUR.** Before 0.1.49 Bindle installed some apps as AppImages in `~/.local/bin` with a `bindle-<app>.desktop` launcher. Once the AUR package is installed, that old copy was a second entry in the app menu, and with `~/.local/bin` first on `PATH` it ran instead of the package. The Bindle apps stage now finds those copies, and launchers whose AppImage is gone, and removes them (asked, default yes). An old copy no package replaces yet stays.
+
 ## 0.1.52 — 2026-11-27
 
 - **ReShadeLinux and qbit Plugin Manager are back, from the AUR.** Both are now AUR packages (`reshadelinux-bin` and `qbit-plugin-dl-bin`, their release AppImages unpacked, so no FUSE is needed), so Bindle offers them again with every other uQ app from the AUR. A copy Bindle installed as an AppImage before goes once the package is in. What's new offers them on systems set up before.

@@ -61,6 +61,7 @@ pub fn gather(
         let (newer, problem) =
             if enabled(Stage::Releases) { release_updates(catalog, &installed) } else { (vec![], None) };
         unchecked.extend(problem.map(|why| (Stage::Releases, why)));
+        let leftovers = if enabled(Stage::Releases) { appimage_leftovers(catalog) } else { vec![] };
         note("Looking at kernels, services and Bindle's setup");
         let mut after = after();
         after.unchecked.extend(unchecked);
@@ -91,6 +92,7 @@ pub fn gather(
             news,
             last_upgrade,
             releases: newer,
+            leftovers,
             after,
             snapper_root: Path::new("/etc/snapper/configs/root").is_file(),
             snap_pac: installed.contains_key("snap-pac"),
