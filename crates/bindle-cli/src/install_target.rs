@@ -84,6 +84,13 @@ fn finished_marker(pending: Option<&str>) -> &'static str {
     }
 }
 
+/// The apply the installer's wizard confirmed. `--replace-conflicts`, as the first-login
+/// wizard does: archinstall's Hyprland brings dunst, and without it the noti-fi chosen
+/// with uQ was skipped ("conflicts with installed `dunst`") on every fresh install.
+fn apply_args(pending: &str) -> [&str; 7] {
+    ["apply", "--yes", "--replace-conflicts", "--from", SELECTION, "--defer-user", pending]
+}
+
 pub fn run(root: &Path, user: Option<&str>) -> Result<()> {
     if !is_root() {
         bail!("run as root from the live ISO");
@@ -109,8 +116,7 @@ pub fn run(root: &Path, user: Option<&str>) -> Result<()> {
     let state = format!("{}/.local/state/bindle", acct.home.trim_end_matches('/'));
     let pending = format!("{state}/{PENDING}");
     let status = grant::Grant::open(root, &acct.name).and_then(|grant| {
-        let mut child = as_user(root, &acct, &["apply", "--yes", "--from", SELECTION, "--defer-user", &pending])
-            .spawn()
+        let mut child = as_user(root, &acct, &apply_args(&pending)).spawn()
             .context("start arch-chroot")?;
         let status = signals.wait(&mut child);
         drop(grant);
@@ -174,6 +180,13 @@ mod tests {
         // arch-chroot itself gets only PATH.
         let envs: Vec<_> = c.get_envs().filter(|(_, v)| v.is_some()).map(|(k, _)| k.to_owned()).collect();
         assert_eq!(envs, ["PATH"]);
+    }
+
+    #[test]
+    fn the_apply_replaces_what_the_chosen_modules_conflict_with() {
+        let args = apply_args("/home/alex/.local/state/bindle/pending");
+        assert!(args.contains(&"--yes") && args.contains(&"--replace-conflicts"));
+        assert_eq!(args[3..5], ["--from", SELECTION]);
     }
 
     #[test]

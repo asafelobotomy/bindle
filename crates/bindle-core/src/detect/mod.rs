@@ -159,18 +159,7 @@ impl Facts {
         let desktop_data = desktops::all().unwrap_or_default();
         let install = InstallRecord::detect(&desktop_data);
         let found = desktops::present(&desktop_data, &install.desktops, &installed);
-        let mut desktop_tags = BTreeSet::new();
-        for d in found.iter().filter_map(|id| desktops::by_id(&desktop_data, id)) {
-            desktop_tags.insert(format!("toolkit:{}", d.toolkit));
-            desktop_tags.insert(format!("display:{}", d.display));
-            if d.essentials.iter().any(|p| p == "kdeconnect") {
-                desktop_tags.insert("kdeconnect".into());
-            }
-            if let Some(set) = &d.everyday {
-                desktop_tags.insert("bare-desktop".into());
-                desktop_tags.insert(format!("everyday:{set}"));
-            }
-        }
+        let desktop_tags = desktops::tags(&desktop_data, &found);
         let (gpu, mounts, (uid, gid)) = (hw::gpus(&virt), read("/proc/mounts"), system::current_ids());
         let mut f = Facts {
             distro_id: os_field(&os, "ID").unwrap_or_default(),
@@ -218,7 +207,7 @@ impl Facts {
             home,
             user,
             desktops: found,
-            desktop_tags: desktop_tags.into_iter().collect(),
+            desktop_tags,
             display_manager: system::display_manager(),
             networkmanager: installed.contains("networkmanager"),
             enabled_units: system::enabled_units(),

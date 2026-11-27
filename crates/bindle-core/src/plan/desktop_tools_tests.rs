@@ -69,3 +69,22 @@ fn a_bound_key_is_not_bound_again() {
     let p = resolve(&Catalog::arch().unwrap(), &f, &sel, &done).unwrap();
     assert!(print_key(&p).is_empty());
 }
+
+/// uQ chosen on the Hyprland archinstall just installed (the live-ISO path: the `uq`
+/// package isn't there yet). The plan is uQ's, as it is on every later run: none of
+/// Hyprland's stand-ins for what uQ brings itself, and the modules uQ's rules allow.
+#[test]
+fn a_first_setup_that_installs_uq_is_planned_for_uq() {
+    let sel = Selection { profile: Some("desktop".into()), include: vec!["uq".into()], ..Default::default() };
+    let p = resolve(&Catalog::arch().unwrap(), &on("hyprland"), &sel, &|_| None).unwrap();
+    for hyprlands in ["copyq", "screenshots", "media-players", "uniform-theme"] {
+        assert!(!p.modules.contains(&hyprlands.to_string()), "{hyprlands} is planned on uQ");
+        assert!(p.skipped.iter().any(|(id, _)| id == hyprlands), "{hyprlands} has no reason");
+    }
+    assert!(print_key(&p).is_empty(), "uQ binds Print itself");
+    // The same modules as on a system where uQ is already installed.
+    let later = resolve(&Catalog::arch().unwrap(), &on("uq"), &sel, &|_| None).unwrap();
+    assert_eq!(p.modules, later.modules);
+    // Without uQ chosen, Hyprland keeps its own.
+    assert!(plan(&on("hyprland")).modules.contains(&"copyq".to_string()));
+}
