@@ -222,6 +222,24 @@ argv = ["sh", "-c", 'case "$(xdg-mime query default x-scheme-handler/magnet 2>/d
 unless = [{ path = "~/.config/mimeapps.list", contains = "x-scheme-handler/magnet=io.github.asafelobotomy.uqbit.desktop" }]
 
 [[module]]
+id = "qbit-plugin-dl"
+group = "Downloads"
+name = "qbit Plugin Manager"
+description = "Finds and installs qBittorrent search plugins from allowlisted catalogs. By asafelobotomy."
+notes = ["Works with qBittorrent or qBittorrent Enhanced Edition: install one of them too."]
+# No `requires` on a client: it would pull in plain qbittorrent, which conflicts with the
+# Enhanced fork. `when = ["installed:qbittorrent"]` would hide it on a fresh plan
+# that selects either client in the same run, so it stands alone with a note.
+requires = ["aur-helper"]
+# -bin: the release's AppImage, unpacked (it bundles its own Python and Qt; no FUSE needed).
+aur = ["qbit-plugin-dl-bin"]
+# Bindle installed it as an AppImage before it came from the AUR: that copy goes once the
+# package is in (only when Bindle's own desktop entry for it is still there).
+[[module.user_commands]]
+argv = ["sh", "-c", "e=\"$HOME/.local/share/applications/bindle-$0.desktop\"; if grep -qs '^X-Bindle-Asset=' \"$e\"; then rm -f \"$HOME/.local/bin/$0\" \"$e\"; fi", "qbit-plugin-dl"]
+unless = [{ path = "/usr/bin/qbit-plugin-dl" }]
+
+[[module]]
 id = "hauler"
 group = "Downloads"
 name = "hauler (download manager)"
