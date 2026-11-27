@@ -112,6 +112,26 @@ fn installer_choices_are_respected() {
 }
 
 #[test]
+fn pipewire_from_the_installer_still_gets_rtkit() {
+    // archinstall's PipeWire has no rtkit: the audio module is skipped as provided, its
+    // realtime half is not.
+    let mut f = facts();
+    f.install.audio = Some("pipewire".into());
+    f.install.installer = Some("archinstall".into());
+    f.installed.extend(["pipewire", "pipewire-pulse", "wireplumber"].map(String::from));
+    let p = plan(Selection { profile: Some("desktop".into()), ..Default::default() }, &f).unwrap();
+    assert!(p.provided.iter().any(|(id, _)| id == "audio-pipewire"));
+    assert!(p.modules.contains(&"audio-realtime".to_string()));
+    let json = serde_json::to_string(&p.steps).unwrap();
+    assert!(json.contains("\"rtkit\""), "rtkit not planned");
+    assert!(!json.contains("\"pipewire-jack\""), "the provided module's packages were planned");
+    // Chosen on its own, PipeWire brings rtkit along.
+    let p = plan(Selection { exact: true, include: vec!["audio-pipewire".into()], ..Default::default() }, &facts());
+    let p = p.unwrap();
+    assert!(p.modules.contains(&"audio-realtime".to_string()), "{:?}", p.modules);
+}
+
+#[test]
 fn pacman_conf_edits_are_idempotent() {
     let conf = "[options]\nColor\nParallelDownloads = 10\n#VerbosePkgLists\n".to_string();
     let current = move |p: &str| (p == "/etc/pacman.conf").then(|| conf.clone());

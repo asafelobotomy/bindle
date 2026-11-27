@@ -40,11 +40,22 @@ group = "Graphics & sound"
 name = "PipeWire audio"
 description = "PipeWire with PulseAudio, ALSA and JACK compatibility, managed by WirePlumber."
 profiles = ["desktop", "gaming", "developer"]
-# rtkit: PipeWire asks RealtimeKit for realtime audio threads; without it every session logs
-# "RTKit error: ServiceUnknown" and audio runs at normal priority (crackles under load).
-packages = ["pipewire", "pipewire-pulse", "pipewire-alsa", "pipewire-jack", "wireplumber", "alsa-utils", "rtkit"]
+packages = ["pipewire", "pipewire-pulse", "pipewire-alsa", "pipewire-jack", "wireplumber", "alsa-utils"]
+# rtkit has its own module: when archinstall already set up PipeWire this module is skipped as
+# provided, and archinstall's PipeWire doesn't install rtkit.
+requires = ["audio-realtime"]
 # pulseaudio-* modules depend on pulseaudio by name: replaced along with it.
 package_conflicts = ["pulseaudio", "pulseaudio-alsa", "pulseaudio-bluetooth", "pulseaudio-jack", "pulseaudio-zeroconf", "pulseaudio-equalizer", "pulseaudio-lirc", "jack", "jack2", "jack2-dbus", "pipewire-jack-client"]
+
+[[module]]
+id = "audio-realtime"
+group = "Graphics & sound"
+name = "RealtimeKit for audio"
+description = "RealtimeKit, so PipeWire or PulseAudio can run their audio threads at realtime priority."
+profiles = ["desktop", "gaming", "developer"]
+# PipeWire, WirePlumber and the portals ask RealtimeKit for realtime threads; without it every
+# session logs "RTKit error: ServiceUnknown" and audio runs at normal priority (crackles under load).
+packages = ["rtkit"]
 
 [[module]]
 id = "bluetooth"
