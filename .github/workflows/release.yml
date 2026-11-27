@@ -36,6 +36,7 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 40
     # archlinux:base-devel, pinned by digest (the multi-arch index) so a
     # release builds in a known image. Update with:
     #   skopeo inspect --raw docker://docker.io/library/archlinux:base-devel | sha256sum
@@ -105,6 +106,7 @@ jobs:
     if: needs.build.outputs.release == 'true' && (github.event_name == 'push' || inputs.publish)
     # A fresh runner: nothing from the build ran here. No checkout, no cargo.
     runs-on: ubuntu-latest
+    timeout-minutes: 40
     # Holds BINDLE_GPG_KEY once the maintainer moves it there (with required
     # reviewers); until then the repository secret reaches this job too.
     environment: release
@@ -161,6 +163,7 @@ jobs:
   publish:
     needs: [build, sign]
     runs-on: ubuntu-latest
+    timeout-minutes: 40
     permissions:
       contents: write
     steps:
@@ -187,6 +190,7 @@ jobs:
   aur:
     needs: [build, publish]
     runs-on: ubuntu-latest
+    timeout-minutes: 40
     container: archlinux:base-devel
     permissions:
       contents: read
