@@ -179,6 +179,20 @@ argv = ["sh", "-c", "e=\"$HOME/.local/share/applications/bindle-$0.desktop\"; if
 unless = [{ path = "/usr/bin/romforge-app" }]
 
 [[module]]
+id = "reshadelinux"
+group = "Performance & overlays"
+name = "ReShadeLinux"
+description = "Installs the official ReShade runtime for Wine and Proton games. By asafelobotomy."
+requires = ["aur-helper"]
+# -bin: the release's AppImage, unpacked (no FUSE needed).
+aur = ["reshadelinux-bin"]
+# Bindle installed it as an AppImage before it came from the AUR: that copy goes once the
+# package is in (only when Bindle's own desktop entry for it is still there).
+[[module.user_commands]]
+argv = ["sh", "-c", "e=\"$HOME/.local/share/applications/bindle-$0.desktop\"; if grep -qs '^X-Bindle-Asset=' \"$e\"; then rm -f \"$HOME/.local/bin/$0\" \"$e\"; fi", "reshadelinux"]
+unless = [{ path = "/usr/bin/reshadelinux" }]
+
+[[module]]
 id = "ntsync"
 group = "Steam & Proton"
 name = "Faster Windows games (ntsync)"

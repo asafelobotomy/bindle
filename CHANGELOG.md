@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.52 — 2026-11-27
+
+- **ReShadeLinux and qbit Plugin Manager are back, from the AUR.** Both are now AUR packages (`reshadelinux-bin` and `qbit-plugin-dl-bin`, their release AppImages unpacked, so no FUSE is needed), so Bindle offers them again with every other uQ app from the AUR. A copy Bindle installed as an AppImage before goes once the package is in. What's new offers them on systems set up before.
+
 ## 0.1.51 — 2026-11-26
 
 - **bindleUP never installs an app version its partners aren't ready for.** uQ and its apps now say in their packages which versions of each other they work with (`conflicts=('uq<0.3.41')`, from uQ's new `compat/family.toml`). Before the AUR stage, bindleUP reads each update's new relations from the AUR and holds back one that can't be met yet, for example an app that needs an oysterAV release not on the AUR yet, or a uQ that would break an app with no update for it yet. Everything else still updates, and the stage says what waits and for what (`held back: …`). Partners updating in the same run go in the order pacman needs (uQ before the app that needs the new uQ), so paru never stops half way on a conflict.

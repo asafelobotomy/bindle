@@ -75,7 +75,10 @@ fn release_assets_are_planned_until_installed() {
 #[test]
 fn own_apps_come_from_the_aur_and_retire_bindles_appimage() {
     let f = facts();
-    let sel = Selection { include: vec!["emobie".into(), "hauler".into()], ..Default::default() };
+    let sel = Selection {
+        include: vec!["emobie".into(), "hauler".into(), "reshadelinux".into(), "qbit-plugin-dl".into()],
+        ..Default::default()
+    };
     let p = plan(sel.clone(), &f).unwrap();
     assert!(!p.steps.iter().any(|s| matches!(s, Step::InstallReleases { .. })), "{:?}", p.steps);
     let aur: Vec<String> = p
@@ -87,6 +90,7 @@ fn own_apps_come_from_the_aur_and_retire_bindles_appimage() {
         })
         .unwrap_or_default();
     assert!(aur.contains(&"emobie".into()) && aur.contains(&"hauler".into()), "{aur:?}");
+    assert!(aur.contains(&"reshadelinux-bin".into()) && aur.contains(&"qbit-plugin-dl-bin".into()), "{aur:?}");
     // The AppImage clean-up runs after the AUR install, until the package is in.
     let cleanup = |p: &Plan| {
         p.steps.iter().position(
