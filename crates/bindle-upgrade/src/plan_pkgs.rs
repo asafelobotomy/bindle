@@ -2,6 +2,7 @@
 //! and firmware.
 
 use super::{Action, Options, StagePlan, Todo, plural, root, user};
+use crate::leftovers::Leftover;
 use crate::parse::Update;
 use crate::prefs::{Follow, Prefs};
 use crate::probe::Probe;
@@ -121,7 +122,42 @@ pub(super) fn aur(p: &Probe, o: &Options) -> StagePlan {
 
 /// Newer pins update what Bindle installed; a copy from another source
 /// stays on it unless the preferences say Bindle's release should win.
-pub(super) fn releases(newer: &[Newer], prefs: &Prefs) -> StagePlan {
+/// Bindle's old AppImage copies a package replaced (or whose AppImage is
+/// gone) are removed, asked (default yes).
+pub(super) fn releases(newer: &[Newer], leftovers: &[Leftover], prefs: &Prefs) -> StagePlan {
+    let pl = pinned_releases(newer, prefs);
+    if leftovers.is_empty() {
+        return pl;
+    }
+    let names: Vec<String> = leftovers.iter().map(|l| l.name.clone()).collect();
+    let names = names.join(", ");
+    let mut argv = vec!["rm".to_string(), "-f".into(), "--".into()];
+    argv.extend(leftovers.iter().flat_map(|l| l.files.iter().cloned()));
+    let clean = Action::Optional {
+        question: format!("Remove Bindle's old AppImage copies ({names}) from the app menu and ~/.local/bin?"),
+        default: true,
+        action: Box::new(Action::User(argv)),
+    };
+    let note = plural(leftovers.len(), "old AppImage copy to remove", "old AppImage copies to remove");
+    let mut details = pl.details.clone();
+    details.extend(leftovers.iter().map(|l| {
+        let why = if l.replaced { "a package installs it now" } else { "its AppImage is gone" };
+        format!("{}: Bindle's old AppImage copy, {why} (removes {})", l.name, l.files.join(", "))
+    }));
+    let (actions, summary) = match pl.todo {
+        Todo::Run(mut actions) => {
+            actions.push(clean);
+            (actions, format!("{}; {note}", pl.summary))
+        }
+        _ => (vec![clean], note),
+    };
+    let packages = pl.packages.clone();
+    let mut out = StagePlan::new(Stage::Releases, Todo::Run(actions), summary).details(details);
+    out.packages = packages;
+    out
+}
+
+fn pinned_releases(newer: &[Newer], prefs: &Prefs) -> StagePlan {
     let s = Stage::Releases;
     let (update, kept): (Vec<&Newer>, Vec<&Newer>) =
         newer.iter().partition(|n| n.source == Source::Bindle || prefs.follow(&n.asset.name) == Follow::Bindle);

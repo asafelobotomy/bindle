@@ -286,6 +286,34 @@ fn preferences_let_bindles_release_win() {
 }
 
 #[test]
+fn old_appimage_copies_are_removed_asked() {
+    let leftover = crate::leftovers::Leftover {
+        name: "scale_tail".into(),
+        files: vec!["/h/.local/share/applications/bindle-scale_tail.desktop".into(), "/h/.local/bin/scale_tail".into()],
+        replaced: true,
+    };
+    let p = Probe { leftovers: vec![leftover.clone()], ..Default::default() };
+    let r = get(&plan(&p, &Options::default()), Stage::Releases).clone();
+    assert_eq!(r.summary, "1 old AppImage copy to remove");
+    let Todo::Run(actions) = &r.todo else { panic!("{:?}", r.todo) };
+    let [Action::Optional { default: true, action, .. }] = &actions[..] else { panic!("{actions:?}") };
+    assert_eq!(
+        **action,
+        Action::User(
+            ["rm", "-f", "--", &leftover.files[0], &leftover.files[1]].iter().map(|s| s.to_string()).collect()
+        )
+    );
+    assert!(r.details[0].contains("a package installs it now"));
+    assert!(!r.needs_root());
+    // With a pinned update as well: both, the update first.
+    let p = Probe { releases: vec![newer("kyko", Source::Bindle)], leftovers: vec![leftover], ..Default::default() };
+    let r = get(&plan(&p, &Options::default()), Stage::Releases).clone();
+    assert_eq!(r.summary, "1 newer pinned release; 1 old AppImage copy to remove");
+    assert_eq!(r.packages, ["kyko"]);
+    assert!(matches!(&r.todo, Todo::Run(a) if a.len() == 2 && matches!(a[0], Action::Releases(_))));
+}
+
+#[test]
 fn mirror_and_news_ages_come_from_the_preferences() {
     let mut prefs = Prefs::default();
     prefs.merge("mirror_max_age_days = 3\nnews_days = 5\n").unwrap();

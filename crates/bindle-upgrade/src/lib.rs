@@ -16,6 +16,7 @@
 
 pub mod compat;
 pub mod compat_probe;
+pub mod leftovers;
 pub mod news;
 pub mod parse;
 pub mod plan;
