@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.54 — 2026-11-27
+
+- **RealtimeKit for audio is set up on every desktop, not only where Bindle installed PipeWire.** rtkit was part of the PipeWire module, which Bindle skips when archinstall already set up PipeWire, and archinstall doesn't install rtkit, so those systems logged "RTKit error: ServiceUnknown" in every session and ran audio at normal priority. rtkit is now its own module, **RealtimeKit for audio** (`audio-realtime`, in the Desktop, Gaming and Developer profiles, and pulled in by the PipeWire module). What's new offers it on systems set up before.
+- **`bindle status` prints a summary.** It listed each step's full command line, so a setup command that is a shell script printed the whole script. It now prints one line per kind of step with what it covers (`Run 3 setup commands: A friendlier terminal shell, …`); `bindle status --json` still lists every step.
+
 ## 0.1.53 — 2026-11-27
 
 - **bindleUP clears Bindle's old AppImage copies of apps that now come from the AUR.** Before 0.1.49 Bindle installed some apps as AppImages in `~/.local/bin` with a `bindle-<app>.desktop` launcher. Once the AUR package is installed, that old copy was a second entry in the app menu, and with `~/.local/bin` first on `PATH` it ran instead of the package. The Bindle apps stage now finds those copies, and launchers whose AppImage is gone, and removes them (asked, default yes). An old copy no package replaces yet stays.

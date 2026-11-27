@@ -184,21 +184,34 @@ pub fn run(catalog: &Catalog, facts: &Facts, json: bool, system: &Path) -> Resul
         println!("{}", serde_json::to_string_pretty(&st)?);
         return Ok(());
     }
-    let Some(path) = &st.selection else {
-        println!("Bindle hasn't set up anything here yet. Run `bindle` to start.");
-        return Ok(());
-    };
-    println!("Selection: {}", path.display());
-    println!("Profile: {}", st.profile.as_deref().unwrap_or("none"));
-    if let Some(e) = &st.error {
-        println!("It can't be checked: {e}");
-    } else if st.missing.is_empty() {
-        println!("Everything it set up is still in place.");
-    } else {
-        println!("Applying it again would:");
-        st.missing.iter().for_each(|l| println!("  {l}"));
-    }
+    text(&st).iter().for_each(|l| println!("{l}"));
     Ok(())
+}
+
+/// The plain-text report: one line per kind of step with what it covers, not each step's
+/// command line (a setup command can be a whole shell script). `--json` keeps every step.
+fn text(st: &Status) -> Vec<String> {
+    let Some(path) = &st.selection else {
+        return vec!["Bindle hasn't set up anything here yet. Run `bindle` to start.".into()];
+    };
+    let mut out =
+        vec![format!("Selection: {}", path.display()), format!("Profile: {}", st.profile.as_deref().unwrap_or("none"))];
+    if let Some(e) = &st.error {
+        out.push(format!("It can't be checked: {e}"));
+    } else if st.missing.is_empty() {
+        out.push("Everything it set up is still in place.".into());
+    } else {
+        out.push("Applying it again would:".into());
+        for g in &st.groups {
+            if g.items.is_empty() {
+                out.push(format!("  {}", g.label));
+            } else {
+                out.push(format!("  {}: {}", g.label, g.items.join(", ")));
+            }
+        }
+        out.push("`bindle status --json` lists every step.".into());
+    }
+    out
 }
 
 #[cfg(test)]
@@ -230,6 +243,42 @@ mod tests {
         let kinds: Vec<&str> = st.groups.iter().map(|g| g.kind).collect();
         assert!(kinds.contains(&"packages"), "{kinds:?}");
         assert!(st.groups.iter().all(|g| !g.items.is_empty() && !g.label.is_empty()));
+    }
+
+    #[test]
+    fn the_text_report_summarises_instead_of_printing_scripts() {
+        let st = Status {
+            selection: Some(PathBuf::from("/home/me/.config/bindle/selection.toml")),
+            profile: Some("desktop".into()),
+            with: vec![],
+            without: vec![],
+            last_applied: None,
+            missing: vec![
+                "sh -c f=\"$HOME/.bashrc\"\n[ -f \"$f\" ] && exit 0\ncat >>\"$f\" <<'EOF' [bash-extras]".into(),
+            ],
+            groups: vec![
+                Group { kind: "packages", label: "Install 1 package".into(), items: vec!["rtkit".into()] },
+                Group {
+                    kind: "commands",
+                    label: "Run 1 setup command".into(),
+                    items: vec!["A friendlier terminal shell".into()],
+                },
+            ],
+            error: None,
+        };
+        let out = text(&st);
+        assert_eq!(
+            out[2..],
+            [
+                "Applying it again would:",
+                "  Install 1 package: rtkit",
+                "  Run 1 setup command: A friendlier terminal shell",
+                "`bindle status --json` lists every step.",
+            ]
+        );
+        assert!(out.iter().all(|l| !l.contains("cat >>") && !l.contains('\n')), "{out:?}");
+        let done = Status { missing: vec![], groups: vec![], ..st };
+        assert_eq!(text(&done).last().unwrap(), "Everything it set up is still in place.");
     }
 
     #[test]

@@ -119,3 +119,8 @@ why = "New in Bindle 0.1.49: Bindle itself comes from its AUR package once an AU
 version = "0.1.52"
 modules = ["reshadelinux", "qbit-plugin-dl"]
 why = "Back in Bindle 0.1.52, now from the AUR: ReShadeLinux (ReShade for Wine and Proton games) and qbit Plugin Manager (qBittorrent search plugins). A copy Bindle installed as an AppImage is replaced by the package."
+
+[[added]]
+version = "0.1.54"
+modules = ["audio-realtime"]
+why = "New in Bindle 0.1.54: RealtimeKit, so audio runs at realtime priority. It used to come only with Bindle's own PipeWire setup, so systems where the installer set up PipeWire went without it."
