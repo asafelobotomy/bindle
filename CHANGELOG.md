@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.56 — 2026-11-28
+
+- **uQbit's engine no longer compiles during setup.** The uQbit module built qBittorrent Enhanced Edition's headless engine from source (`qbittorrent-enhanced-nox`), the longest step of a first setup and the likeliest to fail. It now installs `qbittorrent-enhanced-nox-bin`, the Enhanced project's own release binary of the same engine, in seconds. On a system that has the source build, Bindle swaps it for the binary the next time it applies (bindleUP does this); torrents and settings are untouched, as they live in uQbit's own profile.
+
 ## 0.1.55 — 2026-11-28
 
 Fixes from a first-install audit: a fresh Arch system set up from the Bindle ISO with the uQ desktop.

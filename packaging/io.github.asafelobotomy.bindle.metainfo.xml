@@ -29,6 +29,9 @@
   <project_license>GPL-3.0-or-later</project_license>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.1.56" date="2026-11-28">
+      <description><p>uQbit's torrent engine installs as a ready-made binary, so a first setup no longer compiles it.</p></description>
+    </release>
     <release version="0.1.55" date="2026-11-28">
       <description><p>A first setup with the uQ desktop is planned for uQ, replaces conflicting defaults, and finishes even when one app fails to build.</p></description>
     </release>
