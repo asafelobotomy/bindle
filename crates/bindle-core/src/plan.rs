@@ -168,15 +168,19 @@ pub fn resolve(
     let mut plan = Plan::default();
     let mut chosen = selection.initial(catalog)?;
     plan.skipped.extend(mounts::skipped(catalog, selection));
-    select::pull_in_requires(catalog, selection, &mut chosen, &mut plan)?;
     // A module that installs a desktop (uQ, on archinstall's Hyprland) makes the plan
     // one for that desktop: conditions, essentials and commands follow it, not the
-    // desktop it ships on, so the first setup matches every later one.
+    // desktop it ships on, so the first setup matches every later one. Only a module
+    // chosen for itself counts: one that is merely required by another (uq by uq-dev,
+    // which is for uQ systems only) must not turn a Plasma system's plan into a uQ one.
     let planned = planned_desktop(facts, &chosen);
+    let asked = chosen.clone();
+    select::pull_in_requires(catalog, selection, &mut chosen, &mut plan)?;
     let facts = planned.as_ref().unwrap_or(facts);
     // Modules the installer already set up are done; their rivals are moot.
     let provided = select::drop_provided(facts, &mut chosen, &mut plan);
     select::drop_unmet(catalog, facts, selection, &provided, &mut chosen, &mut plan);
+    select::drop_unneeded(catalog, &asked, &mut chosen, &mut plan);
     select::check_conflicts(catalog, &chosen)?;
 
     let mut ordered: Vec<String> = chosen.into_iter().collect();

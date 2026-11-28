@@ -34,6 +34,35 @@ pub(super) fn pull_in_requires(
     Ok(())
 }
 
+/// A module that was only pulled in by `requires` goes again once nothing left in the plan
+/// requires it: uq-dev requires uq, but is skipped off uQ, and must not leave uQ behind.
+pub(super) fn drop_unneeded(
+    catalog: &Catalog,
+    asked: &BTreeSet<String>,
+    chosen: &mut BTreeSet<String>,
+    plan: &mut Plan,
+) {
+    loop {
+        let unneeded: Vec<String> = chosen
+            .iter()
+            .filter(|id| !asked.contains(*id))
+            .filter(|id| {
+                // A module the installer already set up still needs what it requires.
+                let kept = chosen.iter().chain(plan.provided.iter().map(|(p, _)| p));
+                !kept.into_iter().any(|c| catalog.module(c).is_some_and(|m| m.requires.contains(id)))
+            })
+            .cloned()
+            .collect();
+        if unneeded.is_empty() {
+            return;
+        }
+        for id in unneeded {
+            chosen.remove(&id);
+            plan.pulled_in.retain(|(dep, _)| dep != &id);
+        }
+    }
+}
+
 /// Modules the installer already set up are done; returns them (id → why).
 pub(super) fn drop_provided(facts: &Facts, chosen: &mut BTreeSet<String>, plan: &mut Plan) -> BTreeMap<String, String> {
     let provided = facts.install.provided();

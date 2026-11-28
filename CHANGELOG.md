@@ -10,6 +10,7 @@ Fixes from a first-install audit: a fresh Arch system set up from the Bindle ISO
 - **uQ is not taken for KDE Plasma.** uQ's Qt integration pulls in `plasma-workspace` as a dependency, which was Bindle's sign of Plasma. Every uQ system counted as "uQ and Plasma": Konsole, Gwenview and the other Plasma apps were installed and modules for non-Plasma desktops were skipped. Plasma is now recognised by `plasma-desktop`.
 - **noti-fi takes over notifications during the installer too.** `notify takeover --now` needs a running session and failed before the first boot, leaving a manual step. Without a session Bindle now runs `notify takeover`, which takes effect at login.
 - **Text files and PDFs open in the right app on uQ, Hyprland and other window managers.** Nothing chose a default, so a text file opened read-only in Okular and a PDF in the browser. Text files now open in KWrite and PDFs in Okular (Papers on GTK desktops), unless you have chosen an app already.
+- **The Developer profile no longer installs uQ on other desktops.** Its uQ developer setup is for uQ systems only and is skipped elsewhere, but the uQ desktop it requires stayed in the plan. A module that was only pulled in by another now goes when that one is skipped.
 - **"Missing pieces" no longer lists commands that run on every apply.** A setup command with no check of its own is planned each time, so the Bindle page and `bindle status` reported steps "would run again" on a system where nothing was missing.
 
 ## 0.1.54 — 2026-11-27

@@ -88,3 +88,19 @@ fn a_first_setup_that_installs_uq_is_planned_for_uq() {
     // Without uQ chosen, Hyprland keeps its own.
     assert!(plan(&on("hyprland")).modules.contains(&"copyq".to_string()));
 }
+
+/// uq-dev (Developer profile) requires uq but is only for uQ systems: on another desktop
+/// that requirement must not make the plan one for uQ and install it.
+#[test]
+fn the_developer_profile_does_not_bring_uq_to_another_desktop() {
+    let catalog = Catalog::arch().unwrap();
+    let facts = Facts {
+        distro_id: "arch".into(),
+        desktops: vec!["plasma".into()],
+        desktop_tags: vec!["desktop".into(), "desktop:plasma".into()],
+        ..Default::default()
+    };
+    let sel = Selection { profile: Some("developer".into()), ..Default::default() };
+    let plan = resolve(&catalog, &facts, &sel, &|_| None).unwrap();
+    assert!(!plan.modules.iter().any(|m| m == "uq-dev" || m == "uq"), "{:?}", plan.modules);
+}
