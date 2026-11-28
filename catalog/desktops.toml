@@ -56,7 +56,11 @@ name = "KDE Plasma"
 kind = "desktop"
 display = "wayland"
 toolkit = "qt"
-detect = "plasma-workspace"
+# plasma-desktop, not plasma-workspace: uq needs plasma-integration, which brings
+# plasma-workspace through xdg-desktop-portal-kde, and that made every uQ system count as
+# Plasma too (Konsole, Gwenview and the rest of Plasma's apps were added to it). Each
+# archinstall flavour (plasma-meta, plasma, plasma-desktop) installs plasma-desktop.
+detect = "plasma-desktop"
 archinstall = ["plasma-meta"]
 greeter = "plasma-login-manager"
 essentials = ["konsole", "dolphin", "ark", "kate", "spectacle", "gwenview", "okular", "kcalc", "ffmpegthumbs", "kdegraphics-thumbnailers", "kdeconnect", "filelight", "kwalletmanager", "print-manager"]

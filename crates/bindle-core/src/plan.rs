@@ -206,6 +206,8 @@ fn planned_desktop(facts: &Facts, chosen: &BTreeSet<String>) -> Option<Facts> {
     Some(Facts { desktops, desktop_tags, ..facts.clone() })
 }
 
+mod carry_on;
+pub use carry_on::without_packages;
 mod checks;
 #[cfg(test)]
 mod conflict_tests;

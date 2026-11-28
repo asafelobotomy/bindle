@@ -225,6 +225,17 @@ mod tests {
     }
 
     #[test]
+    fn uq_with_its_kde_libraries_is_not_plasma() {
+        let d = all().unwrap();
+        // What uq's dependencies leave installed: plasma-workspace (through
+        // plasma-integration and xdg-desktop-portal-kde), never plasma-desktop.
+        let installed: BTreeSet<String> = ["uq", "hyprland", "plasma-workspace"].map(String::from).into();
+        assert_eq!(present(&d, &[], &installed), ["uq"]);
+        let plasma: BTreeSet<String> = ["plasma-desktop", "plasma-workspace"].map(String::from).into();
+        assert_eq!(present(&d, &[], &plasma), ["plasma"]);
+    }
+
+    #[test]
     fn uq_rides_on_hyprland_and_is_recommended() {
         let d = all().unwrap();
         check(&d).unwrap();

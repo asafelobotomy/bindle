@@ -57,33 +57,60 @@ impl Progress for Printer {
 }
 
 pub fn apply(plan: &Plan, facts: &Facts, opts: &Options) -> Result<Outcome> {
+    let (outcome, stop) = apply_once(plan, facts, opts, true)?;
+    if let Some(stop) = stop {
+        stop.print();
+    }
+    Ok(outcome)
+}
+
+/// Where a failed apply stopped; `left_out` names the AUR packages when the step that
+/// failed installed some of its packages and not these.
+struct Stopped {
+    step: usize,
+    total: usize,
+    log: PathBuf,
+    snapshot: bool,
+    left_out: Vec<String>,
+}
+
+impl Stopped {
+    fn print(&self) {
+        println!("\nStopped at step {}/{}. Nothing after it ran.", self.step, self.total);
+        println!("Log: {}", self.log.display());
+        if self.snapshot {
+            println!("Undo the changes so far: bindle undo");
+        }
+        println!("Steps are idempotent: fix the cause and run Bindle again to continue.");
+    }
+}
+
+/// Show the plan, ask (unless `--yes` or `ask` is off) and run it. A failure's cause is
+/// printed; what to say about where it stopped is the caller's.
+fn apply_once(plan: &Plan, facts: &Facts, opts: &Options, ask: bool) -> Result<(Outcome, Option<Stopped>)> {
     if opts.sandbox.is_none() && sys::is_root() {
         bail!("run Bindle as your normal user; it asks for your password when it needs it");
     }
     print::plan_lines(plan).iter().for_each(|l| println!("{l}"));
     if plan.is_empty() {
-        return Ok(Outcome::NothingToDo);
+        return Ok((Outcome::NothingToDo, None));
     }
     println!();
-    if !opts.yes {
+    if ask && !opts.yes {
         if !io::stdin().is_terminal() {
             bail!("refusing to apply without a terminal; pass --yes to confirm non-interactively");
         }
         if !confirm("Apply these changes?", false) {
-            return Ok(Outcome::Cancelled);
+            return Ok((Outcome::Cancelled, None));
         }
     }
     let report = bindle_run::apply::run(plan, facts, opts, &mut Printer)?;
     let total = report.total;
     if let Some((i, e)) = report.failed {
         println!("  ✗ {e:#}");
-        println!("\nStopped at step {}/{total}. Nothing after it ran.", i + 1);
-        println!("Log: {}", report.log.display());
-        if report.snapshot.is_some() {
-            println!("Undo the changes so far: bindle undo");
-        }
-        println!("Steps are idempotent: fix the cause and run Bindle again to continue.");
-        return Ok(Outcome::Failed);
+        let left_out = e.downcast_ref::<bindle_run::AurLeftOut>().map(|l| l.0.clone()).unwrap_or_default();
+        let stop = Stopped { step: i + 1, total, log: report.log, snapshot: report.snapshot.is_some(), left_out };
+        return Ok((Outcome::Failed, Some(stop)));
     }
     println!("\nAll {total} steps applied. Log: {}", report.log.display());
     if report.snapshot.is_some() {
@@ -97,7 +124,7 @@ pub fn apply(plan: &Plan, facts: &Facts, opts: &Options) -> Result<Outcome> {
     for (module, todo) in &report.manual {
         println!("Needs a manual step ({module}): {todo}");
     }
-    Ok(Outcome::Applied)
+    Ok((Outcome::Applied, None))
 }
 
 pub fn undo(id: Option<String>, list: bool, force: bool, opts: &Options) -> Result<()> {
@@ -206,7 +233,14 @@ pub fn apply_selection(catalog: &Catalog, facts: &Facts, sel: &Selection, opts: 
         None => read_current(p),
     };
     let p = plan::resolve(catalog, facts, sel, &current)?;
-    let outcome = apply(&p, facts, &opts)?;
+    let (outcome, stop) = apply_once(&p, facts, &opts, true)?;
+    let mut without = None;
+    if let Some(stop) = stop {
+        without = carry_on(catalog, sel, &p, &stop, &opts)?;
+        if without.is_none() {
+            stop.print();
+        }
+    }
     if matches!(outcome, Outcome::Applied | Outcome::Failed)
         && opts.sandbox.is_none()
         && let Some(path) = selection::default_path()
@@ -214,10 +248,40 @@ pub fn apply_selection(catalog: &Catalog, facts: &Facts, sel: &Selection, opts: 
         selection::save(sel, &path)?;
         println!("Selection saved to {} (replay with `bindle apply --from`).", path.display());
     }
+    if let Some(names) = without {
+        bail!("the setup is done except for {names}: run Bindle again to retry");
+    }
     if outcome == Outcome::Failed {
         bail!("apply failed");
     }
     Ok(outcome != Outcome::Cancelled)
+}
+
+/// Part of the AUR step failed: apply the rest of the selection without the modules
+/// whose packages didn't install, so one package that can't build doesn't leave the
+/// desktop half set up. Returns the modules left out once the rest is applied; None
+/// when there is nothing to carry on with or the second run stopped too (it has then
+/// said where).
+fn carry_on(catalog: &Catalog, sel: &Selection, p: &Plan, stop: &Stopped, opts: &Options) -> Result<Option<String>> {
+    if stop.left_out.is_empty() || opts.sandbox.is_some() {
+        return Ok(None);
+    }
+    let Some((rest, modules)) = plan::without_packages(catalog, sel, &p.modules, &stop.left_out) else {
+        return Ok(None);
+    };
+    let names: Vec<String> =
+        modules.iter().map(|id| catalog.module(id).map_or(id.clone(), |m| m.name.clone())).collect();
+    let names = names.join(", ");
+    println!("\nCarrying on without {names}. Log of the part that failed: {}\n", stop.log.display());
+    // What the first run installed is there now: plan the rest against the system as it is.
+    let facts = Facts::detect();
+    let rest_plan = plan::resolve(catalog, &facts, &rest, &read_current)?;
+    let yes = Options { yes: true, sandbox: None, launch: opts.launch.clone(), defer_user: opts.defer_user.clone() };
+    let (outcome, stopped) = apply_once(&rest_plan, &facts, &yes, false)?;
+    if let Some(stopped) = stopped {
+        stopped.print();
+    }
+    Ok(matches!(outcome, Outcome::Applied | Outcome::NothingToDo).then_some(names))
 }
 
 /// What the wizard starts from: the selection this user last applied (or

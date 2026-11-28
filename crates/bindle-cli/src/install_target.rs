@@ -116,8 +116,7 @@ pub fn run(root: &Path, user: Option<&str>) -> Result<()> {
     let state = format!("{}/.local/state/bindle", acct.home.trim_end_matches('/'));
     let pending = format!("{state}/{PENDING}");
     let status = grant::Grant::open(root, &acct.name).and_then(|grant| {
-        let mut child = as_user(root, &acct, &apply_args(&pending)).spawn()
-            .context("start arch-chroot")?;
+        let mut child = as_user(root, &acct, &apply_args(&pending)).spawn().context("start arch-chroot")?;
         let status = signals.wait(&mut child);
         drop(grant);
         status
