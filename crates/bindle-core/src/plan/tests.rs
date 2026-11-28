@@ -358,7 +358,11 @@ fn noti_fi_takes_over_once() {
     // noti-fi's daemon is Wayland-only.
     f.desktop_tags = vec!["display:wayland".into()];
     let sel = Selection { include: vec!["noti-fi".into()], ..Default::default() };
-    let takeover = |p: &Plan| p.steps.iter().any(|s| matches!(s, Step::RunAsUser { argv, .. } if argv[0] == "notify"));
+    let takeover = |p: &Plan| {
+        p.steps
+            .iter()
+            .any(|s| matches!(s, Step::RunAsUser { argv, .. } if argv.iter().any(|a| a.contains("notify takeover"))))
+    };
     assert!(takeover(&plan(sel.clone(), &f).unwrap()));
     let done = resolve(&Catalog::arch().unwrap(), &f, &sel, &|p| {
         (p == "/home/tester/.local/state/notifd/takeover.json").then(String::new)

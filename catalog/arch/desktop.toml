@@ -72,7 +72,10 @@ package_conflicts = ["mako", "dunst", "swaync"]
 # Outside Plasma takeover installs notifd as a plain user service; --now also
 # switches the running session, and refuses while another daemon holds the name.
 [[module.user_commands]]
-argv = ["notify", "takeover", "--now"]
+# Without a session (the installer setting the new system up before its first boot) there is
+# nothing running to take over from: plain `takeover` writes and enables the units, and notifd
+# starts at the first login. --now failed there, and its manual step was all that was left.
+argv = ["sh", "-c", 'if [ -S "${XDG_RUNTIME_DIR:-/nonexistent}/bus" ]; then exec notify takeover --now; else exec notify takeover; fi']
 unless = [{ path = "~/.local/state/notifd/takeover.json" }]
 manual = { 1 = "notifd could not take over notifications yet. Log in to your desktop and run `notify takeover --now`." }
 
