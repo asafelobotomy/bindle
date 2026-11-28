@@ -196,13 +196,15 @@ builtin = "everyday"
 [[module]]
 id = "default-file-manager"
 group = "Desktop basics"
-name = "Folders open in the file manager"
-description = "Opening a folder from an app or a download shows it in Dolphin (or Files), not in whichever app claimed folders last."
+name = "Folders and PDFs open in the right app"
+description = "Opening a folder shows it in Dolphin (or Files), and a PDF opens in the document viewer, not in whichever app claimed them last (a terminal, the browser)."
 default = true
 when = ["bare-desktop"]
 user_commands = [
   { argv = ["sh", "-c", '[ ! -f /usr/share/applications/org.kde.dolphin.desktop ] || xdg-mime default org.kde.dolphin.desktop inode/directory'], when = ["everyday:qt"], unless = [{ path = "~/.config/mimeapps.list", contains = "inode/directory=" }] },
   { argv = ["sh", "-c", '[ ! -f /usr/share/applications/org.gnome.Nautilus.desktop ] || xdg-mime default org.gnome.Nautilus.desktop inode/directory'], when = ["everyday:gtk"], unless = [{ path = "~/.config/mimeapps.list", contains = "inode/directory=" }] },
+  { argv = ["sh", "-c", '[ ! -f /usr/share/applications/okularApplication_pdf.desktop ] || xdg-mime default okularApplication_pdf.desktop application/pdf'], when = ["everyday:qt"], unless = [{ path = "~/.config/mimeapps.list", contains = "application/pdf=" }] },
+  { argv = ["sh", "-c", '[ ! -f /usr/share/applications/org.gnome.Papers.desktop ] || xdg-mime default org.gnome.Papers.desktop application/pdf'], when = ["everyday:gtk"], unless = [{ path = "~/.config/mimeapps.list", contains = "application/pdf=" }] },
 ]
 
 # Baloo reads every file's text outside Plasma too, where no settings page
@@ -409,6 +411,9 @@ name = "Text editor (KWrite)"
 description = "A simple notepad for text files and quick edits, with tabs and syntax colours. Follows uQ's theme."
 when = ["desktop"]
 packages = ["kate"]
+# Text files open in it unless an app was chosen already: without a default, Okular's
+# plain-text viewer comes first in the list and opens them read-only.
+user_commands = [{ argv = ["sh", "-c", '[ ! -f /usr/share/applications/org.kde.kwrite.desktop ] || xdg-mime default org.kde.kwrite.desktop text/plain'], unless = [{ path = "~/.config/mimeapps.list", contains = "text/plain=" }] }]
 
 [[module]]
 id = "yakuake"
