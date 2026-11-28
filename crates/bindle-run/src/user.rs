@@ -208,9 +208,22 @@ fn install_aur_with(base: &[String], packages: &[String], run: &mut RunFn, note:
     match failed.as_slice() {
         [] => Ok(()),
         f if f.len() == packages.len() => bail!("no AUR package could be installed: {}", f.join(", ")),
-        f => bail!("these AUR packages could not be installed: {} (the others are in)", f.join(", ")),
+        f => Err(AurLeftOut(f.iter().map(|p| p.to_string()).collect()).into()),
     }
 }
+
+/// Some of an AUR step's packages are in and these are not: a frontend can carry on
+/// with the rest of the setup (`bindle_core::plan::without_packages`).
+#[derive(Debug)]
+pub struct AurLeftOut(pub Vec<String>);
+
+impl std::fmt::Display for AurLeftOut {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "these AUR packages could not be installed: {} (the others are in)", self.0.join(", "))
+    }
+}
+
+impl std::error::Error for AurLeftOut {}
 
 fn retry_pause() -> std::time::Duration {
     std::time::Duration::from_secs(if cfg!(test) { 0 } else { 5 })

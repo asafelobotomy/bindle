@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.55 — 2026-11-28
+
+Fixes from a first-install audit: a fresh Arch system set up from the Bindle ISO with the uQ desktop.
+
+- **A first setup that installs uQ is planned for uQ.** Bindle planned for the desktop it found, and before the setup that is the plain Hyprland archinstall leaves. So a new uQ system also got CopyQ, a Satty screenshot key, VLC and mpv, and the qt6ct theme settings with their own mouse pointer, all things uQ replaces. The plan now uses the desktop a chosen module is about to install.
+- **The installer replaces what its choices conflict with.** archinstall's Hyprland brings dunst, so the pre-reboot setup skipped noti-fi and the first login had the wrong notification service. `install-target` now applies with `--replace-conflicts`, as an interactive apply offers to.
+- **One app that fails to build no longer stops the setup.** When an AUR package failed, the apply stopped at that step: no login screen, no `uqctl setup`, no services. Bindle now finishes the setup without the modules that need the failed package, then says which ones were left out and to run Bindle again for them. A desktop's own package failing still stops, as nothing after it could work.
+- **uQ is not taken for KDE Plasma.** uQ's Qt integration pulls in `plasma-workspace` as a dependency, which was Bindle's sign of Plasma. Every uQ system counted as "uQ and Plasma": Konsole, Gwenview and the other Plasma apps were installed and modules for non-Plasma desktops were skipped. Plasma is now recognised by `plasma-desktop`.
+- **noti-fi takes over notifications during the installer too.** `notify takeover --now` needs a running session and failed before the first boot, leaving a manual step. Without a session Bindle now runs `notify takeover`, which takes effect at login.
+- **Text files and PDFs open in the right app on uQ, Hyprland and other window managers.** Nothing chose a default, so a text file opened read-only in Okular and a PDF in the browser. Text files now open in KWrite and PDFs in Okular (Papers on GTK desktops), unless you have chosen an app already.
+- **The Developer profile no longer installs uQ on other desktops.** Its uQ developer setup is for uQ systems only and is skipped elsewhere, but the uQ desktop it requires stayed in the plan. A module that was only pulled in by another now goes when that one is skipped.
+- **"Missing pieces" no longer lists commands that run on every apply.** A setup command with no check of its own is planned each time, so the Bindle page and `bindle status` reported steps "would run again" on a system where nothing was missing.
+
 ## 0.1.54 — 2026-11-27
 
 - **RealtimeKit for audio is set up on every desktop, not only where Bindle installed PipeWire.** rtkit was part of the PipeWire module, which Bindle skips when archinstall already set up PipeWire, and archinstall doesn't install rtkit, so those systems logged "RTKit error: ServiceUnknown" in every session and ran audio at normal priority. rtkit is now its own module, **RealtimeKit for audio** (`audio-realtime`, in the Desktop, Gaming and Developer profiles, and pulled in by the PipeWire module). What's new offers it on systems set up before.

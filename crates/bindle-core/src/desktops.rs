@@ -138,6 +138,24 @@ pub fn with_planned(desktops: &[Desktop], current: &[String], modules: &[String]
     Some(present(desktops, &all, &BTreeSet::new()))
 }
 
+/// The tags a set of desktops gives a system (`Facts::desktop_tags`): toolkit, display,
+/// KDE Connect, and `bare-desktop` with its `everyday:<set>` for one that ships no everyday apps.
+pub fn tags(desktops: &[Desktop], found: &[String]) -> Vec<String> {
+    let mut tags = BTreeSet::new();
+    for d in found.iter().filter_map(|id| by_id(desktops, id)) {
+        tags.insert(format!("toolkit:{}", d.toolkit));
+        tags.insert(format!("display:{}", d.display));
+        if d.essentials.iter().any(|p| p == "kdeconnect") {
+            tags.insert("kdeconnect".into());
+        }
+        if let Some(set) = &d.everyday {
+            tags.insert("bare-desktop".into());
+            tags.insert(format!("everyday:{set}"));
+        }
+    }
+    tags.into_iter().collect()
+}
+
 /// Rules serde can't express; the catalog validator also checks `module`.
 pub fn check(desktops: &[Desktop]) -> Result<()> {
     let recommended: Vec<&str> =
@@ -204,6 +222,17 @@ mod tests {
                 assert!(by_id(&d, inc).is_some(), "{} includes unknown {inc}", x.id);
             }
         }
+    }
+
+    #[test]
+    fn uq_with_its_kde_libraries_is_not_plasma() {
+        let d = all().unwrap();
+        // What uq's dependencies leave installed: plasma-workspace (through
+        // plasma-integration and xdg-desktop-portal-kde), never plasma-desktop.
+        let installed: BTreeSet<String> = ["uq", "hyprland", "plasma-workspace"].map(String::from).into();
+        assert_eq!(present(&d, &[], &installed), ["uq"]);
+        let plasma: BTreeSet<String> = ["plasma-desktop", "plasma-workspace"].map(String::from).into();
+        assert_eq!(present(&d, &[], &plasma), ["plasma"]);
     }
 
     #[test]

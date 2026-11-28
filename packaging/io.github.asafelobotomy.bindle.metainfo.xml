@@ -29,6 +29,9 @@
   <project_license>GPL-3.0-or-later</project_license>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.1.55" date="2026-11-28">
+      <description><p>A first setup with the uQ desktop is planned for uQ, replaces conflicting defaults, and finishes even when one app fails to build.</p></description>
+    </release>
     <release version="0.1.54" date="2026-11-27">
       <description><p>RealtimeKit for audio is set up even when the installer already set up PipeWire, and bindle status prints a short summary instead of whole setup scripts.</p></description>
     </release>

@@ -133,6 +133,15 @@ fn saved(system: &Path) -> Option<PathBuf> {
     selection::default_path().filter(|p| p.is_file()).or_else(|| system.is_file().then(|| system.to_path_buf()))
 }
 
+/// A catalog command with no `unless` check is planned on every apply, whether or not its
+/// effect is in place, so it says nothing about what has gone missing.
+fn runs_every_time(catalog: &Catalog, step: &Step) -> bool {
+    let (Step::RunAsRoot { module, argv } | Step::RunAsUser { module, argv, .. }) = step else { return false };
+    catalog
+        .module(module)
+        .is_some_and(|m| m.root_commands.iter().chain(&m.user_commands).any(|c| &c.argv == argv && c.unless.is_empty()))
+}
+
 pub fn collect(
     catalog: &Catalog,
     facts: &Facts,
@@ -170,8 +179,9 @@ pub fn collect(
     let sel = Selection { replace_conflicts: true, ..sel };
     match plan::resolve(catalog, facts, &sel, current) {
         Ok(p) => {
-            st.missing = p.steps.iter().map(print::describe).collect();
-            st.groups = group_steps(catalog, &p.steps);
+            let steps: Vec<Step> = p.steps.into_iter().filter(|s| !runs_every_time(catalog, s)).collect();
+            st.missing = steps.iter().map(print::describe).collect();
+            st.groups = group_steps(catalog, &steps);
         }
         Err(e) => st.error = Some(format!("{e:#}")),
     }
@@ -224,6 +234,22 @@ mod tests {
         let st = collect(&catalog, &Facts::default(), None, &|_| None);
         assert_eq!(st.selection, None);
         assert!(st.missing.is_empty() && st.error.is_none());
+    }
+
+    #[test]
+    fn a_command_planned_on_every_apply_is_not_a_missing_piece() {
+        let catalog = Catalog::arch().unwrap();
+        let m = catalog.module("browser-video-decoding").unwrap();
+        let argv = m.user_commands[0].argv.clone();
+        let step = Step::RunAsUser { module: m.id.clone(), argv, manual: Default::default() };
+        assert!(runs_every_time(&catalog, &step));
+        let guarded = catalog.module("ssh-agent").unwrap();
+        let argv = guarded.user_commands[0].argv.clone();
+        assert!(!runs_every_time(
+            &catalog,
+            &Step::RunAsUser { module: guarded.id.clone(), argv, manual: Default::default() }
+        ));
+        assert!(!runs_every_time(&catalog, &Step::RebuildInitramfs));
     }
 
     #[test]

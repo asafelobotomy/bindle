@@ -168,10 +168,19 @@ pub fn resolve(
     let mut plan = Plan::default();
     let mut chosen = selection.initial(catalog)?;
     plan.skipped.extend(mounts::skipped(catalog, selection));
+    // A module that installs a desktop (uQ, on archinstall's Hyprland) makes the plan
+    // one for that desktop: conditions, essentials and commands follow it, not the
+    // desktop it ships on, so the first setup matches every later one. Only a module
+    // chosen for itself counts: one that is merely required by another (uq by uq-dev,
+    // which is for uQ systems only) must not turn a Plasma system's plan into a uQ one.
+    let planned = planned_desktop(facts, &chosen);
+    let asked = chosen.clone();
     select::pull_in_requires(catalog, selection, &mut chosen, &mut plan)?;
+    let facts = planned.as_ref().unwrap_or(facts);
     // Modules the installer already set up are done; their rivals are moot.
     let provided = select::drop_provided(facts, &mut chosen, &mut plan);
     select::drop_unmet(catalog, facts, selection, &provided, &mut chosen, &mut plan);
+    select::drop_unneeded(catalog, &asked, &mut chosen, &mut plan);
     select::check_conflicts(catalog, &chosen)?;
 
     let mut ordered: Vec<String> = chosen.into_iter().collect();
@@ -179,12 +188,7 @@ pub fn resolve(
 
     let multilib = facts.multilib_enabled
         || ordered.iter().any(|id| catalog.module(id).is_some_and(|m| m.repos.iter().any(|r| r == "multilib")));
-    // A module that installs a desktop (uQ) has the `desktop` builtin round out
-    // that desktop rather than the one it ships on.
-    let planned =
-        crate::desktops::all().ok().and_then(|d| crate::desktops::with_planned(&d, &facts.desktops, &ordered));
-    let with_planned = planned.map(|desktops| Facts { desktops, ..facts.clone() });
-    let ctx = Ctx { facts: with_planned.as_ref().unwrap_or(facts), multilib };
+    let ctx = Ctx { facts, multilib };
 
     let mut parts = gather::collect(catalog, facts, selection, &ordered, &ctx, current_file, &mut plan);
     gather::drop_package_conflicts(catalog, facts, &ordered, &mut parts, &mut plan);
@@ -196,6 +200,18 @@ pub fn resolve(
     Ok(plan)
 }
 
+/// `facts` as they will be once the chosen modules' desktop is installed; None when
+/// no chosen module installs one.
+fn planned_desktop(facts: &Facts, chosen: &BTreeSet<String>) -> Option<Facts> {
+    let data = crate::desktops::all().ok()?;
+    let modules: Vec<String> = chosen.iter().cloned().collect();
+    let desktops = crate::desktops::with_planned(&data, &facts.desktops, &modules)?;
+    let desktop_tags = crate::desktops::tags(&data, &desktops);
+    Some(Facts { desktops, desktop_tags, ..facts.clone() })
+}
+
+mod carry_on;
+pub use carry_on::without_packages;
 mod checks;
 #[cfg(test)]
 mod conflict_tests;

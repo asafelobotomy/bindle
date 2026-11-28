@@ -69,3 +69,38 @@ fn a_bound_key_is_not_bound_again() {
     let p = resolve(&Catalog::arch().unwrap(), &f, &sel, &done).unwrap();
     assert!(print_key(&p).is_empty());
 }
+
+/// uQ chosen on the Hyprland archinstall just installed (the live-ISO path: the `uq`
+/// package isn't there yet). The plan is uQ's, as it is on every later run: none of
+/// Hyprland's stand-ins for what uQ brings itself, and the modules uQ's rules allow.
+#[test]
+fn a_first_setup_that_installs_uq_is_planned_for_uq() {
+    let sel = Selection { profile: Some("desktop".into()), include: vec!["uq".into()], ..Default::default() };
+    let p = resolve(&Catalog::arch().unwrap(), &on("hyprland"), &sel, &|_| None).unwrap();
+    for hyprlands in ["copyq", "screenshots", "media-players", "uniform-theme"] {
+        assert!(!p.modules.contains(&hyprlands.to_string()), "{hyprlands} is planned on uQ");
+        assert!(p.skipped.iter().any(|(id, _)| id == hyprlands), "{hyprlands} has no reason");
+    }
+    assert!(print_key(&p).is_empty(), "uQ binds Print itself");
+    // The same modules as on a system where uQ is already installed.
+    let later = resolve(&Catalog::arch().unwrap(), &on("uq"), &sel, &|_| None).unwrap();
+    assert_eq!(p.modules, later.modules);
+    // Without uQ chosen, Hyprland keeps its own.
+    assert!(plan(&on("hyprland")).modules.contains(&"copyq".to_string()));
+}
+
+/// uq-dev (Developer profile) requires uq but is only for uQ systems: on another desktop
+/// that requirement must not make the plan one for uQ and install it.
+#[test]
+fn the_developer_profile_does_not_bring_uq_to_another_desktop() {
+    let catalog = Catalog::arch().unwrap();
+    let facts = Facts {
+        distro_id: "arch".into(),
+        desktops: vec!["plasma".into()],
+        desktop_tags: vec!["desktop".into(), "desktop:plasma".into()],
+        ..Default::default()
+    };
+    let sel = Selection { profile: Some("developer".into()), ..Default::default() };
+    let plan = resolve(&catalog, &facts, &sel, &|_| None).unwrap();
+    assert!(!plan.modules.iter().any(|m| m == "uq-dev" || m == "uq"), "{:?}", plan.modules);
+}

@@ -21,5 +21,6 @@ pub mod snapshot;
 pub mod sys;
 pub mod tty;
 mod user;
+pub use user::AurLeftOut;
 pub mod whatsnew;
 pub mod whatsnew_state;
